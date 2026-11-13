@@ -1,0 +1,2177 @@
+[
+  {
+    "id": "RCC_CR",
+    "off": "0x00",
+    "reset": "0x00000083",
+    "access": "RW / RO",
+    "summary": "开启时钟源并检查是否就绪。HSICAL 读出出厂校准值。",
+    "fields": [
+      [
+        "25",
+        "PLLRDY",
+        "硬件在 PLL 锁定后置 1，PLL 关闭或失锁时清零。"
+      ],
+      [
+        "24",
+        "PLLON",
+        "PLL 开关。",
+        "0｜关闭 PLL。若 PLL 是当前或请求的 SYSCLK，先切换到其他源。\n1｜开启 PLL，等 PLLRDY 置位再切换。"
+      ],
+      [
+        "19",
+        "CSSON",
+        "HSE 时钟安全系统。",
+        "0｜关闭监测。\n1｜HSE 就绪后开启监测。故障时置 CSSF 并触发 NMI。"
+      ],
+      [
+        "18",
+        "HSEBYP",
+        "HSE 旁路选择，仅在 HSE 关闭时修改。",
+        "写入前提｜先关 HSE，再改旁路选择。\n0｜使用晶振。\n1｜旁路振荡器，由 OSC_IN 输入外部时钟。"
+      ],
+      [
+        "17",
+        "HSERDY",
+        "硬件在外部时钟稳定后置 1；关闭 HSE 后等待此位清零再改旁路。"
+      ],
+      [
+        "16",
+        "HSEON",
+        "HSE 开关。",
+        "0｜关闭 HSE。若系统时钟直接或间接依赖 HSE，先切换时钟源。\n1｜开启 HSE，检查 HSERDY。"
+      ],
+      [
+        "15:8",
+        "HSICAL",
+        "复位时硬件装载出厂校准值；软件微调写 HSITRIM。"
+      ],
+      [
+        "7:3",
+        "HSITRIM",
+        "软件微调 HSI。",
+        "0–31｜调整 HSI 频率，复位值为 16。可用 PA8 的 MCO 测量。"
+      ],
+      [
+        "1",
+        "HSIRDY",
+        "硬件在内部高速振荡器稳定后置 1。"
+      ],
+      [
+        "0",
+        "HSION",
+        "HSI 开关。",
+        "0｜关闭 HSI。若系统时钟直接或间接依赖 HSI，先切换时钟源。\n1｜开启 HSI，检查 HSIRDY。"
+      ]
+    ],
+    "example": {
+      "title": "检查 HSE 是否就绪",
+      "explanation": "本例仅读回 bit 17。若为 0，再检查板上晶振和 HSEON。",
+      "code": "const uint32_t hse_ready = (RCC->CR & RCC_CR_HSERDY) != 0u;"
+    },
+    "instances": "RCC",
+    "check": "晶振模式先置 HSEON。HSERDY 仍为 0 时查 HSEBYP、晶振及其接法，避免请求尚未就绪的时钟。"
+  },
+  {
+    "id": "RCC_CFGR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW / RO",
+    "summary": "选系统时钟，设置分频和 PLL。SWS 用于确认切换完成。",
+    "fields": [
+      [
+        "26:24",
+        "MCO",
+        "选择 MCO 的输出时钟源。STM32F103C8T6 的 MCO 默认复用到 PA8（LQFP48 第 29 脚）。",
+        "0xx｜关闭输出。\n100｜输出 SYSCLK。\n101｜输出 HSI。\n110｜输出 HSE。\n111｜输出 PLL ÷ 2。\n引脚条件｜将 PA8 配为复用输出，输出频率不得超过 50 MHz。切换源时脉冲可能被截断。"
+      ],
+      [
+        "22",
+        "USBPRE",
+        "USB 48 MHz 分频选择。先关闭 USB 门控再修改。",
+        "写入前提｜先关 USB 门控，再设置分频。\n0｜PLL ÷ 1.5，例如 PLL 72 MHz 时得到 48 MHz。\n1｜PLL 直接供给 USB，需使 PLL 为 48 MHz。"
+      ],
+      [
+        "21:18",
+        "PLLMUL",
+        "PLL 倍频系数，仅在 PLL 关闭时修改。",
+        "写入前提｜若正在用 PLL，先切换 SYSCLK。关闭 PLL 并确认 PLLRDY 为 0 后再改倍频。\n0000｜PLL 输入 × 2。\n0001｜PLL 输入 × 3。\n0010｜PLL 输入 × 4。\n0011｜PLL 输入 × 5。\n0100｜PLL 输入 × 6。\n0101｜PLL 输入 × 7。\n0110｜PLL 输入 × 8。\n0111｜PLL 输入 × 9。\n1000｜PLL 输入 × 10。\n1001｜PLL 输入 × 11。\n1010｜PLL 输入 × 12。\n1011｜PLL 输入 × 13。\n1100｜PLL 输入 × 14。\n1101｜PLL 输入 × 15。\n1110 / 1111｜PLL 输入 × 16。\n频率检查｜输出须在 16–72 MHz。8 MHz HSE 直入时，0111 得到 72 MHz。"
+      ],
+      [
+        "17",
+        "PLLXTPRE",
+        "PLL 关闭时配置 HSE 路径的分频。",
+        "写入前提｜PLL 关闭时才能修改。\n0｜HSE 直接进入 PLL。\n1｜HSE ÷ 2 后进入 PLL。"
+      ],
+      [
+        "16",
+        "PLLSRC",
+        "PLL 关闭时选择输入。",
+        "写入前提｜PLL 关闭时才能修改。\n0｜选择 HSI ÷ 2。\n1｜选择 HSE 路径，由 PLLXTPRE 决定是否除 2。"
+      ],
+      [
+        "15:14",
+        "ADCPRE",
+        "ADC 时钟分频。",
+        "00｜PCLK2 ÷ 2。\n01｜PCLK2 ÷ 4。\n10｜PCLK2 ÷ 6。\n11｜PCLK2 ÷ 8。\n频率检查｜ADC 时钟最高 14 MHz。"
+      ],
+      [
+        "13:11",
+        "PPRE2",
+        "APB2预分频。",
+        "0xx｜HCLK 不分频。\n100｜HCLK ÷ 2。\n101｜HCLK ÷ 4。\n110｜HCLK ÷ 8。\n111｜HCLK ÷ 16。\n配置检查｜PCLK2 最高 72 MHz。 分频为 1 时定时器取 PCLK，否则取 2 × PCLK。"
+      ],
+      [
+        "10:8",
+        "PPRE1",
+        "APB1预分频。",
+        "0xx｜HCLK 不分频。\n100｜HCLK ÷ 2。\n101｜HCLK ÷ 4。\n110｜HCLK ÷ 8。\n111｜HCLK ÷ 16。\n配置检查｜PCLK1 最高 36 MHz。 分频为 1 时定时器取 PCLK，否则取 2 × PCLK。"
+      ],
+      [
+        "7:4",
+        "HPRE",
+        "AHB 预分频，决定 HCLK。",
+        "0xxx｜SYSCLK 不分频。\n1000｜SYSCLK ÷ 2。\n1001｜SYSCLK ÷ 4。\n1010｜SYSCLK ÷ 8。\n1011｜SYSCLK ÷ 16。\n1100｜SYSCLK ÷ 64。\n1101｜SYSCLK ÷ 128。\n1110｜SYSCLK ÷ 256。\n1111｜SYSCLK ÷ 512。\n配置检查｜AHB 分频大于 1 时，开启 Flash 预取。"
+      ],
+      [
+        "3:2",
+        "SWS",
+        "硬件在系统时钟真正切换完成后更新。00 为 HSI，01 为 HSE，10 为 PLL，11 保留。"
+      ],
+      [
+        "1:0",
+        "SW",
+        "请求切换系统时钟。",
+        "00｜请求 HSI。\n01｜请求 HSE。\n10｜请求 PLL。\n11｜不可用。\n切换确认｜等目标时钟就绪，再读取 SWS，直到它与请求一致。"
+      ]
+    ],
+    "example": {
+      "title": "判断当前是否使用 PLL",
+      "explanation": "掩码选 SWS[3:2]。读回 10 才表示切换完成。",
+      "code": "const uint32_t pll_in_use = (RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL;"
+    },
+    "instances": "RCC",
+    "check": "若 SWS 仍为 00，先核对 SW 的请求值，再检查 CR 的 PLLRDY；SW 读回 10 只证明请求已写入。"
+  },
+  {
+    "id": "FLASH_ACR",
+    "off": "0x00",
+    "reset": "0x00000030",
+    "access": "RW / RO",
+    "summary": "按手册的 SYSCLK 档位选择 Flash 读等待周期，升频前配置。",
+    "fields": [
+      [
+        "5",
+        "PRFTBS",
+        "硬件报告预取缓冲区状态，1 为启用，0 为关闭。"
+      ],
+      [
+        "4",
+        "PRFTBE",
+        "预取控制。AHB 分频大于 1 时必须开启。",
+        "0｜关闭预取。\n1｜开启预取，可读 PRFTBS 确认状态。"
+      ],
+      [
+        "3",
+        "HLFCYA",
+        "半周期访问控制。",
+        "0｜禁止半周期访问。\n1｜允许半周期访问。仅在低速条件下使用，须关闭 PLL、AHB 不分频，并满足中文闪存手册第 7 页的条件。"
+      ],
+      [
+        "2:0",
+        "LATENCY",
+        "Flash 读取的等待周期。",
+        "000｜0 个等待周期，0 < SYSCLK ≤ 24 MHz。\n001｜1 个等待周期，24 < SYSCLK ≤ 48 MHz。\n010｜2 个等待周期，48 < SYSCLK ≤ 72 MHz。\n011–111｜保留。\n配置顺序｜升频前先提高等待周期，降频后再降低。"
+      ]
+    ],
+    "example": {
+      "title": "为升到 72 MHz 提前设 2 WS",
+      "explanation": "清 LATENCY 位再写 2，其他配置保持原值。确认读回后再切时钟。",
+      "code": "FLASH->ACR = (FLASH->ACR & ~FLASH_ACR_LATENCY) | FLASH_ACR_LATENCY_2;"
+    },
+    "instances": "FLASH",
+    "check": "读回 LATENCY=010 后才升频。若读回不同，先查 LATENCY 掩码及其他初始化是否重写 ACR。"
+  },
+  {
+    "id": "RCC_CIR",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "混合访问",
+    "summary": "记录振荡器就绪和 CSS 故障，标志与清除位独立。",
+    "fields": [
+      [
+        "23",
+        "CSSC",
+        "CSS 故障标志清除命令。",
+        "0｜无动作。\n1｜清除 CSSF。"
+      ],
+      [
+        "7",
+        "CSSF",
+        "CSS 检测到 HSE 故障时由硬件置 1，并产生 NMI；写 CSSC 清除。"
+      ],
+      [
+        "20:16",
+        "RDYC",
+        "从高到低对应 PLL、HSE、HSI、LSE、LSI。",
+        "0｜无动作。\n1｜清除对应的就绪中断标志。写入时保留 RDYIE 的配置。"
+      ],
+      [
+        "12:8",
+        "RDYIE",
+        "从高到低对应 PLL、HSE、HSI、LSE、LSI。",
+        "0｜禁止对应就绪中断。\n1｜允许对应就绪中断。"
+      ],
+      [
+        "4:0",
+        "RDYF",
+        "从高到低对应 PLL、HSE、HSI、LSE、LSI 的就绪中断标志。（只读）"
+      ]
+    ],
+    "example": {
+      "title": "清除 CSS 故障标志",
+      "explanation": "NMI 中先确认 CSSF 为 1。用 CSSC 命令清故障，同时保留当前就绪中断使能位。",
+      "code": "if (RCC->CIR & RCC_CIR_CSSF) {\n    RCC->CIR = (RCC->CIR & 0x1F00u) | RCC_CIR_CSSC;\n}"
+    },
+    "instances": "RCC",
+    "check": "读回 CSSF 应清零，就绪中断使能仍保留。若标志仍在，先查是否误向 CSSF 本身写入，或故障是否再次发生。"
+  },
+  {
+    "id": "RCC_APB1ENR",
+    "off": "0x1C",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "APB1 外设门控。APB2 门控见 GPIO 速查。",
+    "fields": [
+      [
+        "28",
+        "PWREN",
+        "PWR时钟门控。",
+        "0｜关闭PWR时钟。\n1｜开启PWR时钟。"
+      ],
+      [
+        "27",
+        "BKPEN",
+        "BKP时钟门控。",
+        "0｜关闭BKP时钟。\n1｜开启BKP时钟。"
+      ],
+      [
+        "25",
+        "CANEN",
+        "CAN时钟门控。",
+        "0｜关闭CAN时钟。\n1｜开启CAN时钟。"
+      ],
+      [
+        "23",
+        "USBEN",
+        "USB时钟门控。",
+        "0｜关闭USB时钟。\n1｜开启USB时钟。"
+      ],
+      [
+        "22",
+        "I2C2EN",
+        "I²C2时钟门控。",
+        "0｜关闭I²C2时钟。\n1｜开启I²C2时钟。"
+      ],
+      [
+        "21",
+        "I2C1EN",
+        "I²C1时钟门控。",
+        "0｜关闭I²C1时钟。\n1｜开启I²C1时钟。"
+      ],
+      [
+        "18",
+        "USART3EN",
+        "USART3时钟门控。",
+        "0｜关闭USART3时钟。\n1｜开启USART3时钟。"
+      ],
+      [
+        "17",
+        "USART2EN",
+        "USART2时钟门控。",
+        "0｜关闭USART2时钟。\n1｜开启USART2时钟。"
+      ],
+      [
+        "14",
+        "SPI2EN",
+        "SPI2时钟门控。",
+        "0｜关闭SPI2时钟。\n1｜开启SPI2时钟。"
+      ],
+      [
+        "11",
+        "WWDGEN",
+        "WWDG时钟门控。",
+        "0｜关闭WWDG时钟。\n1｜开启WWDG时钟。"
+      ],
+      [
+        "2",
+        "TIM4EN",
+        "TIM4时钟门控。",
+        "0｜关闭TIM4时钟。\n1｜开启TIM4时钟。"
+      ],
+      [
+        "1",
+        "TIM3EN",
+        "TIM3时钟门控。",
+        "0｜关闭TIM3时钟。\n1｜开启TIM3时钟。"
+      ],
+      [
+        "0",
+        "TIM2EN",
+        "TIM2时钟门控。",
+        "0｜关闭TIM2时钟。\n1｜开启TIM2时钟。"
+      ]
+    ],
+    "example": {
+      "title": "开启 USART2 时钟",
+      "explanation": "只置 bit 17。串口波特率仍按 PCLK1 计算。",
+      "code": "RCC->APB1ENR |= RCC_APB1ENR_USART2EN;\n(void)RCC->APB1ENR;"
+    },
+    "instances": "RCC",
+    "check": "读回 USART2EN=1 后才访问 USART2；若仍无响应，先核对用的是 USART2 基址而非 USART1。"
+  },
+  {
+    "id": "RCC_CSR",
+    "off": "0x24",
+    "reset": "0x0C000000",
+    "access": "混合访问",
+    "summary": "查询复位原因，控制 LSI。复位标志可累积。",
+    "fields": [
+      [
+        "31",
+        "LPWRRSTF",
+        "1 表示发生过低功耗复位。（只读）"
+      ],
+      [
+        "30",
+        "WWDGRSTF",
+        "1 表示发生过窗口看门狗复位。（只读）"
+      ],
+      [
+        "29",
+        "IWDGRSTF",
+        "1 表示发生过独立看门狗复位。（只读）"
+      ],
+      [
+        "28",
+        "SFTRSTF",
+        "1 表示发生过软件复位。（只读）"
+      ],
+      [
+        "27",
+        "PORRSTF",
+        "1 表示发生过上电或掉电复位。（只读）"
+      ],
+      [
+        "26",
+        "PINRSTF",
+        "1 表示发生过NRST 引脚复位。（只读）"
+      ],
+      [
+        "24",
+        "RMVF",
+        "清除复位来源记录。",
+        "0｜无动作。\n1｜清除全部复位来源标志。排故时先读并保存原值。"
+      ],
+      [
+        "1",
+        "LSIRDY",
+        "硬件在内部低速振荡器稳定后置 1。"
+      ],
+      [
+        "0",
+        "LSION",
+        "LSI 开关。",
+        "0｜关闭 LSI。\n1｜开启 LSI，等 LSIRDY 置位。"
+      ]
+    ],
+    "example": {
+      "title": "保存复位原因再清标志",
+      "explanation": "启动早期先保存 CSR。调试器可检查 reset_flags；置 RMVF 时保持 LSION 原状态。",
+      "code": "const uint32_t reset_flags = RCC->CSR;\nRCC->CSR = (reset_flags & RCC_CSR_LSION) | RCC_CSR_RMVF;"
+    },
+    "instances": "RCC",
+    "check": "除非再次复位，清后复位来源标志应为 0。异常时先检查是否在记录前已有初始化清过 RMVF。"
+  },
+  {
+    "id": "AFIO_MAPR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW / SWJ_CFG 仅写",
+    "summary": "选择复用功能的引脚组。SWJ_CFG 读回值未定义。",
+    "fields": [
+      [
+        "26:24",
+        "SWJ_CFG",
+        "配置 JTAG/SWD。此字段只写，读回未定义。",
+        "000｜开启 JTAG 和 SWD（复位值）。\n001｜开启 JTAG 和 SWD，不使用 NJTRST。\n010｜关闭 JTAG，保留 SWD。\n100｜关闭 JTAG 和 SWD。\n其他组合｜保留，避免写入。\n改写要求｜写 MAPR 时明确填入需要的 SWJ_CFG，避免把未定义的读回值写回。"
+      ],
+      [
+        "20",
+        "ADC2_ETRGREG_REMAP",
+        "ADC2 规则组外部事件重映射。",
+        "0｜EXTSEL=110 时用 EXTI11。\n1｜转接 TIM8_TRGO，本型号无 TIM8，保持 0。"
+      ],
+      [
+        "19",
+        "ADC2_ETRGINJ_REMAP",
+        "ADC2 注入组外部事件重映射。",
+        "0｜JEXTSEL=110 时用 EXTI15。\n1｜转接 TIM8_CC4，本型号无 TIM8，保持 0。"
+      ],
+      [
+        "18",
+        "ADC1_ETRGREG_REMAP",
+        "ADC1 规则组外部事件重映射。",
+        "0｜EXTSEL=110 时用 EXTI11。\n1｜转接 TIM8_TRGO，本型号无 TIM8，保持 0。"
+      ],
+      [
+        "17",
+        "ADC1_ETRGINJ_REMAP",
+        "ADC1 注入组外部事件重映射。",
+        "0｜JEXTSEL=110 时用 EXTI15。\n1｜转接 TIM8_CC4，本型号无 TIM8，保持 0。"
+      ],
+      [
+        "15",
+        "PD01_REMAP",
+        "LQFP48 的第 5、6 脚在复位时是 OSC_IN/OSC_OUT。",
+        "0｜保留 HSE 引脚功能。\n1｜停用 HSE 后，改作 PD0/PD1 的 GPIO。输出 MODE 只能选 50 MHz。这两脚的重映射仅提供 GPIO 功能，不能触发 EXTI0/1，也不能作 CAN_RX/TX。"
+      ],
+      [
+        "14:13",
+        "CAN_REMAP",
+        "选择 bxCAN 的收发引脚。",
+        "00｜PA11 RX、PA12 TX。\n01｜保留。\n10｜PB8 RX、PB9 TX。\n11｜PD0/PD1 仅在原生引出该复用的封装可用。LQFP48 禁用此组合。"
+      ],
+      [
+        "12",
+        "TIM4_REMAP",
+        "改变 TIM4 的四个通道。",
+        "0｜PB6–9。\n1｜PD12–15，本封装未引出。"
+      ],
+      [
+        "11:10",
+        "TIM3_REMAP",
+        "改变 TIM3 的四个通道。",
+        "00｜PA6/PA7/PB0/PB1。\n01｜保留。\n10｜PB4/PB5/PB0/PB1，PB4 需释放 JTAG。\n11｜PC6–9，本封装未引出。"
+      ],
+      [
+        "9:8",
+        "TIM2_REMAP",
+        "改变 TIM2 的四个通道。",
+        "00｜PA0/PA1/PA2/PA3。\n01｜PA15/PB3/PA2/PA3。\n10｜PA0/PA1/PB10/PB11。\n11｜PA15/PB3/PB10/PB11。ETR 随 CH1，PB3/PA15 需释放 JTAG。"
+      ],
+      [
+        "7:6",
+        "TIM1_REMAP",
+        "切换 TIM1 通道和刹车脚。",
+        "00｜CH1–4 为 PA8–11，ETR PA12，BKIN PB12，互补 PB13–15。\n01｜CH1–4 与 ETR 保持，BKIN PA6，互补 PA7/PB0/PB1。\n10｜保留。\n11｜全重映射到 PE，本封装未引出。"
+      ],
+      [
+        "5:4",
+        "USART3_REMAP",
+        "选择 USART3 引脚组。",
+        "00｜PB10/11/12/13/14 对应 TX/RX/CK/CTS/RTS。\n01｜PC10/11/12 的 TX/RX/CK 在本封装未引出，CTS/RTS 仍为 PB13/14。\n10｜保留。\n11｜PD8–12，本封装未引出。"
+      ],
+      [
+        "3",
+        "USART2_REMAP",
+        "选择 USART2 引脚组。",
+        "0｜PA0/1/2/3/4 对应 CTS/RTS/TX/RX/CK。\n1｜PD3/4/5/6/7，本封装未引出。"
+      ],
+      [
+        "2",
+        "USART1_REMAP",
+        "USART1 的 TX/RX 映射。",
+        "0｜TX→PA9，RX→PA10。\n1｜TX→PB6，RX→PB7。"
+      ],
+      [
+        "1",
+        "I2C1_REMAP",
+        "I²C1 的 SCL/SDA 映射。",
+        "0｜SCL→PB6，SDA→PB7。\n1｜SCL→PB8，SDA→PB9。"
+      ],
+      [
+        "0",
+        "SPI1_REMAP",
+        "选择 SPI1 的引脚组。",
+        "0｜NSS/SCK/MISO/MOSI 为 PA4/PA5/PA6/PA7。\n1｜依次为 PA15/PB3/PB4/PB5。保留 SWD 时关闭 JTAG 释放 PA15/PB3/PB4。"
+      ]
+    ],
+    "example": {
+      "title": "从复位状态重映射 USART1",
+      "explanation": "先使能 AFIO 时钟。示例约定当前 MAPR 为复位默认值，保留 SWJ；项目若已配置其他映射，应维护含预期 SWJ_CFG 的软件值。",
+      "code": "AFIO->MAPR = AFIO_MAPR_USART1_REMAP;"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "USART1_REMAP 应读 1；换到 PB6/PB7 测信号。若仍在 PA9/PA10，先检查 AFIOEN 与引脚配置，勿用 SWJ_CFG 的读回值验证调试模式。"
+  },
+  {
+    "id": "AFIO_EVCR",
+    "off": "0x00",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "把内核事件输出接到一个指定引脚。",
+    "fields": [
+      [
+        "7",
+        "EVOE",
+        "Cortex EVENTOUT 输出使能。",
+        "0｜断开事件输出。\n1｜把 EVENTOUT 接到 PORT/PIN 指定引脚。"
+      ],
+      [
+        "6:4",
+        "PORT",
+        "选择事件输出端口。",
+        "000｜PA。\n001｜PB。\n010｜PC。\n011｜PD，核对封装。\n100｜PE，本封装未引出。\n101–111｜保留。"
+      ],
+      [
+        "3:0",
+        "PIN",
+        "选择事件输出引脚。",
+        "0000–1111｜分别选引脚 0–15，须在封装上可用并配置相应复用输出。"
+      ]
+    ],
+    "example": {
+      "title": "选择 PA1 输出内核事件",
+      "explanation": "开 AFIO/GPIOA 时钟，把 PA1 配为复用推挽。本例使用独立接线，执行 SEV 后可用逻辑分析仪观察脉冲。",
+      "code": "AFIO->EVCR = (1u << 7) | 1u;\n__SEV();"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "读回 PORT=000、PIN=0001、EVOE=1；无脉冲时先查 PA1 是否为复用推挽，再确认执行过 SEV。"
+  },
+  {
+    "id": "AFIO_EXTICR1",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为 EXTI0–3 选择输入端口。每条线占 4 位。",
+    "fields": [
+      [
+        "15:12",
+        "EXTI3",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "11:8",
+        "EXTI2",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "7:4",
+        "EXTI1",
+        "选择同编号的 GPIO 端口。 LQFP48 重映射后的 PD0/PD1 不具备 EXTI 功能。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx（LQFP48 的 PD0/PD1 不可用），需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "3:0",
+        "EXTI0",
+        "选择同编号的 GPIO 端口。 LQFP48 重映射后的 PD0/PD1 不具备 EXTI 功能。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx（LQFP48 的 PD0/PD1 不可用），需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ]
+    ],
+    "example": {
+      "title": "将 PB0 接到 EXTI0",
+      "explanation": "先开启 AFIO 时钟。该线在组内第一个字段，掩码 0xF，只改低四位。",
+      "code": "AFIO->EXTICR[0] = (AFIO->EXTICR[0] & ~0xFu) | 1u;"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "读回低四位与端口编码一致。若 GPIO 输入变化却没捕获，先核对同号 EXTI 线与 EXTICR 组号，再查边沿和屏蔽。"
+  },
+  {
+    "id": "AFIO_EXTICR2",
+    "off": "0x0C",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为 EXTI4–7 选择输入端口。每条线占 4 位。",
+    "fields": [
+      [
+        "15:12",
+        "EXTI7",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "11:8",
+        "EXTI6",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "7:4",
+        "EXTI5",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "3:0",
+        "EXTI4",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ]
+    ],
+    "example": {
+      "title": "将 PA4 接到 EXTI4",
+      "explanation": "先开启 AFIO 时钟。该线在组内第一个字段，掩码 0xF，只改低四位。",
+      "code": "AFIO->EXTICR[1] = (AFIO->EXTICR[1] & ~0xFu) | 0u;"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "读回低四位与端口编码一致。若 GPIO 输入变化却没捕获，先核对同号 EXTI 线与 EXTICR 组号，再查边沿和屏蔽。"
+  },
+  {
+    "id": "AFIO_EXTICR3",
+    "off": "0x10",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为 EXTI8–11 选择输入端口。每条线占 4 位。",
+    "fields": [
+      [
+        "15:12",
+        "EXTI11",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "11:8",
+        "EXTI10",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "7:4",
+        "EXTI9",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "3:0",
+        "EXTI8",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ]
+    ],
+    "example": {
+      "title": "将 PA8 接到 EXTI8",
+      "explanation": "先开启 AFIO 时钟。该线在组内第一个字段，掩码 0xF，只改低四位。",
+      "code": "AFIO->EXTICR[2] = (AFIO->EXTICR[2] & ~0xFu) | 0u;"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "读回低四位与端口编码一致。若 GPIO 输入变化却没捕获，先核对同号 EXTI 线与 EXTICR 组号，再查边沿和屏蔽。"
+  },
+  {
+    "id": "AFIO_EXTICR4",
+    "off": "0x14",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为 EXTI12–15 选择输入端口。每条线占 4 位。",
+    "fields": [
+      [
+        "15:12",
+        "EXTI15",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "11:8",
+        "EXTI14",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "7:4",
+        "EXTI13",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ],
+      [
+        "3:0",
+        "EXTI12",
+        "选择同编号的 GPIO 端口。",
+        "0000｜选择 PAx。\n0001｜选择 PBx。\n0010｜选择 PCx。\n0011｜选择 PDx，需核对芯片封装和引脚限制。\n0100–0110｜对应 PE、PF、PG，本型号 LQFP48 未引出。\n0111–1111｜保留。"
+      ]
+    ],
+    "example": {
+      "title": "将 PA12 接到 EXTI12",
+      "explanation": "先开启 AFIO 时钟。该线在组内第一个字段，掩码 0xF，只改低四位。",
+      "code": "AFIO->EXTICR[3] = (AFIO->EXTICR[3] & ~0xFu) | 0u;"
+    },
+    "instances": "AFIO，GPIO 外部中断线 0–15 或复用引脚",
+    "check": "读回低四位与端口编码一致。若 GPIO 输入变化却没捕获，先核对同号 EXTI 线与 EXTICR 组号，再查边沿和屏蔽。"
+  },
+  {
+    "id": "EXTI_IMR",
+    "off": "0x00",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "允许指定线向 NVIC 发中断请求。内部线 16 为 PVD，17 为 RTC Alarm，18 为 USB 唤醒。先配置对应外设，再设置边沿和屏蔽。",
+    "fields": [
+      [
+        "18:0",
+        "MRx",
+        "每条线的中断屏蔽。",
+        "0｜屏蔽该线中断请求。\n1｜开放该线中断请求，CPU 响应仍取决于 NVIC 等条件。"
+      ]
+    ],
+    "example": {
+      "title": "开放 EXTI0",
+      "explanation": "先配置路由和边沿，清旧挂起并启用 NVIC。MR0 写 1 后请求可进入 NVIC。",
+      "code": "EXTI->IMR |= 1u << 0;"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "读回 MR0=1，触发后应进 EXTI0 ISR。PR0 已置位却不进 ISR 时查 NVIC 使能和全局屏蔽。"
+  },
+  {
+    "id": "EXTI_EMR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "允许指定线产生事件，供事件机制使用。",
+    "fields": [
+      [
+        "18:0",
+        "MRx",
+        "每条线的事件屏蔽。",
+        "0｜屏蔽该线事件。\n1｜开放事件输出，可用于 WFE。"
+      ]
+    ],
+    "example": {
+      "title": "只让 EXTI0 走事件路径",
+      "explanation": "在独立实验中配置好路由和边沿后，屏蔽中断并开放事件。WFE 可以收到事件。",
+      "code": "EXTI->IMR &= ~(1u << 0);\nEXTI->EMR |= 1u << 0;"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "读回 EMR0=1、IMR0=0；用 WFE 和实际边沿验证事件路径。无事件时先确认 AFIO 路由及所选边沿。"
+  },
+  {
+    "id": "EXTI_RTSR",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为每条线选择上升沿。",
+    "fields": [
+      [
+        "18:0",
+        "TRx",
+        "每条线的上升沿检测。",
+        "0｜关闭上升沿检测。\n1｜开启上升沿检测。下降沿由 FTSR 独立控制。"
+      ]
+    ],
+    "example": {
+      "title": "用上升沿检测 PA0 的释放",
+      "explanation": "PA0 使用上拉，松开时从低变高。若只检测释放，清对应 FTSR。",
+      "code": "EXTI->FTSR &= ~(1u << 0);\nEXTI->RTSR |= 1u << 0;"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "释放 PA0 后检查 PR0 或 ISR 计数；若按下也触发，先确认 FTSR0 已清，并排除触点抖动。"
+  },
+  {
+    "id": "EXTI_FTSR",
+    "off": "0x0C",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "为每条线选择下降沿。",
+    "fields": [
+      [
+        "18:0",
+        "TRx",
+        "每条线的下降沿检测。",
+        "0｜关闭下降沿检测。\n1｜开启下降沿检测。上升沿由 RTSR 独立控制。"
+      ]
+    ],
+    "example": {
+      "title": "用下降沿检测 PA0 的按下",
+      "explanation": "PA0 使用上拉，按下接地。只在该线开启下降沿。",
+      "code": "EXTI->RTSR &= ~(1u << 0);\nEXTI->FTSR |= 1u << 0;"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "按下 PA0 后检查 PR0 或 ISR 计数；无请求时先读 IDR0 验证确有高到低变化。"
+  },
+  {
+    "id": "EXTI_SWIER",
+    "off": "0x10",
+    "reset": "0x00000000",
+    "access": "软件置位",
+    "summary": "用软件生成指定线请求。清对应 PR 后可再次触发。",
+    "fields": [
+      [
+        "18:0",
+        "SWIERx",
+        "从软件触发对应 EXTI 线。",
+        "0｜不产生软件请求。\n1｜原位为 0 时触发该线，置 PR。中断/事件输出分别受 IMR/EMR 控制。清对应 PR 可清 SWIER。"
+      ]
+    ],
+    "example": {
+      "title": "绕过引脚触发 EXTI0",
+      "explanation": "确认 IMR0、NVIC 已使能且 PR0 已清。观察 ISR 是否运行。",
+      "code": "EXTI->SWIER = 1u << 0;"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "断点检查 ISR 或观察计数递增；若第一次能触发、后续无效，先检查对应 PR 是否已按 W1C 清掉。"
+  },
+  {
+    "id": "EXTI_PR",
+    "off": "0x14",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "summary": "记录哪条线已经收到触发，供 ISR 确认来源和应答。",
+    "fields": [
+      [
+        "18:0",
+        "PRx",
+        "硬件在选中的边沿到达或软件请求生效时置位。读 1 表示该线有挂起；读操作不清除。",
+        "0｜保持原状态。\n1｜清指定线的挂起。用直接赋值写掩码，避免读改写误清其他线。"
+      ]
+    ],
+    "example": {
+      "title": "只清 EXTI0 的挂起",
+      "explanation": "在 EXTI0 ISR 确认来源后直接写 bit 0，其他同时挂起的线保持原值。",
+      "code": "if (EXTI->PR & (1u << 0)) {\n    EXTI->PR = 1u << 0;\n}"
+    },
+    "instances": "EXTI，线 0–18",
+    "check": "读回 PR0=0，其他未处理的挂起保持。若用 PR |= mask，读到的其他 1 会一起被写回清除。若 PR0 再置位，检查是否出现新边沿。"
+  },
+  {
+    "id": "SCB_VTOR",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "选择向量表基址。STM32F1 启动代码应使用满足向量对齐要求的地址。",
+    "fields": [
+      [
+        "高位",
+        "TBLOFF",
+        "向量表基地址字段。",
+        "写入对齐地址｜后续异常从新表取向量。先核对链接地址和向量表对齐，STM32F103 的 SPL 配置采用 0x200 对齐。"
+      ]
+    ],
+    "example": {
+      "title": "指向应用在 Flash 起始处的向量表",
+      "explanation": "工程已把向量放在 0x08000000。设置后读回 VTOR；使用 AXF 核对向量表符号。",
+      "code": "SCB->VTOR = FLASH_BASE;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "读回 0x08000000，再触发已知 IRQ 验证向量。若进默认处理函数，先核对链接地址、对齐和向量入口。"
+  },
+  {
+    "id": "SCB_AIRCR",
+    "off": "0x0C",
+    "reset": "0xFA050000",
+    "access": "混合访问",
+    "summary": "异常优先级分组与系统复位请求。",
+    "fields": [
+      [
+        "31:16",
+        "VECTKEY",
+        "写 AIRCR 的钥匙，读取为 VECTKEYSTAT。",
+        "0x05FA｜允许本次写入。\n其他值｜忽略本次写入。"
+      ],
+      [
+        "10:8",
+        "PRIGROUP",
+        "决定 F103 的四位优先级如何分配。",
+        "000–011｜4 位抢占、0 位子优先级。\n100｜3 位抢占、1 位子优先级。\n101｜2 位抢占、2 位子优先级。\n110｜1 位抢占、3 位子优先级。\n111｜0 位抢占、4 位子优先级。"
+      ],
+      [
+        "2",
+        "SYSRESETREQ",
+        "系统复位请求。",
+        "0｜不请求复位。\n1｜请求系统复位，例如调用 NVIC_SystemReset()。"
+      ]
+    ],
+    "example": {
+      "title": "确认分组是否为 5",
+      "explanation": "移位取三位。修改分组建议用 CMSIS，在应用配置阶段统一设置。",
+      "code": "const uint32_t group = (SCB->AIRCR >> 8) & 7u;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "若期望分组 5 而结果不同，先查写操作是否同时传入 0x05FA，再查启动代码是否重写了分组。"
+  },
+  {
+    "id": "NVIC_ISER",
+    "off": "0x000（NVIC）",
+    "reset": "0x00000000",
+    "access": "读使能 / 写 1 置位",
+    "summary": "允许外部 IRQ 参与内核仲裁。",
+    "fields": [
+      [
+        "每字 32 位",
+        "SETENA",
+        "IRQn ÷32 选寄存器，IRQn mod 32 选位。",
+        "0｜保持原使能状态。\n1｜允许该 IRQ，读回对应位为 1。禁用应写 ICER 对应位。"
+      ]
+    ],
+    "example": {
+      "title": "使能 EXTI0 向量",
+      "explanation": "EXTI0_IRQn 为 6，直接写 ISER[0] bit 6，其他 IRQ 使能保持。",
+      "code": "NVIC->ISER[0] = 1u << EXTI0_IRQn;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "读回 ISER[0] bit 6 为 1。若 EXTI0 仍不进 ISR，查外设 PR/IMR、PRIMASK 和向量入口。"
+  },
+  {
+    "id": "NVIC_IPR",
+    "off": "0x300（NVIC）",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "保存外部 IRQ 的优先级。每个 IRQ 对应一个字节，F103 实现高四位。",
+    "fields": [
+      [
+        "7:4",
+        "PRI_N",
+        "每个 IRQ 优先级字节的高四位。",
+        "0x00–0xF0（步长 0x10）｜编码从 0 到 15。结合 AIRCR.PRIGROUP 解释优先级，数值越小优先级越高。"
+      ]
+    ],
+    "example": {
+      "title": "设置 EXTI0 为抢占 1、子优先级 0",
+      "explanation": "分组 5 时逻辑优先级编码为 4，存进字节高半部得到 0x40。",
+      "code": "NVIC->IP[EXTI0_IRQn] = 0x40u;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "字节应读 0x40。抢占结果不符时，先读 AIRCR.PRIGROUP，再确认没有把已左移的 0x40 传给 NVIC_SetPriority。"
+  },
+  {
+    "id": "SYST_CSR",
+    "off": "0x00（SysTick）",
+    "reset": "0x00000000",
+    "access": "混合访问",
+    "summary": "SysTick 运行、时钟与异常使能。",
+    "fields": [
+      [
+        "16",
+        "COUNTFLAG",
+        "倒数到 0 时置位。读 CTRL 会清此标志。（只读）"
+      ],
+      [
+        "2",
+        "CLKSOURCE",
+        "计数时钟选择。",
+        "0｜选 HCLK ÷ 8。\n1｜选 HCLK。"
+      ],
+      [
+        "1",
+        "TICKINT",
+        "SysTick 异常使能。",
+        "0｜倒数到 0 时不请求异常。\n1｜倒数到 0 时请求 SysTick 异常。"
+      ],
+      [
+        "0",
+        "ENABLE",
+        "计数器开关。",
+        "0｜停止计数。\n1｜开始计数。"
+      ]
+    ],
+    "example": {
+      "title": "以 HCLK 启动 SysTick 异常",
+      "explanation": "先设 LOAD 和 VAL，定义 SysTick_Handler。开启后按 LOAD+1 周期产生异常。",
+      "code": "SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |\n                SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "以 HCLK=8 MHz、LOAD=7999 为例，ISR 每约 1 ms 运行一次。若只计数不进 ISR，先查 TICKINT 和 SysTick_Handler；Watch 自动读取 CTRL 会清 COUNTFLAG。"
+  },
+  {
+    "id": "SYST_RVR",
+    "off": "0x04（SysTick）",
+    "reset": "未定义",
+    "access": "RW",
+    "summary": "24 位重载值，对应 CMSIS 的 LOAD。",
+    "fields": [
+      [
+        "23:0",
+        "RELOAD",
+        "24 位重载值。",
+        "1–0xFFFFFF｜每个周期为 RELOAD + 1 个计数时钟。\n0｜不产生有效的周期性倒数到零事件。"
+      ]
+    ],
+    "example": {
+      "title": "按 8 MHz 得到 1 ms 周期",
+      "explanation": "配置时先停计数器。使用 HCLK，写入 8000−1，再清 VAL。",
+      "code": "SysTick->LOAD = 8000u - 1u;\nSysTick->VAL = 0u;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "读回 LOAD=7999，再启用计数并量两个节拍之间约 1 ms。周期不符先核对 CLKSOURCE 与 HCLK。"
+  },
+  {
+    "id": "SYST_CVR",
+    "off": "0x08（SysTick）",
+    "reset": "未定义",
+    "access": "读当前值 / 写清零",
+    "summary": "对应 CMSIS 的 VAL。写任意值清计数和 COUNTFLAG。",
+    "fields": [
+      [
+        "23:0",
+        "CURRENT",
+        "读出当前计数值。",
+        "任意值｜清当前计数和 COUNTFLAG，下个计数时钟从 LOAD 重载。"
+      ]
+    ],
+    "example": {
+      "title": "从完整周期重新计数",
+      "explanation": "已设置 LOAD。写 VAL 后从下次重载开始，避免沿用旧计数。",
+      "code": "SysTick->VAL = 0u;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "写入后清 CURRENT 和 COUNTFLAG，下一计数时钟开始重新装载 LOAD。若没有继续走动，先查 CTRL.ENABLE 和时钟源。"
+  },
+  {
+    "id": "DBGMCU_CR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "配置低功耗调试和断点期间外设冻结。部分修订芯片须在调试模式访问，参见 ES096 §2.2.2。",
+    "fields": [
+      [
+        "16",
+        "DBG_I2C2_SMBUS_TIMEOUT",
+        "调试停机时控制 I2C2 SMBus 超时。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "15",
+        "DBG_I2C1_SMBUS_TIMEOUT",
+        "调试停机时控制 I2C1 SMBus 超时。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "14",
+        "DBG_CAN1_STOP",
+        "调试停机时控制 CAN1 接收寄存器更新。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "13",
+        "DBG_TIM4_STOP",
+        "调试停机时控制 TIM4 计数。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "12",
+        "DBG_TIM3_STOP",
+        "调试停机时控制 TIM3 计数。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "11",
+        "DBG_TIM2_STOP",
+        "内核停机时的TIM2控制。",
+        "0｜停机期间TIM2继续计数。\n1｜停机期间冻结TIM2计数。"
+      ],
+      [
+        "10",
+        "DBG_TIM1_STOP",
+        "调试停机时控制 TIM1 计数。",
+        "0｜继续运行。\n1｜调试停机时冻结。"
+      ],
+      [
+        "9",
+        "DBG_WWDG_STOP",
+        "内核停机时的WWDG控制。",
+        "0｜停机期间WWDG继续计数。\n1｜停机期间冻结WWDG计数。"
+      ],
+      [
+        "8",
+        "DBG_IWDG_STOP",
+        "内核停机时的IWDG控制。",
+        "0｜停机期间IWDG继续计数。\n1｜停机期间冻结IWDG计数。"
+      ],
+      [
+        "7:6",
+        "TRACE_MODE",
+        "选择跟踪引脚协议。",
+        "00｜异步 SWO。\n01｜同步 1 位。\n10｜同步 2 位。\n11｜同步 4 位。LQFP48 以引脚实际可用性为准。"
+      ],
+      [
+        "5",
+        "TRACE_IOEN",
+        "分配跟踪引脚。",
+        "0｜不占用跟踪引脚。\n1｜按 TRACE_MODE 分配，检查 PB3 与 SPI1/JTAG 冲突。"
+      ],
+      [
+        "2",
+        "DBG_STANDBY",
+        "Standby模式的调试保持。",
+        "0｜按正常低功耗行为运行。\n1｜进入Standby时保持调试所需的时钟。"
+      ],
+      [
+        "1",
+        "DBG_STOP",
+        "Stop模式的调试保持。",
+        "0｜按正常低功耗行为运行。\n1｜进入Stop时保持调试所需的时钟。"
+      ],
+      [
+        "0",
+        "DBG_SLEEP",
+        "Sleep模式的调试保持。",
+        "0｜按正常低功耗行为运行。\n1｜进入Sleep时保持调试所需的时钟。"
+      ]
+    ],
+    "example": {
+      "title": "单步时冻结 TIM2",
+      "explanation": "在定时器实验中设置后下断点。检查停机期间 CNT 保持，再恢复运行。",
+      "code": "DBGMCU->CR |= 1u << 11;"
+    },
+    "instances": "DBGMCU",
+    "check": "在同一断点停留时比较两次 TIM2 CNT 读数，应不变；恢复运行后应继续计数。无差异先查 bit 11 与调试器是否重新写 CR。"
+  },
+  {
+    "id": "RCC_AHBENR",
+    "off": "0x14",
+    "reset": "0x00000014",
+    "access": "RW",
+    "summary": "AHB 外设门控。",
+    "fields": [
+      [
+        "6",
+        "CRCEN",
+        "CRC时钟门控。",
+        "0｜关闭CRC时钟。\n1｜开启CRC时钟。"
+      ],
+      [
+        "4",
+        "FLITFEN",
+        "Sleep 中的 Flash 接口时钟。",
+        "0｜Sleep 时停接口时钟。\n1｜Sleep 时保持接口时钟。"
+      ],
+      [
+        "2",
+        "SRAMEN",
+        "Sleep 中的 SRAM 接口时钟。",
+        "0｜Sleep 时停接口时钟。\n1｜Sleep 时保持接口时钟。"
+      ],
+      [
+        "0",
+        "DMA1EN",
+        "DMA1时钟门控。",
+        "0｜关闭DMA1时钟。\n1｜开启DMA1时钟。"
+      ]
+    ],
+    "example": {
+      "title": "为后续采样启用 DMA1",
+      "explanation": "只置 bit 0，再配置 DMA1 通道。",
+      "code": "RCC->AHBENR |= RCC_AHBENR_DMA1EN;\n(void)RCC->AHBENR;"
+    },
+    "instances": "RCC",
+    "check": "读回 DMA1EN=1 后访问 DMA1。若请求仍不搬运，查通道使能、请求映射和外设侧 DMA 请求位。"
+  },
+  {
+    "id": "RCC_APB2RSTR",
+    "off": "0x0C",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "对 APB2 选定外设施加复位。",
+    "fields": [
+      [
+        "14",
+        "USART1RST",
+        "通过 RCC 复位 USART1。",
+        "0｜释放 USART1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "12",
+        "SPI1RST",
+        "通过 RCC 复位 SPI1。",
+        "0｜释放 SPI1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "11",
+        "TIM1RST",
+        "通过 RCC 复位 TIM1。",
+        "0｜释放 TIM1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "10",
+        "ADC2RST",
+        "通过 RCC 复位 ADC2。",
+        "0｜释放 ADC2 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "9",
+        "ADC1RST",
+        "通过 RCC 复位 ADC1。",
+        "0｜释放 ADC1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "5",
+        "IOPDRST",
+        "通过 RCC 复位 IOPD。",
+        "0｜释放 IOPD 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "4",
+        "IOPCRST",
+        "通过 RCC 复位 IOPC。",
+        "0｜释放 IOPC 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "3",
+        "IOPBRST",
+        "通过 RCC 复位 IOPB。",
+        "0｜释放 IOPB 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "2",
+        "IOPARST",
+        "整个 GPIOA复位控制。",
+        "0｜释放复位。\n1｜使整个 GPIOA进入复位。"
+      ],
+      [
+        "0",
+        "AFIORST",
+        "AFIO复位控制。",
+        "0｜释放复位。\n1｜使AFIO进入复位。"
+      ]
+    ],
+    "example": {
+      "title": "复位整个 GPIOA",
+      "explanation": "先确认端口可重配。在实验中读回 CRL 验证默认值前，确保 GPIOA 时钟开启。",
+      "code": "RCC->APB2RSTR |= RCC_APB2RSTR_IOPARST;\nRCC->APB2RSTR &= ~RCC_APB2RSTR_IOPARST;"
+    },
+    "instances": "RCC",
+    "check": "释放 IOPARST 并开 GPIOA 时钟后，CRL 应为 0x44444444；若仍读零先查门控和复位是否仍被保持。"
+  },
+  {
+    "id": "RCC_APB1RSTR",
+    "off": "0x10",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "对 APB1 选定外设施加复位。",
+    "fields": [
+      [
+        "28",
+        "PWRRST",
+        "通过 RCC 复位 PWR。",
+        "0｜释放 PWR 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "27",
+        "BKPRST",
+        "通过 RCC 复位 BKP。",
+        "0｜释放 BKP 的外设复位。\n1｜保持外设复位。释放后重新初始化。 备份域整域复位使用 BDCR.BDRST。"
+      ],
+      [
+        "25",
+        "CAN1RST",
+        "通过 RCC 复位 CAN1。",
+        "0｜释放 CAN1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "23",
+        "USBRST",
+        "通过 RCC 复位 USB。",
+        "0｜释放 USB 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "22",
+        "I2C2RST",
+        "通过 RCC 复位 I2C2。",
+        "0｜释放 I2C2 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "21",
+        "I2C1RST",
+        "通过 RCC 复位 I2C1。",
+        "0｜释放 I2C1 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "18",
+        "USART3RST",
+        "通过 RCC 复位 USART3。",
+        "0｜释放 USART3 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "17",
+        "USART2RST",
+        "USART2复位控制。",
+        "0｜释放复位。\n1｜使USART2进入复位。"
+      ],
+      [
+        "14",
+        "SPI2RST",
+        "通过 RCC 复位 SPI2。",
+        "0｜释放 SPI2 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "11",
+        "WWDGRST",
+        "通过 RCC 复位 WWDG。",
+        "0｜释放 WWDG 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "2",
+        "TIM4RST",
+        "通过 RCC 复位 TIM4。",
+        "0｜释放 TIM4 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "1",
+        "TIM3RST",
+        "通过 RCC 复位 TIM3。",
+        "0｜释放 TIM3 的外设复位。\n1｜保持外设复位。释放后重新初始化。"
+      ],
+      [
+        "0",
+        "TIM2RST",
+        "TIM2复位控制。",
+        "0｜释放复位。\n1｜使TIM2进入复位。"
+      ]
+    ],
+    "example": {
+      "title": "让 USART2 从默认值重新初始化",
+      "explanation": "先结束串口传输。复位后按当前 PCLK1 重新设置波特率。",
+      "code": "RCC->APB1RSTR |= RCC_APB1RSTR_USART2RST;\nRCC->APB1RSTR &= ~RCC_APB1RSTR_USART2RST;"
+    },
+    "instances": "RCC",
+    "check": "释放 USART2RST、开启 USART2EN 后检查 BRR=0。再重新初始化；若设置读不回，查时钟与复位位。"
+  },
+  {
+    "id": "RCC_BDCR",
+    "off": "0x20",
+    "reset": "0x00000000（备份域复位）",
+    "access": "混合访问",
+    "summary": "管理 LSE 和 RTC。写入前解除备份域写保护。",
+    "fields": [
+      [
+        "16",
+        "BDRST",
+        "备份域软件复位。",
+        "0｜释放复位。\n1｜复位整个备份域，RTC 和备份寄存器原有内容会丢失。"
+      ],
+      [
+        "15",
+        "RTCEN",
+        "RTC 时钟门控。",
+        "0｜关闭 RTC 时钟。\n1｜开启 RTC 时钟，需先选定时钟源。"
+      ],
+      [
+        "9:8",
+        "RTCSEL",
+        "选定后须复位备份域才能更改。",
+        "写入前提｜先解除备份域写保护。已经选过时钟源时，复位备份域才可改选。\n00｜无时钟。\n01｜选择 LSE。\n10｜选择 LSI。\n11｜选择 HSE ÷ 128。"
+      ],
+      [
+        "2",
+        "LSEBYP",
+        "仅在 LSE 关闭时修改。",
+        "写入前提｜先解除备份域写保护并关闭 LSE。\n0｜使用 32.768 kHz 晶振。\n1｜旁路振荡器，由 OSC32_IN 输入外部时钟。"
+      ],
+      [
+        "1",
+        "LSERDY",
+        "硬件在外部低速振荡器稳定后置 1。"
+      ],
+      [
+        "0",
+        "LSEON",
+        "LSE 开关。",
+        "0｜关闭 LSE。\n1｜开启 LSE，等 LSERDY 置位。"
+      ]
+    ],
+    "example": {
+      "title": "读回 RTC 实际选择",
+      "explanation": "仅读取，不改变已有时钟和备份数据。掩码后右移得到 0–3。",
+      "code": "const uint32_t rtc_source = (RCC->BDCR & RCC_BDCR_RTCSEL) >> 8;"
+    },
+    "instances": "RCC",
+    "check": "读 RTCSEL 只确认选择，RTC 未计数先查 RTCEN、对应源的就绪位和 RTC 同步。"
+  },
+  {
+    "id": "SCB_ICSR",
+    "off": "0x04",
+    "reset": "按字段定义",
+    "access": "混合访问",
+    "summary": "观察当前异常和待处理异常。",
+    "fields": [
+      [
+        "8:0",
+        "VECTACTIVE",
+        "内核在进入或返回异常时更新当前异常号；线程模式读 0。"
+      ],
+      [
+        "20:12",
+        "VECTPENDING",
+        "内核随挂起状态和优先级变化更新，读出最高优先级的挂起异常号。"
+      ]
+    ],
+    "example": {
+      "title": "在 ISR 内识别当前异常",
+      "explanation": "EXTI0 的 IRQn 是 6，异常号应读到 22。",
+      "code": "const uint32_t exception = SCB->ICSR & 0x1FFu;"
+    },
+    "instances": "Cortex-M3 内核（STM32F103C8T6）",
+    "check": "在 EXTI0 处理函数内读到 22，在线程模式读 0。若读数与预期不同，先确认断点确实落在 ISR 内。"
+  },
+  {
+    "id": "DBGMCU_IDCODE",
+    "off": "0x00（DBGMCU）",
+    "reset": "器件固定",
+    "access": "RO",
+    "summary": "识别芯片系列和硅片修订号，供选择勘误。",
+    "fields": [
+      [
+        "31:16",
+        "REV_ID",
+        "硬件提供芯片修订号。"
+      ],
+      [
+        "11:0",
+        "DEV_ID",
+        "中容量 F103 设备标识为 0x410。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t id = DBGMCU->IDCODE;"
+    },
+    "check": "按低 12 位核对 0x410，单凭此值不能区分 C8 和 CB，另读 Flash 容量字。部分修订芯片须处于调试模式，应用代码直接读可能为 0，参见 ES096 §2.2.2。",
+    "manual": {
+      "page": 739,
+      "kind": "rcc",
+      "label": "DBGMCU_IDCODE"
+    }
+  },
+  {
+    "id": "SCB_CFSR",
+    "off": "0x28（SCB）",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "summary": "记录可配置故障的原因，HardFault 上报时也可读取。",
+    "fields": [
+      [
+        "25",
+        "DIVBYZERO",
+        "启用除零陷阱后，除以零时置位。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "24",
+        "UNALIGNED",
+        "不支持的非对齐访问或开启陷阱时置位。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "19",
+        "NOCP",
+        "尝试执行不可用协处理器指令时置位。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "18",
+        "INVPC",
+        "异常返回值无效。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "17",
+        "INVSTATE",
+        "EPSR 状态无效。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "16",
+        "UNDEFINSTR",
+        "取到未定义指令。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "15",
+        "BFARVALID",
+        "BFAR 包含有效故障地址。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "12",
+        "STKERR",
+        "异常入栈发生总线错误。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "11",
+        "UNSTKERR",
+        "异常退栈发生总线错误。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "10",
+        "IMPRECISERR",
+        "非精确数据总线错误，入栈 PC 可能晚于故障指令。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "9",
+        "PRECISERR",
+        "精确数据总线错误。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "8",
+        "IBUSERR",
+        "取指总线错误。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "7",
+        "MMARVALID",
+        "MMFAR 地址有效。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "4",
+        "MSTKERR",
+        "入栈时存储管理故障。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "3",
+        "MUNSTKERR",
+        "退栈时存储管理故障。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "1",
+        "DACCVIOL",
+        "数据访问违例。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "0",
+        "IACCVIOL",
+        "取指违例。",
+        "0｜保留标志。\n1｜清该标志。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t saved_fault = SCB->CFSR;"
+    },
+    "check": "先快照 CFSR/HFSR 和异常栈帧，之后按已处理掩码写 1 清除。仅在 VALID 位为 1 时解释地址寄存器。",
+    "manual": {
+      "page": 308,
+      "kind": "core",
+      "label": "SCB_CFSR"
+    }
+  },
+  {
+    "id": "SCB_HFSR",
+    "off": "0x2C（SCB）",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "summary": "识别 HardFault 是否来自故障升级、向量取址或调试。",
+    "fields": [
+      [
+        "31",
+        "DEBUGEVT",
+        "调试事件导致 HardFault。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "30",
+        "FORCED",
+        "可配置故障升级。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "1",
+        "VECTTBL",
+        "异常入口向量取址时总线错误。",
+        "0｜保留标志。\n1｜清该标志。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t hard_fault = SCB->HFSR;"
+    },
+    "check": "FORCED 时继续读 CFSR。VECTTBL 先核对 VTOR 与向量表所在存储区。",
+    "manual": {
+      "page": 309,
+      "kind": "core",
+      "label": "SCB_HFSR"
+    }
+  },
+  {
+    "id": "SCB_DFSR",
+    "off": "0x30（SCB）",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "summary": "判断导致停机或调试异常的来源。",
+    "fields": [
+      [
+        "4",
+        "EXTERNAL",
+        "外部调试请求。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "3",
+        "VCATCH",
+        "向量捕获事件。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "2",
+        "DWTTRAP",
+        "DWT 观察点。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "1",
+        "BKPT",
+        "断点事件。",
+        "0｜保留标志。\n1｜清该标志。"
+      ],
+      [
+        "0",
+        "HALTED",
+        "停机或单步事件。",
+        "0｜保留标志。\n1｜清该标志。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t debug_reason = SCB->DFSR;"
+    },
+    "check": "观察点命中时查 DWTTRAP。断点与观察点可同时记录，先保存再按位清。",
+    "manual": {
+      "page": 309,
+      "kind": "core",
+      "label": "SCB_DFSR"
+    }
+  },
+  {
+    "id": "SCB_MMFAR",
+    "off": "0x34（SCB）",
+    "reset": "未定义",
+    "access": "RW",
+    "summary": "保存对应故障的数据访问地址。",
+    "fields": [
+      [
+        "31:0",
+        "ADDRESS",
+        "对应有效位为 1 时才解释硬件写入的地址。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t flags = SCB->CFSR;\nconst uint32_t address = (flags & (1u << 7)) ? SCB->MMFAR : 0u;"
+    },
+    "check": "若有效位为 0，改查 CFSR 的错误类型和异常栈帧。",
+    "manual": {
+      "page": 309,
+      "kind": "core",
+      "label": "SCB_MMFAR"
+    }
+  },
+  {
+    "id": "SCB_BFAR",
+    "off": "0x38（SCB）",
+    "reset": "未定义",
+    "access": "RW",
+    "summary": "保存对应故障的数据访问地址。",
+    "fields": [
+      [
+        "31:0",
+        "ADDRESS",
+        "对应有效位为 1 时才解释硬件写入的地址。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t flags = SCB->CFSR;\nconst uint32_t address = (flags & (1u << 15)) ? SCB->BFAR : 0u;"
+    },
+    "check": "若有效位为 0，改查 CFSR 的错误类型和异常栈帧。",
+    "manual": {
+      "page": 309,
+      "kind": "core",
+      "label": "SCB_BFAR"
+    }
+  },
+  {
+    "id": "SCB_SHCSR",
+    "off": "0x24（SCB）",
+    "reset": "0x00000000",
+    "access": "RW / 状态",
+    "summary": "决定可配置故障使用独立处理函数还是升级为 HardFault。",
+    "fields": [
+      [
+        "18",
+        "USGFAULTENA",
+        "选择是否使能 UsageFault。",
+        "0｜禁用独立处理。\n1｜允许该故障处理函数。"
+      ],
+      [
+        "17",
+        "BUSFAULTENA",
+        "选择是否使能 BusFault。",
+        "0｜禁用独立处理。\n1｜允许该故障处理函数。"
+      ],
+      [
+        "16",
+        "MEMFAULTENA",
+        "选择是否使能 MemManage。",
+        "0｜禁用独立处理。\n1｜允许该故障处理函数。"
+      ],
+      [
+        "15:12",
+        "PENDED",
+        "分别记录 SVC、BusFault、MemManage、UsageFault 的挂起。"
+      ],
+      [
+        "11:0",
+        "ACTIVE",
+        "实现位显示对应系统异常是否处于活动态。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "SCB->SHCSR |= SCB_SHCSR_BUSFAULTENA_Msk;"
+    },
+    "check": "读 BUSFAULTENA=1。仍升级时先检查故障处理函数优先级、栈和 HFSR。",
+    "manual": {
+      "page": 307,
+      "kind": "core",
+      "label": "SCB_SHCSR"
+    }
+  },
+  {
+    "id": "COREDEBUG_DHCSR",
+    "off": "0x00（CoreDebug）",
+    "reset": "部分状态随调试器",
+    "access": "RW / 状态",
+    "summary": "查看调试停机、睡眠和锁定状态。",
+    "fields": [
+      [
+        "31:16",
+        "DBGKEY",
+        "写控制位需调试密钥 0xA05F，读取同区域返回状态。"
+      ],
+      [
+        "25",
+        "S_RESET_ST",
+        "复位发生或在进行，读后清零。"
+      ],
+      [
+        "19",
+        "S_LOCKUP",
+        "内核已锁定。"
+      ],
+      [
+        "17",
+        "S_HALT",
+        "内核因调试停机。"
+      ],
+      [
+        "3:0",
+        "控制位",
+        "C_MASKINTS、C_STEP、C_HALT、C_DEBUGEN 由调试器控制。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t status = CoreDebug->DHCSR;"
+    },
+    "check": "读 17 位辨认停机。检查 S_RESET_ST 时避免窗口反复刷新。",
+    "manual": {
+      "page": 312,
+      "kind": "core",
+      "label": "COREDEBUG_DHCSR"
+    }
+  },
+  {
+    "id": "COREDEBUG_DEMCR",
+    "off": "0x0C（CoreDebug）",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "打开跟踪模块时钟门控并选择调试捕获条件。",
+    "fields": [
+      [
+        "24",
+        "TRCENA",
+        "启用 DWT、ITM 等跟踪组件。",
+        "0｜关跟踪模块。\n1｜允许跟踪。仍需配置对应组件。"
+      ],
+      [
+        "19:16",
+        "MON",
+        "调试监视器请求、单步、挂起和使能。"
+      ],
+      [
+        "10:0",
+        "VC",
+        "实现位选择在指定故障或复位时捕获。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;"
+    },
+    "check": "读 TRCENA=1。DWT 不计数先查它及 CYCCNTENA。",
+    "manual": {
+      "page": 313,
+      "kind": "core",
+      "label": "COREDEBUG_DEMCR"
+    }
+  },
+  {
+    "id": "DWT_CTRL",
+    "off": "0x00（DWT）",
+    "reset": "配置相关",
+    "access": "RW / RO",
+    "summary": "打开 DWT 周期计数与观察点功能。",
+    "fields": [
+      [
+        "31:28",
+        "NUMCOMP",
+        "硬件实现的比较器数。"
+      ],
+      [
+        "0",
+        "CYCCNTENA",
+        "周期计数使能。",
+        "0｜停止计数。\n1｜TRCENA=1 时按内核时钟计数。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;\n*(volatile uint32_t *)0xE0001000u |= 1u;"
+    },
+    "check": "连续执行代码后 CYCCNT 应增长。断点停机期间不作为运行耗时。",
+    "manual": {
+      "page": 745,
+      "kind": "rcc",
+      "label": "DWT_CTRL"
+    }
+  },
+  {
+    "id": "DWT_CYCCNT",
+    "off": "0x04（DWT）",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "读取内核运行周期，适合测短代码路径。",
+    "fields": [
+      [
+        "31:0",
+        "CYCCNT",
+        "使能时每周期加一，可写零建立测量基准。",
+        "写入｜设置计数初值，测量用两次读值的无符号差。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t cycles = *(volatile const uint32_t *)0xE0001004u;"
+    },
+    "check": "随内核运行递增。读值固定先查 TRCENA 和 CYCCNTENA。",
+    "manual": {
+      "page": 745,
+      "kind": "rcc",
+      "label": "DWT_CYCCNT"
+    }
+  },
+  {
+    "id": "ITM_TCR",
+    "off": "0xE80（ITM）",
+    "reset": "0x00000000",
+    "access": "RW / 状态",
+    "summary": "控制软件跟踪消息及时间戳。",
+    "fields": [
+      [
+        "23",
+        "BUSY",
+        "硬件报告仍有发送活动。"
+      ],
+      [
+        "22:16",
+        "TraceBusID",
+        "跟踪源标识。"
+      ],
+      [
+        "4:1",
+        "跟踪配置",
+        "SWO 时钟、DWT 事件、同步与时间戳选择。"
+      ],
+      [
+        "0",
+        "ITMENA",
+        "全局 ITM 使能。",
+        "0｜停止 ITM。\n1｜允许启用端口发送，端口还需经 TER 打开。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t itm_control = ITM->TCR;"
+    },
+    "check": "无 SWV 数据先读 TRCENA、ITMENA、TER0，再查 PB3/SWO 和调试器波特率。",
+    "manual": {
+      "page": 746,
+      "kind": "rcc",
+      "label": "ITM_TCR"
+    }
+  },
+  {
+    "id": "FPB_CTRL",
+    "off": "0x00（FPB）",
+    "reset": "实现相关",
+    "access": "RW / RO",
+    "summary": "查看可用于 Flash 硬件断点的比较器数量。",
+    "fields": [
+      [
+        "7:4",
+        "NUM_CODE",
+        "Cortex-M3 FPB 的代码比较器数量。"
+      ],
+      [
+        "11:8",
+        "NUM_LIT",
+        "文字比较器数量。"
+      ],
+      [
+        "1",
+        "KEY",
+        "写控制位时须同时写 1。"
+      ],
+      [
+        "0",
+        "ENABLE",
+        "FPB 使能。",
+        "0｜禁止比较。\n1｜允许已配置比较器。通常由调试器管理。"
+      ]
+    ],
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "example": {
+      "title": "调试观察",
+      "explanation": "特权代码或连接调试器时使用，先保留已有现场。",
+      "code": "const uint32_t code_breakpoints = (*(volatile const uint32_t *)0xE0002000u >> 4) & 15u;"
+    },
+    "check": "Keil 硬件断点数量有限，设置失败先核对比较器数量与已有断点。",
+    "manual": {
+      "page": 744,
+      "kind": "rcc",
+      "label": "FPB_CTRL"
+    }
+  },
+  {
+    "id": "NVIC_ICER",
+    "off": "0x080（NVIC）",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "禁用外部中断的入口。",
+    "fields": [
+      [
+        "31:0",
+        "CLRENA",
+        "每个外部 IRQ 对应一位，数组索引为 IRQn÷32，位号为 IRQn%32。",
+        "0｜保持使能状态。\n1｜关闭该 IRQ 的使能。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "NVIC->ICER[0] = 1u << EXTI0_IRQn;"
+    },
+    "check": "读 ISER 确认 EXTI0 已禁用。外设标志和 NVIC 挂起仍可能存在。",
+    "manual": {
+      "page": 304,
+      "kind": "core",
+      "label": "NVIC_ICER"
+    }
+  },
+  {
+    "id": "NVIC_ISPR",
+    "off": "0x100（NVIC）",
+    "reset": "0x00000000",
+    "access": "RO / W1S",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "读取或设置一个外部 IRQ 的挂起。",
+    "fields": [
+      [
+        "31:0",
+        "SETPEND",
+        "每个外部 IRQ 对应一位，数组索引为 IRQn÷32，位号为 IRQn%32。",
+        "0｜保持当前挂起。\n1｜把对应 IRQ 标为挂起。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "NVIC->ISPR[0] = 1u << EXTI0_IRQn;"
+    },
+    "check": "IRQ 被禁止时可读到挂起。若已启用且优先级允许，内核可能马上进入 ISR。",
+    "manual": {
+      "page": 304,
+      "kind": "core",
+      "label": "NVIC_ISPR"
+    }
+  },
+  {
+    "id": "NVIC_ICPR",
+    "off": "0x180（NVIC）",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "清除 NVIC 的外部 IRQ 挂起。",
+    "fields": [
+      [
+        "31:0",
+        "CLRPEND",
+        "每个外部 IRQ 对应一位，数组索引为 IRQn÷32，位号为 IRQn%32。",
+        "0｜保持当前挂起。\n1｜清除对应 IRQ 挂起。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "NVIC->ICPR[0] = 1u << EXTI0_IRQn;"
+    },
+    "check": "从 ISPR 检查挂起是否清除。仍被请求先查外设，例如 EXTI_PR。",
+    "manual": {
+      "page": 304,
+      "kind": "core",
+      "label": "NVIC_ICPR"
+    }
+  },
+  {
+    "id": "NVIC_IABR",
+    "off": "0x200（NVIC）",
+    "reset": "0x00000000",
+    "access": "RO",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "查看外部中断是否正处于异常处理过程中。",
+    "fields": [
+      [
+        "31:0",
+        "ACTIVE",
+        "进入对应外部 IRQ 后置位，正常异常返回后清除，抢占期间仍活动。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "const uint32_t active = NVIC->IABR[0] & (1u << EXTI0_IRQn);"
+    },
+    "check": "在 EXTI0 ISR 内应读到位 1。返回后读回清零。",
+    "manual": {
+      "page": 304,
+      "kind": "core",
+      "label": "NVIC_IABR"
+    }
+  },
+  {
+    "id": "SCB_SCR",
+    "off": "0x10（SCB）",
+    "reset": "0x00000000",
+    "access": "RW",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "决定休眠深度、异常退出休眠和挂起事件行为。",
+    "fields": [
+      [
+        "4",
+        "SEVONPEND",
+        "允许新挂起的异常产生事件。",
+        "0｜按正常事件路径唤醒。\n1｜异常进入挂起时也产生事件。"
+      ],
+      [
+        "2",
+        "SLEEPDEEP",
+        "选择 WFI/WFE 的内核低功耗深度。",
+        "0｜普通睡眠。\n1｜深睡眠，结合 PWR 选择 Stop 或 Standby。"
+      ],
+      [
+        "1",
+        "SLEEPONEXIT",
+        "设置异常返回线程模式时是否立即睡眠。",
+        "0｜返回线程继续执行。\n1｜返回线程时进入睡眠。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;"
+    },
+    "check": "读 SLEEPDEEP=0。随后 WFI 走普通 Sleep。退出后检查是否有未处理的挂起源。",
+    "manual": {
+      "page": 307,
+      "kind": "core",
+      "label": "SCB_SCR"
+    }
+  },
+  {
+    "id": "SCB_CCR",
+    "off": "0x14（SCB）",
+    "reset": "STKALIGN 随内核修订，其余所列位为 0",
+    "access": "RW",
+    "instances": "STM32F103C8T6 Cortex-M3",
+    "summary": "配置异常栈与运行时故障检查。",
+    "fields": [
+      [
+        "9",
+        "STKALIGN",
+        "控制异常入栈的对齐要求。",
+        "0｜4 字节。\n1｜8 字节。"
+      ],
+      [
+        "8",
+        "BFHFNMIGN",
+        "控制高优先级处理中的数据总线故障。",
+        "0｜正常报告。\n1｜在 HardFault/NMI/FAULTMASK 环境忽略部分数据总线故障。"
+      ],
+      [
+        "4",
+        "DIV_0_TRP",
+        "硬件除法除零的陷阱开关。",
+        "0｜关闭陷阱。\n1｜除零触发 UsageFault。"
+      ],
+      [
+        "3",
+        "UNALIGN_TRP",
+        "非对齐访问陷阱开关。",
+        "0｜允许支持的普通非对齐访问。\n1｜非对齐访问触发 UsageFault。"
+      ],
+      [
+        "1",
+        "USERSETMPEND",
+        "允许非特权软件通过 STIR 挂起外部中断。",
+        "0｜只允许特权访问。\n1｜允许非特权访问。"
+      ],
+      [
+        "0",
+        "NONBASETHRDENA",
+        "控制异常活动时返回线程模式。",
+        "0｜按默认异常返回检查。\n1｜允许非基础级返回线程。"
+      ]
+    ],
+    "example": {
+      "title": "Keil 读回与核对",
+      "explanation": "特权代码或调试器访问。示例观察 EXTI0_IRQn，改变中断状态前先处理外设来源。",
+      "code": "SCB->CCR |= SCB_CCR_DIV_0_TRP_Msk;"
+    },
+    "check": "读 DIV_0_TRP=1。测试前确保 UsageFault 或 HardFault 保存现场。",
+    "manual": {
+      "page": 307,
+      "kind": "core",
+      "label": "SCB_CCR"
+    }
+  }
+]

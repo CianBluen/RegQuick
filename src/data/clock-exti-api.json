@@ -1,0 +1,851 @@
+[
+  {
+    "name": "RCC_GetClocksFreq",
+    "params": "RCC_Clocks 指向可写结构体，返回值通过其 SYSCLK/HCLK/PCLK1/PCLK2/ADCCLK 成员传出。",
+    "ret": "无",
+    "pre": "工程 HSE_VALUE 与实际晶振一致。",
+    "what": "解码 CR/CFGR 中的时钟配置，输出 SYSCLK、HCLK、PCLK1、PCLK2、ADCCLK。TIMxCLK 仍需按分频规则计算。",
+    "related": [
+      "RCC_CFGR"
+    ],
+    "example": {
+      "title": "检查 USART2 使用的 PCLK1",
+      "explanation": "72 MHz 配置下，clocks.PCLK1_Frequency 应为 36000000。",
+      "code": "RCC_ClocksTypeDef clocks;\nRCC_GetClocksFreq(&clocks);"
+    },
+    "summary": "读取当前分频配置并推算各总线频率。",
+    "check": "用已知 HSE 频率核对结构值；这是配置推算。定时器输入还要考虑 APB 倍频。"
+  },
+  {
+    "name": "RCC_HSEConfig",
+    "params": "RCC_HSE 选 RCC_HSE_ON（晶振）、RCC_HSE_Bypass（OSC_IN 外部时钟）或 RCC_HSE_OFF。",
+    "ret": "无",
+    "pre": "切换 HSE 模式前确认 SYSCLK 和 PLL 都不依赖 HSE。",
+    "what": "通过 CR 配置 HSEON 和 HSEBYP。就绪状态应另行等待。",
+    "related": [
+      "RCC_CR-HSEON",
+      "RCC_CR-HSEBYP",
+      "RCC_CR-HSERDY"
+    ],
+    "example": {
+      "title": "开启板载晶振",
+      "explanation": "确认板上是晶振接法。调用后用 HSERDY 或 RCC_WaitForHSEStartUp 判断是否可切换。",
+      "code": "RCC_HSEConfig(RCC_HSE_ON);"
+    },
+    "summary": "初始化时启用晶振、选择外部时钟旁路或关闭 HSE。",
+    "check": "检查 HSEON/HSEBYP，再等 HSERDY；超时先查晶振与旁路设置是否和接线一致。"
+  },
+  {
+    "name": "RCC_WaitForHSEStartUp",
+    "params": "无参数，读 CR.HSERDY。",
+    "ret": "SUCCESS 或 ERROR",
+    "pre": "已开启 HSE。",
+    "what": "等待 CR.HSERDY，内部等待有计数上限。",
+    "related": [
+      "RCC_CR-HSERDY"
+    ],
+    "example": {
+      "title": "记录晶振启动结果",
+      "explanation": "只有返回 SUCCESS 才继续走 HSE 的 PLL 路径。",
+      "code": "const ErrorStatus hse_result = RCC_WaitForHSEStartUp();"
+    },
+    "summary": "开启 HSE 后，用有上限的循环等晶振稳定。",
+    "check": "SUCCESS 表示已经就绪；ERROR 时保留可用时钟并先查 HSEON、旁路和晶振。"
+  },
+  {
+    "name": "RCC_PLLConfig",
+    "params": "RCC_PLLSource=RCC_PLLSource_HSE_Div1 选择 HSE 直入。也可选 HSE ÷2 或 HSI ÷2。\nRCC_PLLMul=RCC_PLLMul_9 选 ×9，8 MHz 输入得到 72 MHz。",
+    "ret": "无",
+    "pre": "PLL 已关闭。确认晶振及 PLL 输入/输出频率。",
+    "what": "写 CFGR 中的 PLLSRC、PLLXTPRE、PLLMUL。",
+    "related": [
+      "RCC_CFGR-PLLSRC",
+      "RCC_CFGR-PLLXTPRE",
+      "RCC_CFGR-PLLMUL",
+      "RCC_CR-PLLRDY"
+    ],
+    "example": {
+      "title": "配置 HSE 8 MHz ×9",
+      "explanation": "这里仅设置 PLL 参数，后续还要开启 PLL、等待 PLLRDY、设置分频和 Flash 再切换。",
+      "code": "RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_9);"
+    },
+    "summary": "启动 PLL 前选择输入和倍频。",
+    "check": "读 PLLSRC=1、PLLXTPRE=0、PLLMUL=0111。开启后不锁定先检查目标源是否就绪、PLL 输入和输出是否在允许范围。"
+  },
+  {
+    "name": "RCC_PLLCmd",
+    "params": "NewState=ENABLE 启动，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "关闭前确认系统时钟已离开 PLL。开启前配好输入和倍频。",
+    "what": "修改 CR.PLLON。",
+    "related": [
+      "RCC_CR-PLLON",
+      "RCC_CR-PLLRDY"
+    ],
+    "example": {
+      "title": "开启已配置的 PLL",
+      "explanation": "随后轮询 PLLRDY，实际工程应处理超时。",
+      "code": "RCC_PLLCmd(ENABLE);"
+    },
+    "summary": "时钟配置时启动或停用 PLL。",
+    "check": "开启后查 PLLRDY；不锁定先核对源时钟和倍频。关闭前把系统时钟切到其他源。"
+  },
+  {
+    "name": "RCC_SYSCLKConfig",
+    "params": "RCC_SYSCLKSource 选 RCC_SYSCLKSource_HSI、RCC_SYSCLKSource_HSE 或 RCC_SYSCLKSource_PLLCLK。本例请求 PLL。",
+    "ret": "无",
+    "pre": "目标源已就绪，总线分频和 Flash 等待周期已配置。",
+    "what": "写 CFGR.SW 发切换请求。",
+    "related": [
+      "RCC_CFGR-SW",
+      "RCC_CFGR-SWS",
+      "RCC_CR-PLLRDY"
+    ],
+    "example": {
+      "title": "请求切到 PLL",
+      "explanation": "随后读 SWS 或用 RCC_GetSYSCLKSource 确认已经切换。",
+      "code": "RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);"
+    },
+    "summary": "时钟源稳定后请求切换系统时钟。",
+    "check": "SWS 应变为 10。若 SW 已读 10 而 SWS 未变，先查 PLLRDY。"
+  },
+  {
+    "name": "RCC_GetSYSCLKSource",
+    "params": "无参数，返回 CFGR.SWS 原位掩码。",
+    "ret": "CFGR.SWS 掩码值",
+    "pre": "在时钟切换请求后读取。",
+    "what": "读 SWS 的原始位位置，PLL 为 0x08。",
+    "related": [
+      "RCC_CFGR-SWS"
+    ],
+    "example": {
+      "title": "检查系统是否已切到 PLL",
+      "explanation": "比较原始掩码值 0x08，避免误用未移位的 2。",
+      "code": "const uint32_t using_pll = RCC_GetSYSCLKSource() == 0x08u;"
+    },
+    "summary": "切换后查询当前真正驱动系统的时钟。",
+    "check": "0x00/0x04/0x08 分别为 HSI/HSE/PLL；PLL 请求后若仍读 0，查 PLLRDY。"
+  },
+  {
+    "name": "RCC_HCLKConfig",
+    "params": "RCC_SYSCLK 为 AHB 分频常量，RCC_SYSCLK_Div1 表示不分频。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "读改写 CFGR.HPRE，保留其他分频和时钟源配置。",
+    "related": [
+      "RCC_CFGR-HPRE"
+    ],
+    "example": {
+      "title": "以 SYSCLK 作为 HCLK",
+      "explanation": "AHB 不分频。先核对 HCLK 上限和 Flash 等待周期。",
+      "code": "RCC_HCLKConfig(RCC_SYSCLK_Div1);"
+    },
+    "summary": "切换时钟前安排 AHB 分频。",
+    "check": "读 HPRE 并复算 HCLK；修改前确认总线和 Flash 约束。"
+  },
+  {
+    "name": "RCC_PCLK1Config",
+    "params": "RCC_HCLK 选 APB1 分频，RCC_HCLK_Div2 表示 ÷2。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "读改写 CFGR.PPRE1，保留其他分频和时钟源配置。",
+    "related": [
+      "RCC_CFGR-PPRE1"
+    ],
+    "example": {
+      "title": "将 APB1 设成 HCLK ÷2",
+      "explanation": "HCLK 为 72 MHz 时，PCLK1 为 36 MHz。",
+      "code": "RCC_PCLK1Config(RCC_HCLK_Div2);"
+    },
+    "summary": "安排 APB1 频率，避免低速总线超频。",
+    "check": "HCLK 72 MHz 时 PCLK1=36 MHz；计时异常同时核对 APB 定时器倍频规则。"
+  },
+  {
+    "name": "RCC_PCLK2Config",
+    "params": "RCC_HCLK 选 APB2 分频，RCC_HCLK_Div1 表示不分频。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "读改写 CFGR.PPRE2，保留其他分频和时钟源配置。",
+    "related": [
+      "RCC_CFGR-PPRE2"
+    ],
+    "example": {
+      "title": "将 APB2 设成 HCLK ÷1",
+      "explanation": "HCLK 为 72 MHz 时，PCLK2 为 72 MHz。",
+      "code": "RCC_PCLK2Config(RCC_HCLK_Div1);"
+    },
+    "summary": "安排 APB2 频率，供 GPIO、USART1 等外设使用。",
+    "check": "读 PPRE2 后复算 USART1 时钟。"
+  },
+  {
+    "name": "RCC_ADCCLKConfig",
+    "params": "RCC_PCLK2 选 ADC 分频，RCC_PCLK2_Div6 表示 ÷6。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "读改写 CFGR.ADCPRE，保留其他分频和时钟源配置。",
+    "related": [
+      "RCC_CFGR-ADCPRE"
+    ],
+    "example": {
+      "title": "将 ADC 时钟设成 PCLK2 ÷6",
+      "explanation": "PCLK2 为 72 MHz 时，ADCCLK 为 12 MHz。",
+      "code": "RCC_ADCCLKConfig(RCC_PCLK2_Div6);"
+    },
+    "summary": "启动 ADC 前把采样时钟降到允许范围。",
+    "check": "PCLK2 72 MHz 时得到 12 MHz；不超过 14 MHz，核对 ADCPRE 与 PCLK2。"
+  },
+  {
+    "name": "RCC_USBCLKConfig",
+    "params": "RCC_USBCLKSource 选 PLL 直出或 ÷1.5；RCC_USBCLKSource_PLLCLK_1Div5 用于 PLL 72 MHz。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "读改写 CFGR.USBPRE，保留其他分频和时钟源配置。",
+    "related": [
+      "RCC_CFGR-USBPRE"
+    ],
+    "example": {
+      "title": "从 PLL 72 MHz 得到 USB 48 MHz",
+      "explanation": "配置前保持 USB 门控关闭。",
+      "code": "RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);"
+    },
+    "summary": "开启 USB 前选 PLL 的 48 MHz 路径。",
+    "check": "读 USBPRE=0 并核对 PLL 频率和时钟源精度；随后再开 USB 门控。"
+  },
+  {
+    "name": "RCC_MCOConfig",
+    "params": "RCC_MCO 选择输出源，例如 RCC_MCO_HSI；也可选无输出、SYSCLK、HSE 或 PLL ÷2。",
+    "ret": "无",
+    "pre": "核对源时钟和目标外设限制。",
+    "what": "修改 CFGR.MCO。配置 PA8 复用推挽后才有引脚输出，换源时脉冲可能被截断。",
+    "related": [
+      "RCC_CFGR-MCO"
+    ],
+    "example": {
+      "title": "从 PA8 输出 HSI",
+      "explanation": "PA8 配复用推挽，确认引脚未被其他功能占用。可测得约 8 MHz。",
+      "code": "RCC_MCOConfig(RCC_MCO_HSI);"
+    },
+    "summary": "调试时把选定时钟送到 PA8 供测量。",
+    "check": "PA8 配复用推挽后应测到约 8 MHz；无信号先查 MCO 字段和引脚占用。"
+  },
+  {
+    "name": "GPIO_EXTILineConfig",
+    "params": "GPIO_PortSource=GPIO_PortSourceGPIOA 选端口 A。\nGPIO_PinSource=GPIO_PinSource0 选编号 0。参数使用引脚编号常量。",
+    "ret": "无",
+    "pre": "开启 AFIO 时钟。",
+    "what": "读改写 AFIO_EXTICR 对应的四位字段。GPIOA 与 GPIOB 的 0 号脚共用 EXTI0，一次只选其中一个。",
+    "related": [
+      "AFIO_EXTICR1",
+      "AFIO_EXTICR2",
+      "AFIO_EXTICR3",
+      "AFIO_EXTICR4"
+    ],
+    "example": {
+      "title": "选择 PA0 作为 EXTI0 输入",
+      "explanation": "EXTICR1[3:0] 应读为 0。用 GPIO_PinSource0 传编号。",
+      "code": "GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource0);"
+    },
+    "summary": "初始化时选择同编号 EXTI 线从哪个 GPIO 端口取信号。",
+    "check": "PA0 示例应读 EXTICR1[3:0]=0。若 PA0 电平变化但无中断，先查该路由，再查触发边沿、IMR 和 NVIC。"
+  },
+  {
+    "name": "EXTI_DeInit",
+    "params": "无参数，作用于整块 EXTI。",
+    "ret": "无",
+    "pre": "在独占 EXTI 的实验中执行。",
+    "what": "把 IMR、EMR、RTSR、FTSR 写零，向 PR 写掩码清除挂起。AFIO 路由和 NVIC 需分别处理。",
+    "related": [
+      "EXTI_IMR",
+      "EXTI_EMR",
+      "EXTI_RTSR",
+      "EXTI_FTSR",
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "恢复 EXTI 初始状态",
+      "explanation": "先停止依赖 EXTI 的应用。随后重新配置所需线路。",
+      "code": "EXTI_DeInit();"
+    },
+    "summary": "重新配置前清空 EXTI 的触发、屏蔽和挂起状态。",
+    "check": "IMR/EMR/RTSR/FTSR 应为 0。若重新配置前仍进 ISR，检查 NVIC 残留挂起或其他来源。"
+  },
+  {
+    "name": "EXTI_StructInit",
+    "params": "EXTI_InitStruct 指向可写配置结构体。",
+    "ret": "无",
+    "pre": "结构体可写。",
+    "what": "只写结构体。默认无线、IRQ 路径、下降沿、禁用。",
+    "related": [],
+    "example": {
+      "title": "准备 EXTI0 配置",
+      "explanation": "随后设置触发、模式和使能，再调用 EXTI_Init。",
+      "code": "EXTI_InitTypeDef cfg;\nEXTI_StructInit(&cfg);\ncfg.EXTI_Line = EXTI_Line0;"
+    },
+    "summary": "在初始化 EXTI 前给结构体填入默认值。",
+    "check": "在 Keil 查看四个成员。实际配置前指定线路和边沿、设 ENABLE，再调用 EXTI_Init。"
+  },
+  {
+    "name": "EXTI_Init",
+    "params": "EXTI_InitStruct 指向配置。\nEXTI_Line=EXTI_Line0：选线 0 的掩码。\nEXTI_Mode=EXTI_Mode_Interrupt：请求 NVIC，Event 则走事件路径。\nEXTI_Trigger=EXTI_Trigger_Falling：下降沿；也可选上升沿或双沿。\nEXTI_LineCmd=ENABLE：按前述选项配置；DISABLE：只关闭选定模式的屏蔽位。",
+    "ret": "无",
+    "pre": "先配置 PA0 上拉、开 AFIO 时钟并把 PA0 路由到 EXTI0；调整期间屏蔽 CPU 对应 IRQ。",
+    "what": "启用时清所选线的 IMR/EMR 和 RTSR/FTSR，再写选定路径与边沿。不会替你清 PR 或配置 NVIC。",
+    "related": [
+      "EXTI_IMR",
+      "EXTI_EMR",
+      "EXTI_RTSR",
+      "EXTI_FTSR"
+    ],
+    "example": {
+      "title": "按下降沿产生 EXTI0 IRQ",
+      "explanation": "随后使能 EXTI0_IRQn。PA0 接地时应触发。",
+      "code": "EXTI_InitTypeDef cfg;\ncfg.EXTI_Line = EXTI_Line0;\ncfg.EXTI_Mode = EXTI_Mode_Interrupt;\ncfg.EXTI_Trigger = EXTI_Trigger_Falling;\ncfg.EXTI_LineCmd = ENABLE;\nEXTI_Init(&cfg);"
+    },
+    "summary": "初始化一条或多条 EXTI 线的通知路径与触发边沿。",
+    "check": "完成后清旧 PR 与 NVIC 挂起并启用 IRQ。读 IMR0=1、FTSR0=1、RTSR0=0；按下不进 ISR 时先查 IDR0 和 EXTICR1。"
+  },
+  {
+    "name": "EXTI_GenerateSWInterrupt",
+    "params": "EXTI_Line=EXTI_Line0 选线 0，可组合多条已实现线路的掩码。",
+    "ret": "无",
+    "pre": "先清对应 PR；验证 ISR 时打开 IMR 和 NVIC。",
+    "what": "读改写 SWIER，将选定位写 1 后产生 PR 挂起。清 PR 后可再次触发。",
+    "related": [
+      "EXTI_SWIER",
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "软件触发 EXTI0",
+      "explanation": "在调试器中确认 EXTI0_IRQHandler 命中。",
+      "code": "EXTI_GenerateSWInterrupt(EXTI_Line0);"
+    },
+    "summary": "在调试时绕过物理输入，用软件验证 EXTI 到 ISR 的路径。",
+    "check": "PR0 应置位。若软件触发能进 ISR，物理按键却不行，先查 AFIO 路由、GPIO 电平和边沿配置。"
+  },
+  {
+    "name": "EXTI_GetFlagStatus",
+    "params": "EXTI_Line=EXTI_Line0，传单条线的掩码。",
+    "ret": "SET / RESET",
+    "pre": "用于查看外设挂起状态。",
+    "what": "检查 PR 对应位，置位时返回 SET。",
+    "related": [
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "读取 PR0",
+      "explanation": "此返回值不能说明 NVIC 已使能。",
+      "code": "const FlagStatus pending = EXTI_GetFlagStatus(EXTI_Line0);"
+    },
+    "summary": "在轮询或排故时读取外设是否记录了触发。",
+    "check": "手动触发后查 PR0。若返回 SET 但 ISR 未执行，继续查 IMR、NVIC 和 CPU 屏蔽状态。"
+  },
+  {
+    "name": "EXTI_GetITStatus",
+    "params": "EXTI_Line=EXTI_Line6，传单条线的掩码。",
+    "ret": "SET / RESET",
+    "pre": "在中断路径上检查。",
+    "what": "检查 PR 和 IMR 对应位，两者同时置位时返回 SET。",
+    "related": [
+      "EXTI_IMR",
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "共享 ISR 中检查线 6",
+      "explanation": "只有 PR6 和 IMR6 同时置位时才返回 SET。",
+      "code": "const ITStatus active = EXTI_GetITStatus(EXTI_Line6);"
+    },
+    "summary": "在 EXTI ISR 中判断哪条已放行的线正在请求服务。",
+    "check": "共享 ISR 内若 PR6=1 但返回 RESET，先查 IMR6。NVIC 使能需要独立读取。"
+  },
+  {
+    "name": "EXTI_ClearFlag",
+    "params": "EXTI_Line=EXTI_Line0，传待清除线的掩码，可按位或组合。",
+    "ret": "无",
+    "pre": "明确要清除的挂起位。",
+    "what": "直接向 PR 写掩码。选中位写 1 清除。",
+    "related": [
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "只清 PR0",
+      "explanation": "用于初始化清理或明确丢弃旧请求。",
+      "code": "EXTI_ClearFlag(EXTI_Line0);"
+    },
+    "summary": "清除 EXTI 已记录的触发，常用于初始化或轮询应答。",
+    "check": "读 PR0=0，未选线路保留。若仍为 1，先确认刚清除后是否有新边沿。"
+  },
+  {
+    "name": "EXTI_ClearITPendingBit",
+    "params": "EXTI_Line=EXTI_Line0，传已处理线路的掩码，可按位或组合。",
+    "ret": "无",
+    "pre": "ISR 里先确认实际来源。",
+    "what": "直接向 PR 写掩码，选中位写 1 清除。NVIC 挂起位需独立处理。",
+    "related": [
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "处理完成后清 EXTI0",
+      "explanation": "保留其他线路的待处理标志。",
+      "code": "EXTI_ClearITPendingBit(EXTI_Line0);"
+    },
+    "summary": "在 EXTI ISR 中应答已处理的外设挂起。",
+    "check": "检查 PR0 清零且其他线路保留。若共享 ISR 再次进入，先查看同组其他 PR 位。"
+  },
+  {
+    "name": "NVIC_SetPriorityGrouping",
+    "params": "PriorityGroup=5。在 STM32F103C8T6 的四个实现位中分配两位抢占、两位子优先级。",
+    "ret": "无",
+    "pre": "在系统初始化时统一选择。",
+    "what": "保留 AIRCR 的其他有效配置，用 VECTKEY 解锁写 PRIGROUP。原有优先级编码会按新分组重新解释。",
+    "related": [
+      "SCB_AIRCR-PRIGROUP"
+    ],
+    "example": {
+      "title": "选择两位抢占、两位子优先级",
+      "explanation": "读回 AIRCR[10:8] 应为 5。",
+      "code": "NVIC_SetPriorityGrouping(5u);"
+    },
+    "summary": "系统初始化时统一分配抢占优先级和子优先级的位数。",
+    "check": "读 AIRCR[10:8]=5。抢占异常时先核对各处是否用了同一分组，再解码对应 IP。"
+  },
+  {
+    "name": "NVIC_SetPriority",
+    "params": "IRQn=EXTI0_IRQn 选择外部中断，也支持可配置优先级的系统异常。\npriority=NVIC_EncodePriority(5,1,0) 返回逻辑值 4，对应抢占 1、子优先级 0。",
+    "ret": "无",
+    "pre": "分组已经统一，先用 NVIC_EncodePriority 编码。",
+    "what": "按实现位宽左移后写 NVIC IP 或 SCB 系统异常优先级字节。传逻辑值 4，硬件字节是 0x40。",
+    "related": [
+      "NVIC_IPR",
+      "SCB_AIRCR"
+    ],
+    "example": {
+      "title": "设 EXTI0 抢占 1、子优先级 0",
+      "explanation": "分组为 5 时，IP 字节应为 0x40。",
+      "code": "NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(5u, 1u, 0u));"
+    },
+    "summary": "设置异常或 IRQ 的优先级，数值越小优先级越高。",
+    "check": "读 EXTI0 的 IP 字节 0x40。优先级行为不符，先核对 PRIGROUP 和传入值是否已被提前左移。"
+  },
+  {
+    "name": "NVIC_EnableIRQ",
+    "params": "IRQn=EXTI0_IRQn，必须是外部 IRQ 编号。",
+    "ret": "无",
+    "pre": "处理函数、外设挂起和边沿已处理。",
+    "what": "向 ISER 写目标位的 1。若外设已有有效挂起，满足优先级与屏蔽条件后可能马上执行 ISR。",
+    "related": [
+      "NVIC_ISER",
+      "EXTI_IMR",
+      "EXTI_PR"
+    ],
+    "example": {
+      "title": "开放 EXTI0 向量",
+      "explanation": "配合 EXTI_IMR，符合条件的请求才可进 ISR。",
+      "code": "NVIC_EnableIRQ(EXTI0_IRQn);"
+    },
+    "summary": "允许一个外部 IRQ 进入 CPU 的异常处理路径。",
+    "check": "读 ISER 对应位=1。软件触发不进 ISR 时查 EXTI_IMR、PR、PRIMASK 和向量名。"
+  },
+  {
+    "name": "SysTick_Config",
+    "params": "ticks=8000。HCLK=8 MHz 时每 8000 个内核时钟产生一次异常，传入 2–0xFFFFFF。",
+    "ret": "0 表示寄存器已配置，1 表示传值超过此版接受的上限 0xFFFFFF。CMSIS V1.30 也接受 0 和 1，应在调用前排除。1 写出 LOAD=0，没有触发周期异常所需的 1→0 跳变。",
+    "pre": "已得到 HCLK，提供 SysTick_Handler。",
+    "what": "将 LOAD 写为 ticks−1，向 VAL 写零，打开 CTRL 的内核时钟、异常和计数使能。还会把 SysTick 优先级设为最低。",
+    "related": [
+      "SYST_CSR",
+      "SYST_RVR",
+      "SYST_CVR"
+    ],
+    "example": {
+      "title": "以 HSI 8 MHz 建立 1 ms 时基",
+      "explanation": "传 8000 个时钟，LOAD 读回 7999。",
+      "code": "const uint32_t tick_status = SysTick_Config(8000u);"
+    },
+    "summary": "用内核 SysTick 生成周期时基，初始化调用后立即开始计数。",
+    "check": "函数返回 0、LOAD 读 7999，ISR 应每约 1 ms 运行一次。节拍不符先查 HCLK，进不了 ISR 再查屏蔽状态和处理函数名。"
+  },
+  {
+    "name": "RCC_DeInit",
+    "params": "无",
+    "ret": "无",
+    "pre": "在复位后的 HSI 启动阶段或独立实验中执行。若当前在 PLL 上，先按手册安全切回 HSI。",
+    "what": "切回 HSI，恢复 CR、CFGR 的系统时钟配置并清 CIR 的相关使能和标志。外设门控不随它复位。",
+    "related": [
+      "RCC_CR",
+      "RCC_CFGR",
+      "RCC_CIR"
+    ],
+    "example": {
+      "title": "把系统时钟恢复到 HSI",
+      "explanation": "恢复后读取 SWS，重新配置 SysTick、串口和定时器时基。",
+      "code": "RCC_DeInit();"
+    },
+    "summary": "把系统时钟恢复到 HSI",
+    "check": "恢复后读取 SWS，重新配置 SysTick、串口和定时器时基。"
+  },
+  {
+    "name": "RCC_AdjustHSICalibrationValue",
+    "params": "HSICalibrationValue=16，取 0–31。增减微调值后用已知基准测量。",
+    "ret": "无",
+    "pre": "有基准测量并确认需要调整。",
+    "what": "改 CR.HSITRIM。出厂 HSICAL 不受影响。",
+    "related": [
+      "RCC_CR-HSITRIM",
+      "RCC_CR-HSICAL"
+    ],
+    "example": {
+      "title": "恢复 HSI 的默认微调值",
+      "explanation": "读回 HSITRIM 为 16。需要校准时，把 HSI 从 MCO 输出再测量。",
+      "code": "RCC_AdjustHSICalibrationValue(16u);"
+    },
+    "summary": "恢复 HSI 的默认微调值",
+    "check": "读回 HSITRIM 为 16。需要校准时，把 HSI 从 MCO 输出再测量。"
+  },
+  {
+    "name": "RCC_HSICmd",
+    "params": "NewState=ENABLE 打开 HSI，DISABLE 请求关闭。",
+    "ret": "无",
+    "pre": "关闭前确认系统时钟、PLL 和 Flash 编程的需求。",
+    "what": "改变 CR.HSION。",
+    "related": [
+      "RCC_CR-HSION",
+      "RCC_CR-HSIRDY"
+    ],
+    "example": {
+      "title": "为切回内部时钟做准备",
+      "explanation": "先开启 HSI 并等待 HSIRDY，再发切换请求。",
+      "code": "RCC_HSICmd(ENABLE);"
+    },
+    "summary": "为切回内部时钟做准备",
+    "check": "读 HSIRDY=1 才能将 HSI 用作系统时钟。若关闭后仍运行，先查是否仍被系统时钟选用。"
+  },
+  {
+    "name": "RCC_ITConfig",
+    "params": "RCC_IT=RCC_IT_HSERDY 选 HSE 就绪通知，可组合支持的时钟就绪源。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "需要进入 RCC ISR 时，另开 RCC_IRQn 并处理旧标志。",
+    "what": "修改 CIR 的就绪中断使能位。CSS 故障走 NMI。",
+    "related": [
+      "RCC_CIR"
+    ],
+    "example": {
+      "title": "打开 HSE 就绪通知",
+      "explanation": "随后开启 HSE。就绪标志可在 ISR 中读取。",
+      "code": "RCC_ITConfig(RCC_IT_HSERDY, ENABLE);"
+    },
+    "summary": "打开 HSE 就绪通知",
+    "check": "读 CIR.HSERDYIE=1，启停 HSE 测试 RCC IRQ。标志已置位却不进 ISR 时先查 NVIC 的 RCC_IRQn。"
+  },
+  {
+    "name": "RCC_GetITStatus",
+    "params": "RCC_IT=RCC_IT_HSERDY，传单个标志常量。",
+    "ret": "SET / RESET",
+    "pre": "选择需要检查的时钟状态。",
+    "what": "检查 RCC_CIR 的相应标志。IRQ 使能位另查。",
+    "related": [
+      "RCC_CIR"
+    ],
+    "example": {
+      "title": "读取 HSE 就绪中断标志",
+      "explanation": "在 RCC ISR 中判断来源并处理。",
+      "code": "const ITStatus ready = RCC_GetITStatus(RCC_IT_HSERDY);"
+    },
+    "summary": "读取 HSE 就绪中断标志",
+    "check": "在 RCC ISR 读取来源，SET 表示就绪标志已记录。若已就绪但标志为零，检查是否已清除或此前就处于就绪状态。"
+  },
+  {
+    "name": "RCC_ClearITPendingBit",
+    "params": "RCC_IT=RCC_IT_HSERDY，选择待应答标志，可按位或组合。",
+    "ret": "无",
+    "pre": "先确认哪些标志已处理。",
+    "what": "写 RCC_CIR 的对应清除位。",
+    "related": [
+      "RCC_CIR"
+    ],
+    "example": {
+      "title": "清 HSE 就绪中断标志",
+      "explanation": "清除后对应标志应读为 RESET。",
+      "code": "RCC_ClearITPendingBit(RCC_IT_HSERDY);"
+    },
+    "summary": "清 HSE 就绪中断标志",
+    "check": "读回 HSERDYF=0。HSERDY 仍可为 1，它表示振荡器状态。先确认写的是 CIR 的清除位。"
+  },
+  {
+    "name": "RCC_GetFlagStatus",
+    "params": "RCC_FLAG=RCC_FLAG_IWDGRST，查询独立看门狗复位记录。也可按需查询就绪或其他复位来源。",
+    "ret": "SET / RESET",
+    "pre": "按用途选择振荡器或复位来源。",
+    "what": "按标志编码从 CR、BDCR 或 CSR 读取一位。",
+    "related": [
+      "RCC_CR",
+      "RCC_BDCR",
+      "RCC_CSR"
+    ],
+    "example": {
+      "title": "在启动时检查独立看门狗复位",
+      "explanation": "读取并记录后再清复位标志。",
+      "code": "const FlagStatus watchdog_reset = RCC_GetFlagStatus(RCC_FLAG_IWDGRST);"
+    },
+    "summary": "在启动时检查独立看门狗复位",
+    "check": "启动后尽早读取。原因不明时检查是否已有初始化代码调用 RCC_ClearFlag，以及其他复位标志是否同时存在。"
+  },
+  {
+    "name": "RCC_ClearFlag",
+    "params": "无",
+    "ret": "无",
+    "pre": "先保存要用于排查的复位标志。",
+    "what": "通过 CSR.RMVF 清除全部复位来源标志。",
+    "related": [
+      "RCC_CSR"
+    ],
+    "example": {
+      "title": "清除旧复位标志",
+      "explanation": "在记录本次启动原因后调用，为下次排查留干净的起点。",
+      "code": "RCC_ClearFlag();"
+    },
+    "summary": "清除旧复位标志",
+    "check": "在记录本次启动原因后调用，为下次排查留干净的起点。"
+  },
+  {
+    "name": "RCC_LSEConfig",
+    "params": "RCC_LSE=RCC_LSE_ON 选晶振，RCC_LSE_Bypass 选外部时钟，RCC_LSE_OFF 关闭。",
+    "ret": "无",
+    "pre": "已解锁备份域，确认 32.768 kHz 晶振或旁路接法。",
+    "what": "修改 BDCR 的 LSE 开关和旁路位。",
+    "related": [
+      "RCC_BDCR"
+    ],
+    "example": {
+      "title": "开启板载低速晶振",
+      "explanation": "等待 LSERDY，再让 RTC 使用 LSE。应用需要处理起振失败。",
+      "code": "RCC_LSEConfig(RCC_LSE_ON);"
+    },
+    "summary": "开启板载低速晶振",
+    "check": "读 LSERDY=1 后再给 RTC 选源。迟迟不就绪先查备份域写权限与晶振/旁路接线。"
+  },
+  {
+    "name": "RCC_LSICmd",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "若 RTC 或 IWDG 依赖 LSI，先核对影响。",
+    "what": "修改 CSR.LSION。",
+    "related": [
+      "RCC_CSR-LSION",
+      "RCC_CSR-LSIRDY"
+    ],
+    "example": {
+      "title": "为 RTC 启动 LSI",
+      "explanation": "确认 LSIRDY 后再选源。LSI 精度按数据手册评估。",
+      "code": "RCC_LSICmd(ENABLE);"
+    },
+    "summary": "为 RTC 启动 LSI",
+    "check": "等待 CSR.LSIRDY=1 再让 RTC 使用 LSI。若时间有偏差，先量实际 LSI 频率并校核分频。"
+  },
+  {
+    "name": "RCC_RTCCLKConfig",
+    "params": "RCC_RTCCLKSource=RCC_RTCCLKSource_LSE 选择外部低速时钟。也支持 LSI 与 HSE ÷128。",
+    "ret": "无",
+    "pre": "已解锁备份域，时钟源就绪，RTCSEL 尚未选源。",
+    "what": "设置 BDCR.RTCSEL。已选源需要复位备份域才能更换。",
+    "related": [
+      "RCC_BDCR-RTCSEL",
+      "RCC_BDCR-RTCEN"
+    ],
+    "example": {
+      "title": "在新备份域中选择 LSE",
+      "explanation": "读回 RTCSEL 应为 01，然后再开 RTC 门控。",
+      "code": "RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);"
+    },
+    "summary": "在新备份域中选择 LSE",
+    "check": "BDCR.RTCSEL 应读 01。若旧选择仍在，先确认备份域写权限及是否已允许并执行备份域复位。"
+  },
+  {
+    "name": "RCC_RTCCLKCmd",
+    "params": "NewState=ENABLE 打开 RTC 时钟，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "已解锁备份域并选好有效源。",
+    "what": "修改 BDCR.RTCEN。",
+    "related": [
+      "RCC_BDCR-RTCEN",
+      "RCC_BDCR-RTCSEL"
+    ],
+    "example": {
+      "title": "开启 RTC 时钟",
+      "explanation": "检查 RTCEN 为 1。RTC 同步、预分频与计数留到 RTC 实验。",
+      "code": "RCC_RTCCLKCmd(ENABLE);"
+    },
+    "summary": "开启 RTC 时钟",
+    "check": "RTCEN 应读 1。计数不走先查 RTCSEL 和源时钟，再检查 RTC 同步和分频配置。"
+  },
+  {
+    "name": "RCC_BackupResetCmd",
+    "params": "NewState=ENABLE 置复位，DISABLE 释放。",
+    "ret": "无",
+    "pre": "确认允许清除备份域，包括 RTC 配置和备份寄存器。",
+    "what": "控制 BDCR.BDRST，置位后需释放。",
+    "related": [
+      "RCC_BDCR-BDRST",
+      "RCC_BDCR-RTCSEL"
+    ],
+    "example": {
+      "title": "在空白实验中复位备份域",
+      "explanation": "已解锁备份域。释放后 RTCSEL 恢复为 00，再配置时钟。",
+      "code": "RCC_BackupResetCmd(ENABLE);\nRCC_BackupResetCmd(DISABLE);"
+    },
+    "summary": "在空白实验中复位备份域",
+    "check": "释放后 RTCSEL 应恢复为 00。没有变化先查备份域写权限。RTC 和备份寄存器数据需要重新初始化。"
+  },
+  {
+    "name": "RCC_ClockSecuritySystemCmd",
+    "params": "NewState=ENABLE 开启 HSE 时钟故障检测，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "已理解 HSE 故障回退并准备 NMI_Handler。",
+    "what": "修改 CR.CSSON，故障记录见 CIR.CSSF。",
+    "related": [
+      "RCC_CR-CSSON",
+      "RCC_CIR",
+      "RCC_CFGR-SWS"
+    ],
+    "example": {
+      "title": "监测 HSE 故障",
+      "explanation": "NMI 中先保存故障原因并清 CSSF，再按回退频率恢复依赖时基。",
+      "code": "RCC_ClockSecuritySystemCmd(ENABLE);"
+    },
+    "summary": "监测 HSE 故障",
+    "check": "故障后在 NMI 记录 CSSF 并清除。若系统时钟原先依赖 HSE，读取 SWS 并按回退时钟重配软件时基。"
+  },
+  {
+    "name": "RCC_AHBPeriphClockCmd",
+    "params": "RCC_AHBPeriph=RCC_AHBPeriph_DMA1 选择外设，可按位或组合。\nNewState=ENABLE 开启总线门控，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "使用本芯片实现的 AHB 外设。",
+    "what": "修改 AHBENR 的对应门控位。",
+    "related": [
+      "RCC_AHBENR-DMA1EN"
+    ],
+    "example": {
+      "title": "给 DMA1 打开时钟",
+      "explanation": "随后可配置 DMA1 的通道寄存器。",
+      "code": "RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);"
+    },
+    "summary": "给 DMA1 打开时钟",
+    "check": "DMA1EN 应读 1。通道寄存器不可访问时先查 AHB 门控。"
+  },
+  {
+    "name": "RCC_APB1PeriphClockCmd",
+    "params": "RCC_APB1Periph=RCC_APB1Periph_USART2 选择外设，可按位或组合。\nNewState=ENABLE 开启总线门控，DISABLE 关闭。",
+    "ret": "无",
+    "pre": "使用本芯片实现的 APB1 外设。",
+    "what": "修改 APB1ENR 的对应门控位。",
+    "related": [
+      "RCC_APB1ENR-USART2EN"
+    ],
+    "example": {
+      "title": "给 USART2 打开时钟",
+      "explanation": "随后配置引脚和波特率，输入频率仍从 PCLK1 推导。",
+      "code": "RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);"
+    },
+    "summary": "给 USART2 打开时钟",
+    "check": "USART2EN 应读 1。若初始化后没有 TX 波形，继续查 USART2 的 UE、TE 和 PCLK1。"
+  },
+  {
+    "name": "RCC_APB1PeriphResetCmd",
+    "params": "RCC_APB1Periph=RCC_APB1Periph_USART2 选择外设，可按位或组合。\nNewState=ENABLE 保持复位，DISABLE 释放。",
+    "ret": "无",
+    "pre": "确认目标外设没有正在处理的数据。",
+    "what": "在 APB1RSTR 施加或释放复位。",
+    "related": [
+      "RCC_APB1RSTR"
+    ],
+    "example": {
+      "title": "复位 USART2 并释放",
+      "explanation": "复位后重新初始化波特率和收发。",
+      "code": "RCC_APB1PeriphResetCmd(RCC_APB1Periph_USART2, ENABLE);\nRCC_APB1PeriphResetCmd(RCC_APB1Periph_USART2, DISABLE);"
+    },
+    "summary": "复位 USART2 并释放",
+    "check": "释放复位并打开时钟后，USART2.BRR 应读 0。若仍读旧值，先核对复位实例。"
+  },
+  {
+    "name": "RCC_APB2PeriphResetCmd",
+    "params": "RCC_APB2Periph=RCC_APB2Periph_GPIOA 选择外设，可按位或组合。\nNewState=ENABLE 保持复位，DISABLE 释放。",
+    "ret": "无",
+    "pre": "确认整个端口可以重配。",
+    "what": "在 APB2RSTR 施加或释放复位。",
+    "related": [
+      "RCC_APB2RSTR"
+    ],
+    "example": {
+      "title": "复位 GPIOA 后释放",
+      "explanation": "先开 GPIOA 时钟再读 CRL，预期回到 0x44444444。",
+      "code": "RCC_APB2PeriphResetCmd(RCC_APB2Periph_GPIOA, ENABLE);\nRCC_APB2PeriphResetCmd(RCC_APB2Periph_GPIOA, DISABLE);"
+    },
+    "summary": "复位 GPIOA 后释放",
+    "check": "释放复位并打开时钟后，GPIOA.CRL 应读 0x44444444。异常先查门控和 IOPARST 是否释放。"
+  },
+  {
+    "name": "DBGMCU_GetREVID",
+    "summary": "读取芯片调试识别信息。",
+    "params": "无。",
+    "pre": "使用项目的 SPL V3.5.0 DBGMCU 驱动。",
+    "what": "读 IDCODE 高半字。",
+    "example": {
+      "title": "核对调试状态",
+      "explanation": "在 Keil 中观察读数或停机行为。",
+      "code": "const uint32_t rev = DBGMCU_GetREVID();"
+    },
+    "check": "按修订号查对应勘误。",
+    "ret": "芯片修订号。",
+    "related": [
+      "DBGMCU_IDCODE-REV_ID"
+    ],
+    "manual": {
+      "page": 739,
+      "kind": "rcc",
+      "label": "DBGMCU 调试寄存器"
+    }
+  },
+  {
+    "name": "DBGMCU_GetDEVID",
+    "summary": "读取芯片调试识别信息。",
+    "params": "无。",
+    "pre": "使用项目的 SPL V3.5.0 DBGMCU 驱动。",
+    "what": "读 IDCODE 低 12 位。",
+    "example": {
+      "title": "核对调试状态",
+      "explanation": "在 Keil 中观察读数或停机行为。",
+      "code": "const uint32_t dev = DBGMCU_GetDEVID();"
+    },
+    "check": "STM32F103 中容量预期为 0x410。",
+    "ret": "器件类型编码。",
+    "related": [
+      "DBGMCU_IDCODE-DEV_ID"
+    ],
+    "manual": {
+      "page": 739,
+      "kind": "rcc",
+      "label": "DBGMCU 调试寄存器"
+    }
+  },
+  {
+    "name": "DBGMCU_Config",
+    "summary": "配置调试停机时哪些外设暂停。",
+    "params": "DBGMCU_Periph=DBGMCU_TIM3_STOP。\nNewState=ENABLE 设置冻结，DISABLE 清除。",
+    "pre": "使用项目的 SPL V3.5.0 DBGMCU 驱动。",
+    "what": "读改写 DBGMCU_CR 的指定掩码。",
+    "example": {
+      "title": "核对调试状态",
+      "explanation": "在 Keil 中观察读数或停机行为。",
+      "code": "DBGMCU_Config(DBGMCU_TIM3_STOP, ENABLE);"
+    },
+    "check": "断点处 TIM3 CNT 应保持，继续运行后恢复。",
+    "ret": "无。",
+    "related": [
+      "DBGMCU_CR-DBG_TIM3_STOP"
+    ],
+    "manual": {
+      "page": 749,
+      "kind": "rcc",
+      "label": "DBGMCU 调试寄存器"
+    }
+  }
+]

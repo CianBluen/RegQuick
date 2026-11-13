@@ -1,0 +1,31 @@
+---
+title: GPIO 寄存器与标准库
+description: GPIO 配置位段、读写规则与 STM32F10x SPL V3.5.0 函数索引
+---
+
+import Reference from '../../../components/Reference.astro';
+
+<Reference />
+
+适用于 STM32F103C8T6。GPIO 寄存器偏移相对各端口基址，RCC 寄存器偏移相对 RCC 基址。GPIO 寄存器按 32 位访问。`RW` 为可读写，`RO` 为只读，`WO` 为只写。
+
+条目中的 C 片段可放进实验工程，使用已有的 STM32F10x 头文件。运行前先满足该示例说明的时钟、引脚配置和接线条件。
+
+位段名称按端口的通用布局列出。实际能接到板上的引脚取决于 LQFP48 封装、时钟配置和板卡连线。 [中文数据手册引脚表](/manuals/stm32f103x8b-zh.pdf#page=17)
+
+寄存器见 [中文参考手册 §6.3.7](/manuals/rm0008-zh.pdf#page=70) 和 [§8.2](/manuals/rm0008-zh.pdf#page=113)。函数见 [中文固件函数库手册 GPIO 章节](/manuals/spl-user-manual-zh.pdf#page=122)，实际读写核对 SPL V3.5.0 的 stm32f10x_gpio.c/.h 和 stm32f10x_rcc.c/.h。
+
+
+<h2 id="gpio-diagram">GPIO 输入输出结构图</h2>
+
+<details>
+<summary>展开GPIO 输入输出结构图</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-figure-13-gpio.png" target="_blank" rel="noopener" aria-label="在新标签页查看 GPIO 原理图原图">
+    <img src="/manuals/rm0008-figure-13-gpio.png" width="1329" height="795" loading="lazy" alt="RM0008 图 13，显示 GPIO 引脚的输入缓冲、上下拉电阻、输出控制、P-MOS、N-MOS 和保护二极管。" />
+  </a>
+  <figcaption><strong>图 13</strong> · I/O 端口位的基本结构 · <a href="/manuals/rm0008-zh.pdf#page=105">中文参考手册第 105 页</a></figcaption>
+</figure>
+
+</details>

@@ -1,0 +1,43 @@
+---
+interface Props {
+  register: string;
+  fields: string[][];
+}
+
+const { register, fields } = Astro.props;
+const fieldId = (field: string) => `${register}-${field}`.toLowerCase();
+const pinoutPages: Record<string, number> = { 'rcc_cfgr-mco': 19 };
+---
+
+<table class="register-fields">
+  <thead><tr><th scope="col">位</th><th scope="col">字段</th><th scope="col">含义</th></tr></thead>
+  <tbody>
+    {fields.map(([bits, field, meaning, effect]) => {
+      const id = fieldId(field);
+      const pinoutPage = pinoutPages[id];
+      return (
+        <tr>
+          <td>{bits}</td>
+          <th scope="row">
+            {effect || field === '保留'
+              ? <code>{field}</code>
+              : <h5 class="read-only-field" id={id} data-pagefind-weight="8"><code>{field}</code></h5>}
+          </th>
+          <td>
+            {meaning}
+            {pinoutPage && (
+              <a href={`/manuals/stm32f103x8b-zh.pdf#page=${pinoutPage}`} target="_blank" rel="noopener">
+                中文数据手册表 5（第 {pinoutPage} 页）
+              </a>
+            )}
+            {effect && <a class="write-link" href={`#${id}`} aria-label={`${field} 写入效果`}>写入效果</a>}
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+
+<style>
+  .read-only-field { margin: 0; font: inherit; }
+</style>

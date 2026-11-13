@@ -1,0 +1,27 @@
+---
+interface Props {
+  register: string;
+  fields: string[][];
+}
+
+const { register, fields } = Astro.props;
+const writable = fields.filter(([, , , effect]) => effect);
+---
+
+{writable.length > 0 && (
+  <div class="write-effects" aria-label={`${register} 写入效果`}>
+    <h4>写入效果</h4>
+    {writable.map(([bits, field, , effect, commonEncoding]) => (
+      <section class="write-effect">
+        <h5 id={`${register}-${field}`.toLowerCase()} data-pagefind-weight="8"><code>{field}</code> <span>位 {bits}</span></h5>
+        <dl class="not-content">
+          {effect.split('\n').map((line) => {
+            const [value, result] = line.split('｜');
+            return <div><dt><code>{value}</code></dt><dd>{result}</dd></div>;
+          })}
+        </dl>
+        {commonEncoding && <a href={`#${commonEncoding}`}>查看共用编码</a>}
+      </section>
+    ))}
+  </div>
+)}

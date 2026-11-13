@@ -1,0 +1,452 @@
+[
+  {
+    "id": "rtc",
+    "title": "RTC",
+    "items": [
+      {
+        "id": "rtc-1",
+        "type": "原理题",
+        "question": "RTC 在系统复位后继续走时，为什么上电后立刻读 CNT 仍可能为 0？",
+        "answer": "<p>RTC 核和 APB1 接口使用不同的时钟。系统复位让接口镜像丢失同步。先核对 RTCSEL 和 RTCEN，清 RSF 后等待硬件置位。再间隔一秒读两次 CNT 检查递增。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "RTC_CRL-RSF",
+            "href": "/reference/power-time/#rtc_crl-rsf"
+          },
+          {
+            "label": "RTC_GetCounter",
+            "href": "/reference/power-time/#rtc_getcounter"
+          }
+        ]
+      },
+      {
+        "id": "rtc-2",
+        "type": "读配置",
+        "question": "LSE 为 32.768 kHz，RTC_PRLH=0、RTC_PRLL=0x7FFF 时计数节拍是多少？",
+        "answer": "<p>装载值合并为 32767，实际分频为 PRL+1=32768，得到 1 Hz。清 CNF 后等 RTOFF=1。用秒输出或相隔已知时间的 CNT 读数确认。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "RTC_PRLH",
+            "href": "/reference/power-time/#rtc_prlh"
+          },
+          {
+            "label": "RTC_PRLL",
+            "href": "/reference/power-time/#rtc_prll"
+          },
+          {
+            "label": "RTC_CRL-RTOFF",
+            "href": "/reference/power-time/#rtc_crl-rtoff"
+          }
+        ]
+      },
+      {
+        "id": "rtc-3",
+        "type": "排故题",
+        "question": "ALRF 已经置位，但进入 Stop 后没有被闹钟唤醒，先查什么？",
+        "answer": "<p>ALRF 表示 RTC 核检测到比较匹配。Stop 的中断唤醒还要配置 EXTI17 上升沿和 RTCAlarm_IRQn。睡前清旧 ALRF 与 EXTI 挂起，选未来闹钟。先用 ISR 的 GPIO 标记和 EXTI 挂起位验证路径。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "RTC_SetAlarm",
+            "href": "/reference/power-time/#rtc_setalarm"
+          },
+          {
+            "label": "RTC_CRL-ALRF",
+            "href": "/reference/power-time/#rtc_crl-alrf"
+          },
+          {
+            "label": "PWR_EnterSTOPMode",
+            "href": "/reference/power-time/#pwr_enterstopmode"
+          }
+        ]
+      },
+      {
+        "id": "rtc-4",
+        "type": "原创面试题",
+        "question": "设备要在断主电后继续计时，RTC 应选 LSE、LSI 还是 HSE ÷128？",
+        "answer": "<p>用 LSE 和持续的 VBAT 备份供电。LSI 和 HSE 属于主供电域，无法替代备份域的 LSE 保持断电计时。设置时避免每次启动重置备份域。关 VDD 保留 VBAT 一段时间，再比较 CNT 增量和 DR1 测试值。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "RTC_SetPrescaler",
+            "href": "/reference/power-time/#rtc_setprescaler"
+          },
+          {
+            "label": "BKP_DR1",
+            "href": "/reference/power-time/#bkp_dr1"
+          },
+          {
+            "label": "BKP_DeInit",
+            "href": "/reference/power-time/#bkp_deinit"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "bkp",
+    "title": "BKP",
+    "items": [
+      {
+        "id": "bkp-1",
+        "type": "原理题",
+        "question": "PC13 防拆标志为何清中断后仍无法写入备份数据？",
+        "answer": "<p>CTI 清 TIF，中断应答已经完成。TEF 仍为 1 时数据寄存器继续处于复位状态。先解除有效防拆电平，再通过 CTE 清 TEF。重写 DR1 并读回 0x1234。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "BKP_CSR-CTI",
+            "href": "/reference/power-time/#bkp_csr-cti"
+          },
+          {
+            "label": "BKP_CSR-CTE",
+            "href": "/reference/power-time/#bkp_csr-cte"
+          },
+          {
+            "label": "BKP_DR1",
+            "href": "/reference/power-time/#bkp_dr1"
+          }
+        ]
+      },
+      {
+        "id": "bkp-2",
+        "type": "读配置",
+        "question": "BKP_RTCCR.CCO=1、CAL=0，LSE 是 32.768 kHz，PC13 应测到什么？",
+        "answer": "<p>PC13 的校准输出来自 RTCCLK/64，名义 512 Hz。关闭防拆和闹钟/秒输出后测量，示波器还需注意板载 LED 的负载。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "BKP_RTCCR-CCO",
+            "href": "/reference/power-time/#bkp_rtccr-cco"
+          },
+          {
+            "label": "BKP_RTCOutputConfig",
+            "href": "/reference/power-time/#bkp_rtcoutputconfig"
+          }
+        ]
+      },
+      {
+        "id": "bkp-3",
+        "type": "排故题",
+        "question": "VDD 断开后恢复，DR1 为 0，怎样区分掉电、启动清零和防拆？",
+        "answer": "<p>先确认断 VDD 时 VBAT 仍供电，再在任何初始化前读 DR1 和 TEF。检查是否调用 BKP_DeInit 或置 BDRST。用明确低电平的 PC13 和禁用 TPE 复测，从而隔离防拆。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "BKP_DR1",
+            "href": "/reference/power-time/#bkp_dr1"
+          },
+          {
+            "label": "BKP_CSR-TEF",
+            "href": "/reference/power-time/#bkp_csr-tef"
+          },
+          {
+            "label": "BKP_DeInit",
+            "href": "/reference/power-time/#bkp_deinit"
+          }
+        ]
+      },
+      {
+        "id": "bkp-4",
+        "type": "原创面试题",
+        "question": "产品需要 PC13 防拆和 RTC 精度校准，如何避免引脚争用？",
+        "answer": "<p>防拆输入和校准输出共用 PC13。生产校准时先停防拆，用 CCO 测频并写 CAL，再关输出、确认 PC13 非触发电平，恢复 TPE。日常也可用独立参考比对 CNT。测试恢复后 TPE=1、CCO=0。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "BKP_CR-TPE",
+            "href": "/reference/power-time/#bkp_cr-tpe"
+          },
+          {
+            "label": "BKP_RTCCR-CCO",
+            "href": "/reference/power-time/#bkp_rtccr-cco"
+          },
+          {
+            "label": "BKP_RTCCR-CAL",
+            "href": "/reference/power-time/#bkp_rtccr-cal"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pwr",
+    "title": "PWR",
+    "items": [
+      {
+        "id": "pwr-1",
+        "type": "原理题",
+        "question": "Stop 和 Standby 唤醒后，代码从哪里继续？",
+        "answer": "<p>Stop 保留普通 SRAM，唤醒从 WFI 后继续且 SYSCLK 先选 HSI。Standby 唤醒走复位入口，普通 SRAM 不保留，启动时记录 SBF。分别用 GPIO 标记 WFI 前后和启动路径。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "PWR_EnterSTOPMode",
+            "href": "/reference/power-time/#pwr_enterstopmode"
+          },
+          {
+            "label": "PWR_EnterSTANDBYMode",
+            "href": "/reference/power-time/#pwr_enterstandbymode"
+          },
+          {
+            "label": "PWR_CSR-SBF",
+            "href": "/reference/power-time/#pwr_csr-sbf"
+          }
+        ]
+      },
+      {
+        "id": "pwr-2",
+        "type": "读配置",
+        "question": "PLS=110 且 PVDE=1，PVDO=1 表示什么？",
+        "answer": "<p>名义阈值为 2.8 V，PVDO=1 表示 VDD/VDDA 低于 PVD 门槛。实际要查数据手册的阈值范围和迟滞。慢调电源并观察下降、上升时两个切换点。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "PWR_CR-PLS",
+            "href": "/reference/power-time/#pwr_cr-pls"
+          },
+          {
+            "label": "PWR_CR-PVDE",
+            "href": "/reference/power-time/#pwr_cr-pvde"
+          },
+          {
+            "label": "PWR_CSR-PVDO",
+            "href": "/reference/power-time/#pwr_csr-pvdo"
+          }
+        ]
+      },
+      {
+        "id": "pwr-3",
+        "type": "排故题",
+        "question": "开启 PA0 的 WKUP 后一进入待机就重新启动，该查哪两个地方？",
+        "answer": "<p>先检查开启 EWUP 时 PA0 是否已经是高电平，其次读 WUF 和是否存在 RTC Alarm。恢复成低电平、应答旧来源并清 WUF 后再试。上电后先保存 SBF/WUF 再清。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "PWR_CSR-EWUP",
+            "href": "/reference/power-time/#pwr_csr-ewup"
+          },
+          {
+            "label": "PWR_CSR-WUF",
+            "href": "/reference/power-time/#pwr_csr-wuf"
+          },
+          {
+            "label": "PWR_CR-CWUF",
+            "href": "/reference/power-time/#pwr_cr-cwuf"
+          }
+        ]
+      },
+      {
+        "id": "pwr-4",
+        "type": "原创面试题",
+        "question": "设备每分钟醒一次且需要保留大量 RAM，如何在功耗与恢复开销间选择？",
+        "answer": "<p>若需要直接保留 SRAM，优先测试 RTC Alarm 唤醒的 Stop。计算从 HSI 恢复 PLL 与外设的时间。若 Standby 电流明显更低且状态可重建，再把少量标记写入 BKP。分别用电流曲线和恢复路径标记比较。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "PWR_EnterSTOPMode",
+            "href": "/reference/power-time/#pwr_enterstopmode"
+          },
+          {
+            "label": "PWR_EnterSTANDBYMode",
+            "href": "/reference/power-time/#pwr_enterstandbymode"
+          },
+          {
+            "label": "BKP_DR1",
+            "href": "/reference/power-time/#bkp_dr1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "iwdg",
+    "title": "IWDG",
+    "items": [
+      {
+        "id": "iwdg-1",
+        "type": "原理题",
+        "question": "为何 CPU 主频改变后 IWDG 超时仍主要由 LSI 决定？",
+        "answer": "<p>IWDG 用独立的 LSI 时钟，主 PLL 和总线分频不进入超时公式。先核对 PR、RLR，再量刷新到复位的间隔。LSI 自身容差决定主要误差。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "IWDG_PR-PR",
+            "href": "/reference/power-time/#iwdg_pr-pr"
+          },
+          {
+            "label": "IWDG_RLR-RL",
+            "href": "/reference/power-time/#iwdg_rlr-rl"
+          }
+        ]
+      },
+      {
+        "id": "iwdg-2",
+        "type": "读配置",
+        "question": "IWDG 设置 ÷64、RLR=624，LSI 为 40 kHz，名义超时多少？",
+        "answer": "<p>每格 64/40000 秒，总共 625 格，名义 1 s。用最近一次刷新后的 GPIO 标记量到启动标记，并核对 IWDGRSTF。设计需使用最快 LSI 估算最短允许间隔。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "IWDG_PR-PR",
+            "href": "/reference/power-time/#iwdg_pr-pr"
+          },
+          {
+            "label": "IWDG_RLR-RL",
+            "href": "/reference/power-time/#iwdg_rlr-rl"
+          },
+          {
+            "label": "IWDG_ReloadCounter",
+            "href": "/reference/power-time/#iwdg_reloadcounter"
+          }
+        ]
+      },
+      {
+        "id": "iwdg-3",
+        "type": "排故题",
+        "question": "改写 IWDG_RLR 后超时仍像旧配置，先看什么？",
+        "answer": "<p>先确认写前通过 KR 解锁且 RVU=0。写后等 RVU 清零再读回，并写 0xAAAA 重装。若 RVU 一直为 1，检查 APB 时钟是否高于 IWDG 时钟两倍，以及是否过早进入 Stop。最后检查调试冻结和实际 LSI。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "IWDG_KR-KEY",
+            "href": "/reference/power-time/#iwdg_kr-key"
+          },
+          {
+            "label": "IWDG_SR-RVU",
+            "href": "/reference/power-time/#iwdg_sr-rvu"
+          },
+          {
+            "label": "IWDG_ReloadCounter",
+            "href": "/reference/power-time/#iwdg_reloadcounter"
+          }
+        ]
+      },
+      {
+        "id": "iwdg-4",
+        "type": "原创面试题",
+        "question": "要求主时钟故障或程序卡死后仍能复位，IWDG 与 WWDG 怎么选？",
+        "answer": "<p>用 LSI 驱动的 IWDG 独立监视主时钟和任务进度。让健康检查只有在所有关键任务有进展时刷新。WWDG 可补充检测定期任务过早或过晚，依赖 PCLK1。分别停止健康标记和刷新，确认复位原因。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "IWDG_Enable",
+            "href": "/reference/power-time/#iwdg_enable"
+          },
+          {
+            "label": "IWDG_ReloadCounter",
+            "href": "/reference/power-time/#iwdg_reloadcounter"
+          },
+          {
+            "label": "WWDG_Enable",
+            "href": "/reference/power-time/#wwdg_enable"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "wwdg",
+    "title": "WWDG",
+    "items": [
+      {
+        "id": "wwdg-1",
+        "type": "原理题",
+        "question": "同样是刷新，为什么 WWDG 过早刷新也可能复位？",
+        "answer": "<p>刷新时硬件将当前 T 与 W 比较。T 还太大时写 CR 会触发复位。启动后让计数先进入允许窗口，再刷新。外部波形对比写 CR 和重新启动的先后关系。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "WWDG_CR-T",
+            "href": "/reference/power-time/#wwdg_cr-t"
+          },
+          {
+            "label": "WWDG_CFR-W",
+            "href": "/reference/power-time/#wwdg_cfr-w"
+          }
+        ]
+      },
+      {
+        "id": "wwdg-2",
+        "type": "读配置",
+        "question": "PCLK1=36 MHz、WDGTB=3，每格多久？T=0x40 表示什么？",
+        "answer": "<p>每格耗时 4096×8/36 MHz≈910 µs。T=0x40 时 EWIF 置位，下一格到 0x3F 产生复位。用 EWI ISR 的 GPIO 脉冲与启动标记测时间差。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "WWDG_CFR-WDGTB",
+            "href": "/reference/power-time/#wwdg_cfr-wdgtb"
+          },
+          {
+            "label": "WWDG_SR-EWIF",
+            "href": "/reference/power-time/#wwdg_sr-ewif"
+          }
+        ]
+      },
+      {
+        "id": "wwdg-3",
+        "type": "排故题",
+        "question": "打开 EWI 就进中断，可能是什么原因？",
+        "answer": "<p>即使 WDGA 未开，计数可自由运行并提前留下 EWIF。设置 NVIC 和 EWI 之前清 EWIF，启动时读 T、WDGA 与 SR 复核。若一直重启，另核对窗口和 ISR 处理耗时。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "WWDG_CR-WDGA",
+            "href": "/reference/power-time/#wwdg_cr-wdga"
+          },
+          {
+            "label": "WWDG_EnableIT",
+            "href": "/reference/power-time/#wwdg_enableit"
+          },
+          {
+            "label": "WWDG_ClearFlag",
+            "href": "/reference/power-time/#wwdg_clearflag"
+          }
+        ]
+      },
+      {
+        "id": "wwdg-4",
+        "type": "原创面试题",
+        "question": "PCLK1 运行中要改分频，原来固定周期刷 WWDG 的策略如何调整？",
+        "answer": "<p>WWDG 节拍直接随 PCLK1 变化。时钟切换前后重新计算窗口，读 T 确认已进入安全区再刷新，避免在时钟切换的最长路径里错过窗口。用 GPIO 测刷新间隔，并记录 WWDGRSTF 排查早晚边界。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "WWDG_CFR-WDGTB",
+            "href": "/reference/power-time/#wwdg_cfr-wdgtb"
+          },
+          {
+            "label": "WWDG_CFR-W",
+            "href": "/reference/power-time/#wwdg_cfr-w"
+          },
+          {
+            "label": "WWDG_SetCounter",
+            "href": "/reference/power-time/#wwdg_setcounter"
+          }
+        ]
+      }
+    ]
+  }
+]

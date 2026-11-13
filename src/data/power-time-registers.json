@@ -1,0 +1,1114 @@
+[
+  {
+    "id": "PWR_CR",
+    "off": "0x00",
+    "reset": "0x00000000",
+    "access": "RW / W1C 命令",
+    "instances": "PWR",
+    "summary": "打开备份域写权限，选择低功耗模式和电压检测阈值。",
+    "fields": [
+      [
+        "31:9",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "8",
+        "DBP",
+        "RTC、BKP 及备份域控制的写权限。",
+        "0｜写保护。\n1｜允许写入。若以 HSE/128 给 RTC 供时，保持为 1。"
+      ],
+      [
+        "7:5",
+        "PLS",
+        "选择 PVD 标称阈值。启用 PVDE 后才观察 PVDO，实际阈值与迟滞看数据手册。",
+        "000｜2.2 V\n001｜2.3 V\n010｜2.4 V\n011｜2.5 V\n100｜2.6 V\n101｜2.7 V\n110｜2.8 V\n111｜2.9 V"
+      ],
+      [
+        "4",
+        "PVDE",
+        "电压检测器开关。",
+        "0｜停止 PVD。\n1｜开启 PVD，跨过阈值时 PVDO 改变，可送 EXTI16。"
+      ],
+      [
+        "3",
+        "CSBF",
+        "命令位，读回为 0。",
+        "0｜无操作。\n1｜清 PWR_CSR.SBF。"
+      ],
+      [
+        "2",
+        "CWUF",
+        "命令位，读回为 0。",
+        "0｜无操作。\n1｜清 PWR_CSR.WUF，最多约两个系统时钟周期后反映在状态。"
+      ],
+      [
+        "1",
+        "PDDS",
+        "选择 SLEEPDEEP=1 时进入哪种模式。",
+        "0｜进入 Stop，LPDS 决定稳压器工作状态。\n1｜进入 Standby，唤醒走复位路径。"
+      ],
+      [
+        "0",
+        "LPDS",
+        "PDDS=0 时选择 Stop 内部稳压器状态。",
+        "0｜主稳压器开启。\n1｜稳压器低功耗，唤醒时间增加。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN。",
+      "code": "PWR->CR |= PWR_CR_DBP;"
+    },
+    "check": "DBP 应读 1，再试写 BKP。读回失败先查 PWREN。",
+    "manual": {
+      "kind": "rcc",
+      "page": 44,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "PWR_CSR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW / RO",
+    "instances": "PWR",
+    "summary": "查看待机唤醒和电源电压状态，并启用 PA0 唤醒输入。",
+    "fields": [
+      [
+        "31:9",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "8",
+        "EWUP",
+        "PA0 的 Standby WKUP 开关。",
+        "0｜PA0 按 GPIO 配置工作。\n1｜强制为下拉输入，检测上升沿。开启时若已为高电平，会登记事件。"
+      ],
+      [
+        "7:3",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "2",
+        "PVDO",
+        "PVDE=1 时由硬件比较 VDD/VDDA。1 表示低于阈值，0 表示高于阈值。"
+      ],
+      [
+        "1",
+        "SBF",
+        "进入 Standby 时由硬件置 1，唤醒后的程序可读取，用 CSBF 清除。"
+      ],
+      [
+        "0",
+        "WUF",
+        "WKUP 或 RTC Alarm 唤醒事件由硬件置 1，用 CWUF 清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN。 PA0 初始为低电平。",
+      "code": "PWR->CSR |= PWR_CSR_EWUP;"
+    },
+    "check": "EWUP 应读 1。升高 PA0 后看 WUF，误触发先量 PA0 初始电平。",
+    "manual": {
+      "kind": "rcc",
+      "page": 45,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR1",
+    "off": "0x04",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 1 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR1 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR2",
+    "off": "0x08",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 2 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR2 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR3",
+    "off": "0x0C",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 3 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR3 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR4",
+    "off": "0x10",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 4 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR4 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR5",
+    "off": "0x14",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 5 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR5 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR6",
+    "off": "0x18",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 6 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR6 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR7",
+    "off": "0x1C",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 7 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR7 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR8",
+    "off": "0x20",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 8 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR8 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR9",
+    "off": "0x24",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 9 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR9 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_DR10",
+    "off": "0x28",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "在备份域保存第 10 个 16 位值。",
+    "fields": [
+      [
+        "15:0",
+        "D",
+        "应用数据。只要 VBAT 或 VDD 持续给备份域供电，系统复位可保留。",
+        "0–65535｜TEF=0 且 DBP=1 时写入。防拆触发、备份域复位或备份供电丢失会清除。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 使用独立测试值，已确认 TEF=0。",
+      "code": "BKP->DR10 = 0x1234u;"
+    },
+    "check": "读回 0x1234。断 VDD 保留 VBAT 后重读应相同，失败先查 VBAT、BDRST、TEF 和启动代码。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_RTCCR",
+    "off": "0x2C",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "校准 RTC 走时，或将 RTC 信号输出到 PC13。",
+    "fields": [
+      [
+        "15:10",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "9",
+        "ASOS",
+        "ASOE=1 时选输出内容。",
+        "0｜输出闹钟脉冲。\n1｜输出秒脉冲。"
+      ],
+      [
+        "8",
+        "ASOE",
+        "控制闹钟或秒脉冲输出。",
+        "0｜关闭此输出。\n1｜按 ASOS 输出到 PC13。TPE=0，CCO=0。"
+      ],
+      [
+        "7",
+        "CCO",
+        "启用 RTC 时钟测量输出。",
+        "0｜关闭此输出。\n1｜PC13 输出 RTCCLK/64。TPE=0，ASOE=0。VDD 断开会清 CCO。"
+      ],
+      [
+        "6:0",
+        "CAL",
+        "每 2^20 个 RTC 输入脉冲跳过指定数量。",
+        "0–127｜每步约减慢 0.954 ppm，只能减慢。先测实际误差再调整。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 关闭防拆和闹钟/秒输出，LSE 已运行。",
+      "code": "BKP->RTCCR = (BKP->RTCCR & ~(BKP_RTCCR_ASOE | BKP_RTCCR_ASOS)) | BKP_RTCCR_CCO;"
+    },
+    "check": "PC13 应测到约 512 Hz。若无输出先读 CCO/TPE 并检查板载 LED 对 PC13 的负载。",
+    "manual": {
+      "kind": "rcc",
+      "page": 48,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_CR",
+    "off": "0x30",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "选择 PC13 防拆输入的有效电平并控制检测。",
+    "fields": [
+      [
+        "15:2",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "1",
+        "TPAL",
+        "在 TPE=0 时改极性。",
+        "0｜高有效。\n1｜低有效。"
+      ],
+      [
+        "0",
+        "TPE",
+        "防拆检测开关。",
+        "0｜停用防拆，PC13 可用于其他功能。\n1｜启用防拆，触发会清空 DR1–10。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 PC13 测试电路已保持低电平，RTC 输出关闭，可清空所有备份值。",
+      "code": "BKP->CR &= (uint16_t)~BKP_CR_TPE;\nBKP->CR &= (uint16_t)~BKP_CR_TPAL;\nBKP->CR |= BKP_CR_TPE;"
+    },
+    "check": "读回 TPE=1、TPAL=0。拉高 PC13 后应见 TEF=1、DRx 清零。若立即触发先查 PC13 实际电平。",
+    "manual": {
+      "kind": "rcc",
+      "page": 49,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "BKP_CSR",
+    "off": "0x34",
+    "reset": "0x0000",
+    "access": "RW / RO / W1C 命令",
+    "instances": "BKP（STM32F103C8T6 中容量）",
+    "summary": "查看防拆事件和 IRQ，并应答两个独立状态。",
+    "fields": [
+      [
+        "15:10",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "9",
+        "TIF",
+        "启用 TPIE 时由硬件在防拆事件置位。可通过 CTI 清除，关闭 TPIE 也会清除。"
+      ],
+      [
+        "8",
+        "TEF",
+        "防拆触发时由硬件置位。TEF 保持为 1 时备份数据寄存器一直处于复位状态。"
+      ],
+      [
+        "7:3",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "2",
+        "TPIE",
+        "配合 TPE 控制防拆 IRQ。",
+        "0｜屏蔽 IRQ 并清 TIF。\n1｜允许防拆 IRQ，另配置 TAMPER_IRQn。"
+      ],
+      [
+        "1",
+        "CTI",
+        "命令位，读回为 0。",
+        "0｜无操作。\n1｜清防拆中断标志 TIF。"
+      ],
+      [
+        "0",
+        "CTE",
+        "命令位，读回为 0。",
+        "0｜无操作。\n1｜清防拆事件 TEF 并复位检测器。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开 APB1 的 PWREN 和 BKPEN，PWR_CR.DBP=1。 已记录并解除防拆条件。",
+      "code": "BKP->CSR = (BKP->CSR & BKP_CSR_TPIE) | BKP_CSR_CTI | BKP_CSR_CTE;"
+    },
+    "check": "应读 TEF=0、TIF=0，TPIE 保留。若刚清又置位先核对 TPE、极性和输入。",
+    "manual": {
+      "kind": "rcc",
+      "page": 49,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_CRH",
+    "off": "0x00",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "RTC",
+    "summary": "选择秒、闹钟或溢出事件是否向 RTC 中断路径发请求。",
+    "fields": [
+      [
+        "15:3",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "2",
+        "OWIE",
+        "溢出 OWF 中断使能，RTOFF=1 时配置。",
+        "0｜屏蔽。\n1｜允许请求。"
+      ],
+      [
+        "1",
+        "ALRIE",
+        "闹钟 ALRF 中断使能，RTOFF=1 时配置。",
+        "0｜屏蔽。\n1｜允许请求。"
+      ],
+      [
+        "0",
+        "SECIE",
+        "秒标志 SECF 中断使能，RTOFF=1 时配置。",
+        "0｜屏蔽。\n1｜允许请求。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已清旧标志并等 RTOFF=1。",
+      "code": "RTC->CRH |= RTC_CRH_SECIE;"
+    },
+    "check": "SECIE=1。若 SECF 已置却无中断，查 RTC_IRQn、向量名及 PRIMASK。",
+    "manual": {
+      "kind": "rcc",
+      "page": 311,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_CRL",
+    "off": "0x04",
+    "reset": "0x0020",
+    "access": "RW / RO / W0C",
+    "instances": "RTC",
+    "summary": "检查跨时钟域同步、写入是否完成及待处理 RTC 事件。",
+    "fields": [
+      [
+        "15:6",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "5",
+        "RTOFF",
+        "硬件在跨域写操作进行中清零，完成后置 1。等待为 1 才开始下次写。"
+      ],
+      [
+        "4",
+        "CNF",
+        "控制 PRL、CNT、ALR 的配置窗口。",
+        "0｜退出并提交本次写入。\n1｜允许写配置半字。"
+      ],
+      [
+        "3",
+        "RSF",
+        "RTC 与 APB1 接口同步后由硬件置位。复位及 Stop/Standby 恢复后先清再等待置位。",
+        "0｜清除已处理的标志。\n1｜保持标志。"
+      ],
+      [
+        "2",
+        "OWF",
+        "计数器由 0xFFFFFFFF 溢出时由硬件置位。",
+        "0｜清除已处理的标志。\n1｜保持标志。"
+      ],
+      [
+        "1",
+        "ALRF",
+        "RTC 核在闹钟比较匹配时置位。",
+        "0｜清除已处理的标志。\n1｜保持标志。"
+      ],
+      [
+        "0",
+        "SECF",
+        "预分频器每输出一次计数节拍时由硬件置位。",
+        "0｜清除已处理的标志。\n1｜保持标志。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1，配置模式关闭，已处理闹钟。",
+      "code": "RTC->CRL = RTC_CRL_RSF | RTC_CRL_OWF | RTC_CRL_SECF;"
+    },
+    "check": "ALRF 应清除，其他标志保持。若 RTC Alarm IRQ 仍待处理，检查 EXTI17 的挂起位并单独应答。",
+    "manual": {
+      "kind": "rcc",
+      "page": 311,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_PRLH",
+    "off": "0x08",
+    "reset": "0x0000",
+    "access": "WO",
+    "instances": "RTC",
+    "summary": "设置 RTC 20 位预分频装载值的高半部。",
+    "fields": [
+      [
+        "15:4",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "3:0",
+        "PRL",
+        "两个半部拼为一个值，分频为 PRL+1。",
+        "非零装载值｜CNF=1 时填入对应位。PRL=0 可能导致标志和中断异常。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 LSE=32.768 kHz，两半部合成 32767。",
+      "code": "RTC->PRLH = 0u;"
+    },
+    "check": "退出配置并等 RTOFF。约 1 s 应见 CNT 增一，若偏离先核对 RTCSEL 与另一半部，按实际节拍验证。",
+    "manual": {
+      "kind": "rcc",
+      "page": 312,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_PRLL",
+    "off": "0x0C",
+    "reset": "0x8000",
+    "access": "WO",
+    "instances": "RTC",
+    "summary": "设置 RTC 20 位预分频装载值的低半部。",
+    "fields": [
+      [
+        "15:0",
+        "PRL",
+        "两个半部拼为一个值，分频为 PRL+1。",
+        "非零装载值｜CNF=1 时填入对应位。PRL=0 可能导致标志和中断异常。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 LSE=32.768 kHz，两半部合成 32767。",
+      "code": "RTC->PRLL = 32767u;"
+    },
+    "check": "退出配置并等 RTOFF。约 1 s 应见 CNT 增一，若偏离先核对 RTCSEL 与另一半部，按实际节拍验证。",
+    "manual": {
+      "kind": "rcc",
+      "page": 313,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_DIVH",
+    "off": "0x10",
+    "reset": "0x0000",
+    "access": "RO",
+    "instances": "RTC",
+    "summary": "读取 RTC 预分频器当前余数的高半部。",
+    "fields": [
+      [
+        "15:4",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "3:0",
+        "DIV",
+        "硬件随 RTCCLK 递减，计数节拍后重新装载 PRL。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。",
+      "code": "const uint32_t divider_half = RTC->DIVH & 0xFu;\n(void)divider_half;"
+    },
+    "check": "两个时间点读数应随 RTC 时钟变化。余数不变先核对 RSF、RTCEN 和振荡器就绪状态。",
+    "manual": {
+      "kind": "rcc",
+      "page": 313,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_DIVL",
+    "off": "0x14",
+    "reset": "0x8000",
+    "access": "RO",
+    "instances": "RTC",
+    "summary": "读取 RTC 预分频器当前余数的低半部。",
+    "fields": [
+      [
+        "15:0",
+        "DIV",
+        "硬件随 RTCCLK 递减，计数节拍后重新装载 PRL。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。",
+      "code": "const uint32_t divider_half = RTC->DIVL;\n(void)divider_half;"
+    },
+    "check": "两个时间点读数应随 RTC 时钟变化。余数不变先核对 RSF、RTCEN 和振荡器就绪状态。",
+    "manual": {
+      "kind": "rcc",
+      "page": 313,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_CNTH",
+    "off": "0x18",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "RTC",
+    "summary": "读取或设置 RTC 32 位时间计数的高半部。",
+    "fields": [
+      [
+        "15:0",
+        "CNT",
+        "硬件随预分频节拍加一。读取完整值时可高–低–高重复，避免跨半字进位。",
+        "0–65535｜在 CNF=1 时写入相应半字。更新计数也会重装预分频。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 示例把计数初值设为 100。",
+      "code": "RTC->CNTH = 0u;"
+    },
+    "check": "提交后读完整计数接近 100，随后继续递增。若读旧值先查 RTOFF 和 RSF。",
+    "manual": {
+      "kind": "rcc",
+      "page": 314,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_CNTL",
+    "off": "0x1C",
+    "reset": "0x0000",
+    "access": "RW",
+    "instances": "RTC",
+    "summary": "读取或设置 RTC 32 位时间计数的低半部。",
+    "fields": [
+      [
+        "15:0",
+        "CNT",
+        "硬件随预分频节拍加一。读取完整值时可高–低–高重复，避免跨半字进位。",
+        "0–65535｜在 CNF=1 时写入相应半字。更新计数也会重装预分频。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 示例把计数初值设为 100。",
+      "code": "RTC->CNTL = 100u;"
+    },
+    "check": "提交后读完整计数接近 100，随后继续递增。若读旧值先查 RTOFF 和 RSF。",
+    "manual": {
+      "kind": "rcc",
+      "page": 314,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_ALRH",
+    "off": "0x20",
+    "reset": "0xFFFF",
+    "access": "WO",
+    "instances": "RTC",
+    "summary": "设置 RTC 32 位闹钟比较值的高半部。",
+    "fields": [
+      [
+        "15:0",
+        "ALR",
+        "硬件将 RTC 计数与该值比较并产生事件。",
+        "0–65535｜在 CNF=1 时写相应半字。选未来时刻，保留配置提交的时间。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 计数起于 100 且为 1 Hz。",
+      "code": "RTC->ALRH = 0u;"
+    },
+    "check": "计数经过目标附近应见 ALRF。若只见标志而未从 Stop 唤醒，优先核对 EXTI17。",
+    "manual": {
+      "kind": "rcc",
+      "page": 314,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "RTC_ALRL",
+    "off": "0x24",
+    "reset": "0xFFFF",
+    "access": "WO",
+    "instances": "RTC",
+    "summary": "设置 RTC 32 位闹钟比较值的低半部。",
+    "fields": [
+      [
+        "15:0",
+        "ALR",
+        "硬件将 RTC 计数与该值比较并产生事件。",
+        "0–65535｜在 CNF=1 时写相应半字。选未来时刻，保留配置提交的时间。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 PWREN、BKPEN 和 RCC_BDCR.RTCEN，时钟源已就绪，DBP=1。 首次访问或从 Stop/Standby 返回后已等待 RSF=1。 已等 RTOFF=1 并进入 CNF=1 配置窗口。全部半字写好后清 CNF，再等 RTOFF=1。 计数起于 100 且为 1 Hz。",
+      "code": "RTC->ALRL = 105u;"
+    },
+    "check": "计数经过目标附近应见 ALRF。若只见标志而未从 Stop 唤醒，优先核对 EXTI17。",
+    "manual": {
+      "kind": "rcc",
+      "page": 314,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "IWDG_KR",
+    "off": "0x00",
+    "reset": "0x00000000",
+    "access": "WO",
+    "instances": "IWDG",
+    "summary": "用密钥启动独立看门狗、刷新计数或解锁参数。",
+    "fields": [
+      [
+        "31:16",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "15:0",
+        "KEY",
+        "命令只写，读回为 0。",
+        "0x5555｜允许写 PR 和 RLR。\n0xAAAA｜按 RLR 重装计数，同时结束参数写许可。\n0xCCCC｜启动软件看门狗，运行后只能通过复位停止。\n其他｜结束参数写许可，无刷新或启动动作。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "独立看门狗使用 LSI，无需 APB 外设门控。 PR/RLR 已提交且 PVU/RVU 均为零。",
+      "code": "IWDG->KR = 0xAAAAu;"
+    },
+    "check": "测本次刷新到超时复位的间隔。若仍按旧参数超时，先查 PR/RLR 写许可和同步状态。",
+    "manual": {
+      "kind": "rcc",
+      "page": 317,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "IWDG_PR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW 受保护",
+    "instances": "IWDG",
+    "summary": "选择 LSI 到独立看门狗计数器的分频。",
+    "fields": [
+      [
+        "31:3",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "2:0",
+        "PR",
+        "PVU=0 且 KR 已解锁才写。PVU 再次清零后读回有效。",
+        "000｜÷4\n001｜÷8\n010｜÷16\n011｜÷32\n100｜÷64\n101｜÷128\n110｜÷256\n111｜÷256"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "独立看门狗使用 LSI，无需 APB 外设门控。 KR 写 0x5555 且 PVU=0。",
+      "code": "IWDG->PR = 4u;"
+    },
+    "check": "等 PVU=0 后读 PR=4。超时偏差先核对实际 LSI。",
+    "manual": {
+      "kind": "rcc",
+      "page": 318,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "IWDG_RLR",
+    "off": "0x08",
+    "reset": "0x00000FFF",
+    "access": "RW 受保护",
+    "instances": "IWDG",
+    "summary": "设置每次刷新后允许倒数的最长时间。",
+    "fields": [
+      [
+        "31:12",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "11:0",
+        "RL",
+        "RVU=0 且 KR 解锁时写入。",
+        "0–4095｜刷新后从 RL 倒数至 0 后复位，超时约为 (RL+1) × 分频 ÷ fLSI。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "独立看门狗使用 LSI，无需 APB 外设门控。 KR 已解锁且 RVU=0。",
+      "code": "IWDG->RLR = 624u;"
+    },
+    "check": "RVU=0 后读 624。分频 64、LSI=40 kHz 时刷新后约 1 s 复位，实测先核对 LSI 容差。",
+    "manual": {
+      "kind": "rcc",
+      "page": 318,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "IWDG_SR",
+    "off": "0x0C",
+    "reset": "0x00000000",
+    "access": "RO",
+    "instances": "IWDG",
+    "summary": "判断分频和重装值是否已经跨到 LSI 时钟域。",
+    "fields": [
+      [
+        "31:2",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "1",
+        "RVU",
+        "硬件在 RLR 更新进行中置 1，提交后清零。"
+      ],
+      [
+        "0",
+        "PVU",
+        "硬件在 PR 更新进行中置 1，提交后清零。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "独立看门狗使用 LSI，无需 APB 外设门控。 已开始参数更新。",
+      "code": "const uint32_t updating = IWDG->SR & (IWDG_SR_PVU | IWDG_SR_RVU);\n(void)updating;"
+    },
+    "check": "两个位均为 0 才重写对应参数并确认读回。一直忙时核对 LSI、APB 时钟是否高于 IWDG 时钟两倍，以及是否在同步完成前进入 Stop。",
+    "manual": {
+      "kind": "rcc",
+      "page": 319,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "WWDG_CR",
+    "off": "0x00",
+    "reset": "0x0000007F",
+    "access": "RW / 软件置位",
+    "instances": "WWDG",
+    "summary": "启用窗口看门狗并刷新 7 位倒数计数。",
+    "fields": [
+      [
+        "31:8",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "7",
+        "WDGA",
+        "看门狗激活位。",
+        "0｜未激活时保持关闭，激活后写 0 无法停止。\n1｜激活，到期或过早刷新均可复位。"
+      ],
+      [
+        "6:0",
+        "T",
+        "倒数计数，运行时硬件每个 WWDG 节拍减一。",
+        "0x40–0x7F｜合法初值。运行后只在安全窗口内刷新，建议读到 0x40≤T<W 且留裕量。\n0x00–0x3F｜激活状态下 T6 为 0，引发复位。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 WWDGEN。 窗口与时基已设置，尚未激活，已准备刷新。",
+      "code": "WWDG->CR = WWDG_CR_WDGA | 0x7Fu;"
+    },
+    "check": "读取 WDGA=1，T 开始下降。立即重启先查 T6、窗口和是否太早刷新。",
+    "manual": {
+      "kind": "rcc",
+      "page": 322,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "WWDG_CFR",
+    "off": "0x04",
+    "reset": "0x0000007F",
+    "access": "RW / 软件置位",
+    "instances": "WWDG",
+    "summary": "选择刷新窗口、计数分频及预警中断。",
+    "fields": [
+      [
+        "31:10",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "9",
+        "EWI",
+        "控制 T=0x40 的提前唤醒中断。",
+        "0｜仅在复位后为 0。\n1｜允许提前中断，只有复位才能清使能。"
+      ],
+      [
+        "8:7",
+        "WDGTB",
+        "计数频率为 PCLK1 ÷ 4096 ÷ 2^WDGTB。",
+        "00｜再分频 1\n01｜再分频 2\n10｜再分频 4\n11｜再分频 8"
+      ],
+      [
+        "6:0",
+        "W",
+        "可接受刷新的窗口上限。",
+        "0–127｜写入七位阈值。实际选大于 0x40 的值，且刷新点严格低于 W 并早于 T=0x3F。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 WWDGEN。 尚未激活。示例设 ÷8、W=0x60。",
+      "code": "WWDG->CFR = (WWDG->CFR & WWDG_CFR_EWI) | (3u << 7) | 0x60u;"
+    },
+    "check": "读回 WDGTB=3、W=0x60。计算窗口以实际 PCLK1 为准，调试暂停会改变观测。",
+    "manual": {
+      "kind": "rcc",
+      "page": 322,
+      "label": "中文参考手册"
+    }
+  },
+  {
+    "id": "WWDG_SR",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "RO / W0C",
+    "instances": "WWDG",
+    "summary": "查看并应答窗口看门狗的提前唤醒事件。",
+    "fields": [
+      [
+        "31:1",
+        "保留",
+        "写入时保持复位值。"
+      ],
+      [
+        "0",
+        "EWIF",
+        "倒数到 0x40 时由硬件置位，即便 EWI 未开。激活时距复位约一个节拍。",
+        "0｜清除已处理的标志。\n1｜保持标志。"
+      ]
+    ],
+    "example": {
+      "title": "最小操作",
+      "explanation": "已开启 APB1 的 WWDGEN。 已处理提前唤醒事件。",
+      "code": "WWDG->SR = 0u;"
+    },
+    "check": "EWIF 应清零。要判断是否可从 ISR 返回，核对是否已按窗口要求刷新。",
+    "manual": {
+      "kind": "rcc",
+      "page": 323,
+      "label": "中文参考手册"
+    }
+  }
+]

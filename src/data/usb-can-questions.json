@@ -1,0 +1,198 @@
+[
+  {
+    "id": "usb",
+    "title": "USB FS Device",
+    "items": [
+      {
+        "id": "usb-1",
+        "type": "原理题",
+        "question": "为什么不能把 EP1 的 STAT_TX 直接写成 11 来发送？",
+        "answer": "<p>STAT_TX 按位翻转。旧值若为 NAK=10，写入 11 会变成 STALL=01。应写旧值 XOR 目标值，此例为 01。保留两个 CTR 的写入值为 1，再读回 VALID 并观察主机 IN 事务。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "USB_EP1R-STAT_TX",
+            "href": "/reference/usb-can/#usb_ep1r-stat_tx"
+          },
+          {
+            "label": "SetEPTxValid",
+            "href": "/reference/usb-can/#seteptxvalid"
+          }
+        ]
+      },
+      {
+        "id": "usb-2",
+        "type": "读配置",
+        "question": "BTABLE=0、EP0 OUT 地址 0x80，COUNT_RX 高位为 0x8400，实际可以收多少？",
+        "answer": "<p>本地地址 0x80 在 CPU 侧为 0x40006100。BL_SIZE=1、NUM_BLOCK=1 表示两块，每块 32 B。SETUP 收完应在低 10 位读 8。地址步进按 PMA 的半字布局处理。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "USB_BTABLE",
+            "href": "/reference/usb-can/#usb_btable"
+          },
+          {
+            "label": "USB_ADDRn_RX",
+            "href": "/reference/usb-can/#usb_addrn_rx"
+          },
+          {
+            "label": "USB_COUNTn_RX",
+            "href": "/reference/usb-can/#usb_countn_rx"
+          }
+        ]
+      },
+      {
+        "id": "usb-3",
+        "type": "排故题",
+        "question": "主机读得到设备描述符，却在 SET_ADDRESS 后反复重新枚举，先查哪里？",
+        "answer": "<p>先抓 EP0，核对零长度 IN 状态包是否在旧地址成功完成，再看 DADDR 是否提交新地址且 EF=1。若状态包本身失败，查 EP0 发送状态、PMA 地址和长度。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SetDeviceAddress",
+            "href": "/reference/usb-can/#setdeviceaddress"
+          },
+          {
+            "label": "USB_DADDR",
+            "href": "/reference/usb-can/#usb_daddr"
+          },
+          {
+            "label": "USB_EP0R-STAT_TX",
+            "href": "/reference/usb-can/#usb_ep0r-stat_tx"
+          }
+        ]
+      },
+      {
+        "id": "usb-4",
+        "type": "原创面试题",
+        "question": "把 CAN 移到 PB8/PB9 后，能让 USB 和 CAN 同时工作吗？",
+        "answer": "<p>引脚冲突解除了，两个外设仍互斥占用 512 B 专用 SRAM，并共享 IRQ19/20。可分时停用并重新初始化各自外设，或者用外部 CAN 控制器。分别检查 USB 枚举和 CAN 回环作为验证。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "USB_BTABLE",
+            "href": "/reference/usb-can/#usb_btable"
+          },
+          {
+            "label": "CAN_Init",
+            "href": "/reference/usb-can/#can_init"
+          },
+          {
+            "label": "CAN_MCR",
+            "href": "/reference/usb-can/#can_mcr"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "can",
+    "title": "bxCAN",
+    "items": [
+      {
+        "id": "can-1",
+        "type": "原理题",
+        "question": "静默回环能验证哪些 CAN 环节？",
+        "answer": "<p>可验证控制器发送邮箱、过滤器、FIFO 与软件处理。静默回环不依赖外部 CAN 收发器，对端 ACK、总线终端和线缆仍需正常模式验证。先发一帧看 RQCP/TXOK 与 FMP。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "CAN_BTR-LBKM",
+            "href": "/reference/usb-can/#can_btr-lbkm"
+          },
+          {
+            "label": "CAN_BTR-SILM",
+            "href": "/reference/usb-can/#can_btr-silm"
+          },
+          {
+            "label": "CAN_TSR-RQCP0",
+            "href": "/reference/usb-can/#can_tsr-rqcp0"
+          },
+          {
+            "label": "CAN_RF0R-FMP0",
+            "href": "/reference/usb-can/#can_rf0r-fmp0"
+          }
+        ]
+      },
+      {
+        "id": "can-2",
+        "type": "读配置",
+        "question": "PCLK1=32 MHz、BRP=3、TS1=12、TS2=1 时，波特率和采样点是多少？",
+        "answer": "<p>BRP+1=4，tq=125 ns。BS1=13、BS2=2，加同步段 1 tq 后每位 16 tq，即 2 μs 和 500 kbit/s。采样点为 14/16=87.5%。正常模式可用分析仪量位宽。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "CAN_BTR-BRP",
+            "href": "/reference/usb-can/#can_btr-brp"
+          },
+          {
+            "label": "CAN_BTR-TS1",
+            "href": "/reference/usb-can/#can_btr-ts1"
+          },
+          {
+            "label": "CAN_BTR-TS2",
+            "href": "/reference/usb-can/#can_btr-ts2"
+          },
+          {
+            "label": "CAN_Init",
+            "href": "/reference/usb-can/#can_init"
+          }
+        ]
+      },
+      {
+        "id": "can-3",
+        "type": "排故题",
+        "question": "发送返回邮箱 0，接收 FIFO 一直为空，怎么判断是发送还是过滤失败？",
+        "answer": "<p>先保留 TSR，确认 RQCP0 与 TXOK0。失败就读 ESR.LEC，ACK 错先查对端。回环发送成功时核对过滤组激活、ID/IDE/RTR 掩码和 FIFO 路由，检查是否读错队列。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "CAN_TransmitStatus",
+            "href": "/reference/usb-can/#can_transmitstatus"
+          },
+          {
+            "label": "CAN_ESR-LEC",
+            "href": "/reference/usb-can/#can_esr-lec"
+          },
+          {
+            "label": "CAN_FilterInit",
+            "href": "/reference/usb-can/#can_filterinit"
+          },
+          {
+            "label": "CAN_FFA1R",
+            "href": "/reference/usb-can/#can_ffa1r"
+          }
+        ]
+      },
+      {
+        "id": "can-4",
+        "type": "原创面试题",
+        "question": "正常总线必须保留既有待处理帧，同时还要统计过载，如何配置 FIFO？",
+        "answer": "<p>选 RFLM=1 保留已有帧，新增帧在队列满时丢弃。记录 FOVR 和软件队列计数，及时读取并释放。若要保留独立的 W1C 状态，用直接写 RFOM 掩码，避免读改写一并清除。用四个连续匹配帧观察 FMP=3 与 FOVR。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "CAN_MCR-RFLM",
+            "href": "/reference/usb-can/#can_mcr-rflm"
+          },
+          {
+            "label": "CAN_RF0R-FOVR0",
+            "href": "/reference/usb-can/#can_rf0r-fovr0"
+          },
+          {
+            "label": "CAN_RF0R-RFOM0",
+            "href": "/reference/usb-can/#can_rf0r-rfom0"
+          }
+        ]
+      }
+    ]
+  }
+]

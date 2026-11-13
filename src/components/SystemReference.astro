@@ -1,0 +1,101 @@
+---
+import clockRegisters from '../data/clock-exti-registers.json';
+import clockApi from '../data/clock-exti-api.json';
+import ReferenceExample from './ReferenceExample.astro';
+import RegisterFields from './RegisterFields.astro';
+import RegisterWriteEffects from './RegisterWriteEffects.astro';
+import ManualSource from './ManualSource.astro';
+import ReferenceIndex from './ReferenceIndex.astro';
+
+type Manual = { page: number; label: string; kind?: string };
+type Register = typeof clockRegisters[number] & { manual?: Manual };
+type Api = Omit<typeof clockApi[number], 'example'> & {
+  example?: typeof clockApi[number]['example'];
+  manual?: Manual;
+  source?: string;
+};
+interface Props {
+  groups?: { id: string; title: string; entries: Register[] }[];
+  api?: Api[];
+  apiTitle?: string;
+  apiId?: string;
+  apiIndex?: { title?: string; entries: string[] }[];
+}
+
+const { groups = [
+  { id: 'clock-registers', title: 'RCC 与 Flash', entries: clockRegisters.filter(({ id }) => /^(RCC|FLASH)_/.test(id)) },
+  { id: 'exti-registers', title: 'AFIO 与 EXTI', entries: clockRegisters.filter(({ id }) => /^(AFIO|EXTI)_/.test(id)) },
+  { id: 'core-registers', title: '内核与调试', entries: clockRegisters.filter(({ id }) => !/^(RCC|FLASH|AFIO|EXTI)_/.test(id)) },
+], api = clockApi, apiTitle = '标准外设库（SPL）与 CMSIS', apiId = 'system-api', apiIndex } = Astro.props;
+const anchor = (name: string) => '#' + name.toLowerCase();
+const relatedHref = (id: string) => id.startsWith('/') ? id.toLowerCase() : anchor(id);
+const relatedLabel = (id: string) => (id.split('#').at(-1) ?? id).replace('-', '.');
+const relatedFunctions = (id: string) => api.filter(({ related }) => related.some((ref) => {
+  const target = ref.toLowerCase();
+  const key = id.toLowerCase();
+  return target === key || target.startsWith(key + '-');
+}));
+const isCmsis = ({ name }: Api) => /^(NVIC_|SysTick_)/.test(name);
+const spl = api.filter((fn) => !isCmsis(fn));
+const cmsis = api.filter(isCmsis);
+const functionIndex = apiIndex ?? [
+  { title: '标准外设库（SPL）', entries: spl.map(({ name }) => name) },
+  ...(cmsis.length ? [{ title: 'CMSIS 内核接口', entries: cmsis.map(({ name }) => name) }] : []),
+];
+---
+
+<div class="reference-indexes">
+  <ReferenceIndex label="库函数索引" groups={functionIndex} />
+  <ReferenceIndex label="寄存器索引" groups={groups.map(({ title, entries }) => ({ title, entries: entries.map(({ id }) => id) }))} />
+</div>
+
+<h2 id={apiId}>{apiTitle}</h2>
+{[...spl, ...cmsis].map((fn) => (
+  <section class="reference-block" aria-labelledby={fn.name.toLowerCase()}>
+    <div class="reference-heading">
+      <h3 id={fn.name.toLowerCase()} data-pagefind-weight="8"><code>{fn.name}</code></h3>
+      {isCmsis(fn) && <p>来源 · CMSIS Core（core_cm3.h）</p>}
+      {fn.source && <p>来源 · {fn.source}</p>}
+    </div>
+    <p>{fn.summary}</p>
+    <dl class="function-details not-content">
+      <dt>参数</dt><dd>{fn.params}</dd>
+      <dt>返回值</dt><dd>{fn.ret}</dd>
+      <dt>调用前提</dt><dd>{fn.pre}</dd>
+      <dt>行为</dt><dd>{fn.what}</dd>
+    </dl>
+    {fn.related.length > 0 && (
+      <p data-pagefind-ignore>相关寄存器 {fn.related.map((id) => <a class="related" href={relatedHref(id)}><code>{relatedLabel(id)}</code></a>)}</p>
+    )}
+    {fn.example ? <ReferenceExample {...fn.example} check={fn.check} /> : <p>{fn.check}</p>}
+    <ManualSource entry={fn.name} section={fn.manual} />
+  </section>
+))}
+
+<h2 id="registers">寄存器与位段</h2>
+{groups.map(({ id, title, entries }) => (
+  <section aria-labelledby={id}>
+    <h3 id={id}>{title}</h3>
+    {entries.map((reg) => (
+      <section class="reference-block" aria-labelledby={reg.id.toLowerCase()}>
+        <div class="reference-heading">
+          <h4 id={reg.id.toLowerCase()} data-pagefind-weight="8"><code>{reg.id}</code></h4>
+          <p>偏移 <code>{reg.off}</code> · 复位 <code>{reg.reset}</code> · {reg.access}</p>
+        </div>
+        <p>{reg.summary}</p>
+        <p>适用实例 · {reg.instances}</p>
+        <RegisterFields register={reg.id} fields={reg.fields} />
+        <RegisterWriteEffects register={reg.id} fields={reg.fields} />
+        <ReferenceExample {...reg.example} check={reg.check} />
+        <ManualSource entry={reg.id} section={reg.manual} />
+        {relatedFunctions(reg.id).length > 0 && <p data-pagefind-ignore>相关函数 {relatedFunctions(reg.id).map(({ name }) => (
+          <a class="related" href={anchor(name)}><code>{name}</code></a>
+        ))}</p>}
+        {reg.id === 'FLASH_ACR' && <p data-pagefind-ignore>相关函数
+          <a class="related" href="/reference/memory-crc/#flash_setlatency"><code>FLASH_SetLatency</code></a>
+          <a class="related" href="/reference/memory-crc/#flash_prefetchbuffercmd"><code>FLASH_PrefetchBufferCmd</code></a>
+        </p>}
+      </section>
+    ))}
+  </section>
+))}

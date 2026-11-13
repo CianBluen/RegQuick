@@ -1,0 +1,124 @@
+---
+import gpio from '../data/gpio.json';
+import gpioExamples from '../data/gpio-examples.json';
+import GpioConfigBits from './GpioConfigBits.astro';
+import ReferenceExample from './ReferenceExample.astro';
+import RegisterFields from './RegisterFields.astro';
+import RegisterWriteEffects from './RegisterWriteEffects.astro';
+import ManualSource from './ManualSource.astro';
+import ReferenceIndex from './ReferenceIndex.astro';
+
+const anchor = (name: string) => name.toLowerCase();
+const examples: Partial<Record<string, string[]>> = gpioExamples;
+const systemRegisters: Record<string, string[]> = {
+  GPIO_DeInit: ['RCC_APB2RSTR'],
+  GPIO_AFIODeInit: ['RCC_APB2RSTR-AFIORST'],
+  GPIO_EventOutputConfig: ['AFIO_EVCR-PORT', 'AFIO_EVCR-PIN'],
+  GPIO_EventOutputCmd: ['AFIO_EVCR-EVOE'],
+  GPIO_PinRemapConfig: ['AFIO_MAPR'],
+  GPIO_EXTILineConfig: ['AFIO_EXTICR1', 'AFIO_EXTICR2', 'AFIO_EXTICR3', 'AFIO_EXTICR4'],
+};
+const configGroups = [
+  {
+    title: 'MODE = 00 · 输入模式',
+    cnf: [['00', '模拟输入'], ['01', '浮空输入'], ['10', '上拉／下拉输入'], ['11', '保留']],
+  },
+  {
+    title: 'MODE > 00 · 输出模式',
+    cnf: [['00', '通用推挽'], ['01', '通用开漏'], ['10', '复用推挽'], ['11', '复用开漏']],
+    note: 'MODE 还决定输出速度上限。01 为 10 MHz，10 为 2 MHz，11 为 50 MHz。',
+  },
+];
+---
+
+<div class="reference-indexes">
+  <ReferenceIndex label="库函数索引" groups={[{ entries: gpio.api.map(({ name }) => name) }]} />
+  <ReferenceIndex label="寄存器索引" groups={[{ entries: gpio.regs.map(({ id }) => id) }]} />
+</div>
+
+<h2 id="spl">标准外设库函数</h2>
+{gpio.api.map((fn) => {
+  const example = examples[fn.name];
+  return (
+  <section class="reference-block" aria-labelledby={anchor(fn.name)}>
+    <h3 id={anchor(fn.name)} data-pagefind-weight="8"><code>{fn.name}</code></h3>
+    <p>{fn.summary}</p>
+    <dl class="function-details not-content">
+      <dt>参数</dt><dd>{fn.params}</dd>
+      <dt>返回值</dt><dd>{fn.ret}</dd>
+      <dt>调用前提</dt><dd>{fn.pre}</dd>
+      <dt>行为</dt><dd>{fn.what}</dd>
+    </dl>
+    {(fn.related.length > 0 || systemRegisters[fn.name]) && (
+      <p>相关寄存器
+        {fn.related.map((id) => <a class="related" href={`#${anchor(id)}`}><code>{id}</code></a>)}
+        {systemRegisters[fn.name]?.map((id) => (
+          <a class="related" href={`/reference/clock-exti/#${anchor(id)}`}><code>{id.replace('-', '.')}</code></a>
+        ))}
+      </p>
+    )}
+    {example
+      ? <ReferenceExample title={example[0]} explanation={example[1]} code={example[2]} check={fn.check} />
+      : <p>{fn.check}</p>}
+    <ManualSource entry={fn.name} />
+  </section>
+  );
+})}
+
+<h2 id="registers">寄存器与位段</h2>
+{gpio.regs.map((reg) => {
+  const [title, explanation, code] = gpioExamples[reg.id as keyof typeof gpioExamples];
+  return (
+  <section class="reference-block" aria-labelledby={anchor(reg.id)}>
+    <div class="reference-heading">
+      <h3 id={anchor(reg.id)} data-pagefind-weight="8"><code>{reg.id}</code></h3>
+      <p>偏移 <code>{reg.off}</code> · 复位 <code>{reg.reset}</code> · {reg.access}</p>
+    </div>
+    <p>{reg.summary}</p>
+    <p>适用实例 · {reg.instances}</p>
+    {reg.pinStart !== undefined
+      ? <GpioConfigBits pinStart={reg.pinStart} />
+      : <RegisterFields register={reg.id} fields={reg.fields ?? []} />}
+    {reg.id === 'GPIOx_CRH' && (
+      <div class="config-values">
+        <h4 id="gpio-config-values">CRL 与 CRH 写入效果</h4>
+        <p>先选 MODE，再按输入或输出查 CNF。</p>
+        <div class="config-groups">
+          {configGroups.map(({ title, cnf, note }) => (
+            <div class="config-group">
+              <h5>{title}</h5>
+              <table>
+                <thead><tr><th scope="col">CNF</th><th scope="col">含义</th></tr></thead>
+                <tbody>
+                  {cnf.map(([value, meaning]) => (
+                    <tr><th scope="row"><code>{value}</code></th><td>{meaning}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              {note ? <p>{note}</p> : <p>选择上下拉输入后，<a href="#gpiox_odr">ODR</a> 对应位为 <code>1</code> 选上拉，为 <code>0</code> 选下拉。</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    {reg.fields && <RegisterWriteEffects register={reg.id} fields={reg.fields} />}
+    <ReferenceExample {title} {explanation} {code} check={reg.check} />
+    <ManualSource entry={reg.id} />
+    {gpio.api.some((fn) => fn.related.includes(reg.id)) && <p data-pagefind-ignore>相关函数 {gpio.api.filter((fn) => fn.related.includes(reg.id)).map(({ name }) => (
+      <a class="related" href={`#${anchor(name)}`}><code>{name}</code></a>
+    ))}</p>}
+    {reg.id === 'GPIOx_CRH' && <p><a href="#gpio_init">查看 PC13 的 GPIO_Init 写法</a></p>}
+  </section>
+  );
+})}
+
+<style>
+  .config-values { border-left: 2px solid var(--sl-color-accent); padding-left: .9rem; }
+  .config-values h4 { font-size: 1rem; }
+  .config-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .7rem; }
+  .config-group { margin-top: 0; min-width: 0; }
+  .config-group h5 { font-size: .95rem; }
+  .config-group p { font-size: .88rem; }
+  .config-values table { font-size: .86rem; font-variant-numeric: tabular-nums; }
+  .config-values :is(th, td) { white-space: nowrap; padding-inline: clamp(.28rem, 1.5vw, .7rem); }
+</style>

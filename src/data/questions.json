@@ -1,0 +1,1538 @@
+[
+  {
+    "id": "gpio",
+    "title": "GPIO",
+    "items": [
+      {
+        "type": "原理题",
+        "question": "CPU 正常运行，为什么 GPIOA 仍需要单独使能？",
+        "answer": "<p>CPU 与 GPIOA 有不同的时钟控制。APB2 上的 GPIOA 有独立的时钟门控，由 IOPAEN 控制。追问：如果换成 GPIOB，门控位改为 IOPBEN。</p>",
+        "id": "gpio-1",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "IOPAEN",
+            "href": "/reference/gpio/#rcc_apb2enr-iopaen"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "程序只使能了 IOPBEN，能初始化 PA1 吗？",
+        "answer": "<p>PA1 属于 GPIOA，应该先使能 IOPAEN。IOPBEN 使能的是 GPIOB。</p>",
+        "id": "gpio-2",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "IOPBEN",
+            "href": "/reference/gpio/#rcc_apb2enr-iopben"
+          },
+          {
+            "label": "IOPAEN",
+            "href": "/reference/gpio/#rcc_apb2enr-iopaen"
+          }
+        ]
+      },
+      {
+        "type": "排故题",
+        "question": "GPIOA 寄存器读回全零，该先检查什么？",
+        "answer": "<p>先在调试器里查 RCC_APB2ENR 的 IOPAEN，再检查端口地址和初始化顺序。让程序从芯片复位进入 main，避免上一次调试留下的时钟状态影响观察。</p>",
+        "id": "gpio-3",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "RCC_APB2ENR",
+            "href": "/reference/gpio/#rcc_apb2enr"
+          },
+          {
+            "label": "IOPAEN",
+            "href": "/reference/gpio/#rcc_apb2enr-iopaen"
+          }
+        ]
+      },
+      {
+        "type": "面试题",
+        "question": "上拉输入为什么能让松开按键时的读数稳定？",
+        "answer": "<p>按键断开时，内部弱上拉为引脚提供到 VDD 的路径。按键闭合接地时，引脚由外部连接拉低。追问：如果按键接 VDD，可以选下拉并把有效电平改为高。</p>\n<p>旧题记录的来源为 2025-10-18 的 <a href=\"https://www.nowcoder.com/feed/main/detail/7cfe2bcdcfbb40e6b10d524f4d545a00\">拓竹候选人面经</a>。原帖暂无法复核。</p>",
+        "id": "gpio-4",
+        "category": "面试题",
+        "related": [
+          {
+            "label": "GPIO_Init",
+            "href": "/reference/gpio/#gpio_init"
+          },
+          {
+            "label": "ODR0",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          }
+        ],
+        "source": "出处待核实"
+      },
+      {
+        "type": "读配置",
+        "question": "开漏输出时，ODR = 1 能说明引脚为高吗？",
+        "answer": "<p>ODR 为 1 表示输出级释放引脚。上拉存在且没有其他器件拉低时，引脚才是高。用 IDR 或外部测量查看实际电平。</p>",
+        "id": "gpio-5",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "ODR",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          },
+          {
+            "label": "IDR",
+            "href": "/reference/gpio/#gpiox_idr-idrx"
+          }
+        ]
+      },
+      {
+        "type": "排故题",
+        "question": "按键松开后读数跳变，先查哪两件事？",
+        "answer": "<p>先核对引脚接线及共地，再确认 CRL/CRH 选了输入上下拉且 ODR 位选择了正确方向。接线和模式正确后，再区分松开后的持续漂移与切换瞬间的机械抖动。</p>",
+        "id": "gpio-6",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CRL",
+            "href": "/reference/gpio/#gpiox_crl"
+          },
+          {
+            "label": "CRH",
+            "href": "/reference/gpio/#gpiox_crh"
+          },
+          {
+            "label": "ODR",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          }
+        ]
+      },
+      {
+        "type": "面经改编",
+        "question": "用寄存器分别配置 PA1 推挽输出和 PA0 上拉输入，需要哪些步骤？",
+        "answer": "<p>先开 GPIOA 时钟，PA1 的 CNF=00，MODE 选择一个输出速度档位。PA0 的 CNF=10、MODE=00，设置 ODR0=1。修改 CRL 时保留其他引脚的配置。</p>\n<p>考点来自 2025-09-04 发布的 <a href=\"https://www.nowcoder.com/discuss/793216015415934976\">经纬恒润候选人面经</a>。</p>",
+        "id": "gpio-7",
+        "category": "面试题",
+        "related": [
+          {
+            "label": "GPIO_Init",
+            "href": "/reference/gpio/#gpio_init"
+          },
+          {
+            "label": "CRL",
+            "href": "/reference/gpio/#gpiox_crl"
+          },
+          {
+            "label": "ODR0",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "PC13 的 CNF 和 MODE 分别在哪几位？",
+        "answer": "<p>使用 GPIOC_CRH。引脚相对索引为 13−8=5，字段从第 20 位开始。<a href=\"/reference/gpio/#cnf13\">CNF13</a> 为 23:22，<a href=\"/reference/gpio/#mode13\">MODE13</a> 为 21:20。PC13 的输出电气限制见 <a href=\"/manuals/stm32f103x8b-zh.pdf#page=20\">中文数据手册引脚表表注</a>。</p>",
+        "id": "gpio-8",
+        "category": "原有练习题",
+        "related": []
+      },
+      {
+        "type": "排故题",
+        "question": "更新 LED 后，同端口的按键忽然变成下拉，怎样查？",
+        "answer": "<p>检查代码有没有用 GPIO_Write 或直接赋值整个 ODR。确认 ODR0 是否被清零。更新 PA1 时只写 BSRR 或 BRR 的对应位，再重新核对 ODR0。</p>",
+        "id": "gpio-9",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "GPIO_Write",
+            "href": "/reference/gpio/#gpio_write"
+          },
+          {
+            "label": "ODR0",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          },
+          {
+            "label": "BSRR",
+            "href": "/reference/gpio/#gpiox_bsrr"
+          },
+          {
+            "label": "BRR",
+            "href": "/reference/gpio/#gpiox_brr"
+          }
+        ]
+      },
+      {
+        "type": "变更题",
+        "question": "PA1 的 LED 已常亮，把 GPIO_SetBits 换成 GPIO_ResetBits 后会怎样？",
+        "answer": "<p>在同一接线与高有效 LED 条件下，PA1 被清低，LED 熄灭。重编烧录验证，并分别观察 BSRR 与 BRR 如何改变 ODR。</p>",
+        "related": [
+          {
+            "label": "GPIO_SetBits",
+            "href": "/reference/gpio/#gpio_setbits"
+          },
+          {
+            "label": "GPIO_ResetBits",
+            "href": "/reference/gpio/#gpio_resetbits"
+          },
+          {
+            "label": "BSRR",
+            "href": "/reference/gpio/#gpiox_bsrr"
+          },
+          {
+            "label": "BRR",
+            "href": "/reference/gpio/#gpiox_brr"
+          }
+        ],
+        "id": "gpio-10",
+        "category": "原有练习题"
+      },
+      {
+        "type": "读配置",
+        "question": "为 PA0 增加上拉输入后，按下和松开时会读到什么？",
+        "answer": "<p>按键接地，松开时由内部上拉保持为 1，按下读 0。读回 IDR，并确认 ODR0=1 选择上拉。</p>",
+        "related": [
+          {
+            "label": "GPIO_Init",
+            "href": "/reference/gpio/#gpio_init"
+          },
+          {
+            "label": "IDR",
+            "href": "/reference/gpio/#gpiox_idr-idrx"
+          },
+          {
+            "label": "ODR0",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          }
+        ],
+        "id": "gpio-11",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "漏开 GPIOA 时钟后，怎样定位按键和 LED 都无响应的问题？",
+        "answer": "<p>确认 IOPAEN 后再判断 GPIO 配置读回。若 IOPAEN 已为 1，分别检查 IDR0 随按键变化、ODR1 改变后 LED 接线是否导通。恢复时钟并从复位重复验证。</p>",
+        "related": [
+          {
+            "label": "IOPAEN",
+            "href": "/reference/gpio/#rcc_apb2enr-iopaen"
+          },
+          {
+            "label": "IDR",
+            "href": "/reference/gpio/#gpiox_idr-idrx"
+          },
+          {
+            "label": "ODR",
+            "href": "/reference/gpio/#gpiox_odr-odrx"
+          }
+        ],
+        "id": "gpio-12",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "轮询中读到低电平就翻转 LED，为什么长按会多次切换？",
+        "answer": "<p>先确认 PA0 的 IDR 松开为高、按下为低，再检查毫秒计数和稳定状态。候选值连续保持 25 ms 后才提交，只有已确认的电平从高到低才翻转。用长按、松开、再按复测。</p>",
+        "related": [
+          {
+            "label": "IDR",
+            "href": "/reference/gpio/#gpiox_idr-idrx"
+          },
+          {
+            "label": "SysTick",
+            "href": "/reference/clock-exti/#systick_config"
+          }
+        ],
+        "id": "gpio-13",
+        "category": "原有练习题"
+      },
+      {
+        "id": "gpio-14",
+        "type": "原创面试题",
+        "question": "还想保留 SWD 并使用 SPI1 重映射，应如何安排 PA15、PB3、PB4？",
+        "answer": "<p>释放 JTAG 引脚并保留 PA13/PA14 的 SWD。再选择 SPI1 重映射，确认 PB3 没启用 SWO。用逻辑分析仪看 PB3 的 SCK 并确认调试连接。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "SWJ_CFG",
+            "href": "/reference/clock-exti/#afio_mapr-swj_cfg"
+          },
+          {
+            "label": "SPI1_REMAP",
+            "href": "/reference/clock-exti/#afio_mapr-spi1_remap"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rcc",
+    "title": "RCC 与时钟",
+    "items": [
+      {
+        "type": "面经改编",
+        "question": "8 MHz 晶振怎样得到 72 MHz，为什么要先配 Flash？",
+        "answer": "<p>HSE 不分频进 PLL，乘 9，再把 PLL 切为 SYSCLK。按 Flash 手册的 SYSCLK 档位，72 MHz 配 2 WS，升频前设好 2 WS 和 APB1 ÷2，使 PCLK1 不超过 36 MHz。启用 PLL 等 PLLRDY，再请求切换并读 SWS=PLL。若同时使用 ADC，72 MHz PCLK2 可用 ÷6 得 12 MHz。考点来自 2025 年 3 月 25 日面试、4 月 9 日编辑的 <a href=\"https://www.nowcoder.com/feed/main/detail/6b90d576eaed43a58679f61fcfc3b1bf\">辉芒微电子 MCU 应用岗回忆</a>。</p>",
+        "id": "rcc-1",
+        "category": "面试题",
+        "related": [
+          {
+            "label": "PLL",
+            "href": "/reference/clock-exti/#rcc_cfgr-pllmul"
+          },
+          {
+            "label": "Flash",
+            "href": "/reference/clock-exti/#flash_acr-latency"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "HCLK = 72 MHz，APB1 ÷4，TIM2 用多少？",
+        "answer": "<p>PCLK1 = 18 MHz。因为 APB1 有分频，TIM2 内时钟为 36 MHz。USART2 仍用 18 MHz。</p>",
+        "id": "rcc-2",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "SW 已选 PLL，为什么延时仍像 8 MHz？",
+        "answer": "<p>先看 SWS。如果仍为 HSI，再看 HSERDY、PLLRDY 和 PLL 输入。若 SWS 已是 PLL，检查 HPRE 和 SysTick LOAD，确认计数器按切换后的 HCLK 重配。</p>",
+        "id": "rcc-3",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "SW",
+            "href": "/reference/clock-exti/#rcc_cfgr-sw"
+          },
+          {
+            "label": "SWS",
+            "href": "/reference/clock-exti/#rcc_cfgr-sws"
+          },
+          {
+            "label": "HSERDY",
+            "href": "/reference/clock-exti/#rcc_cr-hserdy"
+          },
+          {
+            "label": "PLLRDY",
+            "href": "/reference/clock-exti/#rcc_cr-pllrdy"
+          },
+          {
+            "label": "HPRE",
+            "href": "/reference/clock-exti/#rcc_cfgr-hpre"
+          },
+          {
+            "label": "LOAD",
+            "href": "/reference/clock-exti/#syst_rvr-reload"
+          }
+        ]
+      },
+      {
+        "type": "变更题",
+        "question": "HSI 8 MHz 下把 APB1 从 ÷2 改成 ÷4，Watch 中哪些频率变化？",
+        "answer": "<p>RCC_PCLK1Config 改用 RCC_HCLK_Div4 后，PCLK1 从 4 MHz 变成 2 MHz；SYSCLK、HCLK、PCLK2 仍为 8 MHz。用 RCC_GetClocksFreq 或 PPRE1 读回核对。</p>",
+        "related": [
+          {
+            "label": "RCC_PCLK1Config",
+            "href": "/reference/clock-exti/#rcc_pclk1config"
+          },
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ],
+        "id": "rcc-4",
+        "category": "原有练习题"
+      },
+      {
+        "id": "rcc-5",
+        "type": "原理题",
+        "question": "为什么 CPU 在 72 MHz 时 USART2 和 TIM2 的输入时钟可能不同？",
+        "answer": "<p>APB1 在 72 MHz HCLK 下必须分频，取 ÷2 时 PCLK1=36 MHz，USART2 用 PCLK1，TIM2 取 2×PCLK1。读 PPRE1 复算，并通过串口位宽和定时器更新周期分别验证。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ]
+      },
+      {
+        "id": "rcc-6",
+        "type": "原创面试题",
+        "question": "HSE 未起振还想继续记录故障，时钟切换怎么安排？",
+        "answer": "<p>保留 HSI，给 HSERDY 和 PLLRDY 等待设置上限。超时维持 HSI、按实际 PCLK 重配串口和时基。发切换请求后读 SWS 判定真实使用的源。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "HSERDY",
+            "href": "/reference/clock-exti/#rcc_cr-hserdy"
+          },
+          {
+            "label": "SWS",
+            "href": "/reference/clock-exti/#rcc_cfgr-sws"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "exti",
+    "title": "AFIO、EXTI 与内核",
+    "items": [
+      {
+        "type": "原理题",
+        "question": "PA0 和 PB0 能否同时独立用 EXTI0？",
+        "answer": "<p>两者共用 AFIO 的同一组输入选择位。需要独立中断时让两根线使用不同的引脚编号，再分别配置 EXTI。</p>",
+        "id": "exti-1",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "EXTI0",
+            "href": "/reference/clock-exti/#afio_exticr1-exti0"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "PR0 和 PR1 同时为 1，怎样只清 PR0？",
+        "answer": "<p>直接写 EXTI->PR = 1u。读改写会把读到的 PR1 也写回 1，连带清除它。</p>",
+        "id": "exti-2",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PR0",
+            "href": "/reference/clock-exti/#exti_pr-prx"
+          },
+          {
+            "label": "PR1",
+            "href": "/reference/clock-exti/#exti_pr-prx"
+          }
+        ]
+      },
+      {
+        "type": "面经改编",
+        "question": "按键 ISR 里做 25 ms 忙等会怎样？",
+        "answer": "<p>低优先级异常和主循环会被推迟，多个同源边沿可能合并成一个挂起状态。若忙等依赖低优先级 SysTick 更新，还可能无法结束。把边沿记录交给 ISR，把等待和状态机交给主循环。考点来自 2025 年 4 月的 <a href=\"https://www.nowcoder.com/feed/main/detail/0c6e1cf31bf74664a492cfc36019cac1\">海康威视候选人回忆</a>。</p>",
+        "id": "exti-3",
+        "category": "面试题",
+        "related": [
+          {
+            "label": "SysTick",
+            "href": "/reference/clock-exti/#systick_config"
+          }
+        ]
+      },
+      {
+        "type": "变更题",
+        "question": "PA0 上拉接地按键，EXTI 从下降沿改为上升沿后，边沿计数何时增长？",
+        "answer": "<p>从 EXTI_Trigger_Falling 改成 EXTI_Trigger_Rising 后，主要在松手时增加。机械触点抖动仍可能产生多个边沿。用 Watch 比较 lab_edges。</p>",
+        "related": [
+          {
+            "label": "EXTI0",
+            "href": "/reference/clock-exti/#afio_exticr1-exti0"
+          },
+          {
+            "label": "FTSR",
+            "href": "/reference/clock-exti/#exti_ftsr-trx"
+          },
+          {
+            "label": "RTSR",
+            "href": "/reference/clock-exti/#exti_rtsr-trx"
+          }
+        ],
+        "id": "exti-4",
+        "category": "原有练习题"
+      },
+      {
+        "type": "选型",
+        "question": "USART1 重映射到 PB6/PB7 后，还要接 I²C1 传感器，怎样避免冲突？",
+        "answer": "<p>可以保留 USART1 在 PA9/PA10，或将 I²C1 重映射到 PB8/PB9。核对封装、板上走线和占用。如果 PB8/PB9 还计划用于 CAN，也要一起分配。</p>",
+        "related": [
+          {
+            "label": "USART1_REMAP",
+            "href": "/reference/clock-exti/#afio_mapr-usart1_remap"
+          },
+          {
+            "label": "I2C1_REMAP",
+            "href": "/reference/clock-exti/#afio_mapr-i2c1_remap"
+          }
+        ],
+        "id": "exti-5",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "PA0 电平会变、软件触发能进 EXTI0，但物理按键不进中断，先查什么？",
+        "answer": "<p>软件触发绕过 GPIO 和端口多路选择器。WrongPort 版的 EXTI0 字段 0001 选 PB0。改回 0000 后，再确认按下是下降沿，恢复后用物理按键复测。</p>",
+        "related": [
+          {
+            "label": "IDR",
+            "href": "/reference/gpio/#gpiox_idr-idrx"
+          },
+          {
+            "label": "EXTI0",
+            "href": "/reference/clock-exti/#afio_exticr1-exti0"
+          },
+          {
+            "label": "SWIER",
+            "href": "/reference/clock-exti/#exti_swier-swierx"
+          },
+          {
+            "label": "FTSR",
+            "href": "/reference/clock-exti/#exti_ftsr-trx"
+          }
+        ],
+        "id": "exti-6",
+        "category": "原有练习题"
+      },
+      {
+        "type": "读配置",
+        "question": "同一 EXTI0 与 EXTI1 实验，为什么两组优先级分别记录 123 和 132？",
+        "answer": "<p>EXTI0 先记 1，再挂起 EXTI1，返回前记 3，EXTI1 记 2。EXTI1 抢占级更高时插入执行，得到 123；抢占级相同则等 EXTI0 完成，得到 132。子优先级只影响待处理异常的选择顺序。</p>",
+        "related": [
+          {
+            "label": "PRIGROUP",
+            "href": "/reference/clock-exti/#scb_aircr-prigroup"
+          },
+          {
+            "label": "NVIC_SetPriority",
+            "href": "/reference/clock-exti/#nvic_setpriority"
+          }
+        ],
+        "id": "exti-7",
+        "category": "原有练习题"
+      },
+      {
+        "type": "读配置",
+        "question": "PRIGROUP=5，EXTI0 的抢占优先级为 1、子优先级为 0。NVIC 中的优先级字节应读到多少？",
+        "answer": "<p>STM32F103 实现高 4 位，分组 5 将它们分成 2 位抢占优先级和 2 位子优先级。逻辑优先级为 (1 &lt;&lt; 2) | 0 = 4，存入字节高四位后读到 0x40。在 Keil 里核对 EXTI0 对应的 NVIC 优先级字节。</p>",
+        "id": "exti-8",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PRIGROUP",
+            "href": "/reference/clock-exti/#scb_aircr-prigroup"
+          },
+          {
+            "label": "PRI_N",
+            "href": "/reference/clock-exti/#nvic_ipr-pri_n"
+          },
+          {
+            "label": "NVIC_SetPriority",
+            "href": "/reference/clock-exti/#nvic_setpriority"
+          }
+        ]
+      },
+      {
+        "id": "exti-9",
+        "type": "原创面试题",
+        "question": "PA0 和 PB0 都要独立响应按键边沿，如何选择资源？",
+        "answer": "<p>两个端口同编号脚共享 EXTI0 的路由，不能同时作为线 0 来源。换其中一个按键的引脚编号，或改用轮询。分别触发按键，核对两个 PR 位和 ISR 计数。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "AFIO_EXTICR1",
+            "href": "/reference/clock-exti/#afio_exticr1"
+          },
+          {
+            "label": "EXTI_PR",
+            "href": "/reference/clock-exti/#exti_pr"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "tim",
+    "title": "定时器 TIM1–4",
+    "items": [
+      {
+        "type": "计算",
+        "question": "PCLK1 为 18 MHz，APB1 ÷4，怎样得到 1 µs 每格？",
+        "answer": "<p>TIM2/3/4 内时钟为 36 MHz，PSC 写 35。先读 PPRE1 再算，串口仍以 18 MHz 作分母。</p>",
+        "id": "tim-1",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PSC",
+            "href": "/reference/tim-usart/#tim_psc-psc"
+          },
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "CEN 已为 1，CNT 一直不变，先查什么？",
+        "answer": "<p>确认 RCC 门控，再查 SMCR 是否选择了尚未到来的触发或外部时钟。若只在断点下观察，查 DBGMCU 是否冻结该实例。</p>",
+        "id": "tim-2",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CEN",
+            "href": "/reference/tim-usart/#tim_cr1-cen"
+          },
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          },
+          {
+            "label": "SMCR",
+            "href": "/reference/tim-usart/#tim_smcr"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "写 PSC 后为何旧频率还能多出现一个周期？",
+        "answer": "<p>PSC 是缓冲值，等更新事件才进入工作的预分频器。停机配置时可用 UG 立即装载。</p>",
+        "id": "tim-3",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PSC",
+            "href": "/reference/tim-usart/#tim_psc-psc"
+          },
+          {
+            "label": "UG",
+            "href": "/reference/tim-usart/#tim_egr-ug"
+          }
+        ]
+      },
+      {
+        "type": "计算",
+        "question": "ARR=999、CCR2=750，板上要读到什么？",
+        "answer": "<p>计数节拍为 1 µs 时，高电平约 750 µs，周期约 1000 µs。若高电平是 250 µs，先查输出极性、PWM1/2 和测量边沿。</p>",
+        "id": "tim-4",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "ARR",
+            "href": "/reference/tim-usart/#tim_arr-arr"
+          },
+          {
+            "label": "CCR2",
+            "href": "/reference/tim-usart/#tim_ccr2-ccr2"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "0% 和 100% 为什么查不到周期？",
+        "answer": "<p>输出保持固定电平，输入捕获缺少连续边沿。先用探头或 IDR 验证静态电平，再回到中间占空比验证周期。</p>",
+        "id": "tim-5",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CCR1",
+            "href": "/reference/tim-usart/#tim_ccr1-ccr1"
+          },
+          {
+            "label": "CCR2",
+            "href": "/reference/tim-usart/#tim_ccr2-ccr2"
+          }
+        ]
+      },
+      {
+        "type": "迁移",
+        "question": "捕获时 16 位自由运行 CNT 从 65530 跳到 14，差多少？",
+        "answer": "<p>经过 20 个计数节拍。只有在确认没有多转一圈时，这个模 65536 的差才是实际间隔。</p>",
+        "id": "tim-6",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          }
+        ]
+      },
+      {
+        "type": "选型",
+        "question": "要在触发后延迟 200 µs 输出一次，为什么用单脉冲？",
+        "answer": "<p>触发、比较和更新在硬件完成，延迟不随 ISR 的响应时间变化。读 CNT、CEN 和输出波形验证触发后只运行一轮。</p>",
+        "id": "tim-7",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "TIM_SelectOnePulseMode",
+            "href": "/reference/tim-usart/#tim_selectonepulsemode"
+          },
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          },
+          {
+            "label": "CEN",
+            "href": "/reference/tim-usart/#tim_cr1-cen"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "TIM2 在更新，TIM3 CNT 却始终不动？",
+        "answer": "<p>查 TIM2 的 MMS 是否输出更新，按 TIM3 的 ITR 映射核对 TS，再查 SMS 与 CEN。</p>",
+        "id": "tim-8",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "MMS",
+            "href": "/reference/tim-usart/#tim_cr2-mms"
+          },
+          {
+            "label": "TS",
+            "href": "/reference/tim-usart/#tim_smcr-ts"
+          },
+          {
+            "label": "SMS",
+            "href": "/reference/tim-usart/#tim_smcr-sms"
+          },
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          }
+        ]
+      },
+      {
+        "type": "迁移",
+        "question": "编码器换成高线数型号后高速少计数，先查什么？",
+        "answer": "<p>看相位波形，再按输入滤波的采样频率与连续采样数核对最短有效脉宽，也要检查软件读取 CNT 是否跨越了可判定的回卷范围。</p>",
+        "id": "tim-9",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "TIM_EncoderInterfaceConfig",
+            "href": "/reference/tim-usart/#tim_encoderinterfaceconfig"
+          },
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "计数与比较正常，但 PA8、PB13 都没有 PWM？",
+        "answer": "<p>核对 BDTR.MOE 是否为 1。若读回是 0，再查 BKIN 极性和实际电平，以及 SR.BIF 是否曾置位。</p>",
+        "id": "tim-10",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "MOE",
+            "href": "/reference/tim-usart/#tim_bdtr-moe"
+          },
+          {
+            "label": "BKIN",
+            "href": "/reference/tim-usart/#tim_bdtr-bke"
+          },
+          {
+            "label": "BIF",
+            "href": "/reference/tim-usart/#tim_sr-bif"
+          }
+        ]
+      },
+      {
+        "type": "计算",
+        "question": "CK_INT 不变，把 CKD 改成 ÷2 后死区怎样变？",
+        "answer": "<p>tDTS 翻倍，DTG=80 时为 20 µs。观察两路实际有效电平之间的空档。</p>",
+        "id": "tim-11",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CKD",
+            "href": "/reference/tim-usart/#tim_cr1-ckd"
+          },
+          {
+            "label": "DTG",
+            "href": "/reference/tim-usart/#tim_bdtr-dtg"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "RCR=3 时，边沿对齐下几次溢出产生一次更新？",
+        "answer": "<p>连续运行时每 4 次溢出一次，PWM 周期依然由 CNT/ARR 决定。初始化后用 UG 装载重复计数配置。</p>",
+        "id": "tim-12",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "RCR",
+            "href": "/reference/tim-usart/#tim_rcr-rep"
+          },
+          {
+            "label": "UG",
+            "href": "/reference/tim-usart/#tim_egr-ug"
+          }
+        ]
+      },
+      {
+        "type": "变更题",
+        "question": "定时闪灯例子只把 Period 从 499 改为 249，LED 翻转间隔怎样变？",
+        "answer": "<p>8 MHz 输入、PSC=7999 时每格 1 ms，ARR 从 499 改为 249 后由每 500 格更新改为每 250 格更新。预期翻转间隔从约 500 ms 减半到 250 ms。</p>",
+        "related": [
+          {
+            "label": "PSC",
+            "href": "/reference/tim-usart/#tim_psc-psc"
+          },
+          {
+            "label": "ARR",
+            "href": "/reference/tim-usart/#tim_arr-arr"
+          }
+        ],
+        "id": "tim-13",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "调光正常，PWM 捕获却回复 NO EDGE。若 TIM3 CH2 极性改成了上升沿，怎样确认并修复？",
+        "answer": "<p>先看 CCR1 是否仍有周期捕获，再读 CCR2 和 CC2P。两路都取上升沿会同时锁存近似同一值，不能解释成有效高电平时间。恢复 CH2 下降沿，25% 时复测约 1000/250 µs。</p>",
+        "related": [
+          {
+            "label": "CCR1",
+            "href": "/reference/tim-usart/#tim_ccr1-ccr1"
+          },
+          {
+            "label": "CCR2",
+            "href": "/reference/tim-usart/#tim_ccr2-ccr2"
+          },
+          {
+            "label": "CC2P",
+            "href": "/reference/tim-usart/#tim_ccer-cc2p"
+          }
+        ],
+        "id": "tim-14",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "反应计时器原本亮灯后 2 s 超时，改 TIM4 的 PSC 后接近 4 s，如何定位？",
+        "answer": "<p>确认 PSC、ARR 和 PPRE1。HSI 8 MHz 下 ARR=999、PSC 从 7 变成 15 后，更新由 1 ms 变为 2 ms。恢复 PSC 后复测约 2 s。</p>",
+        "related": [
+          {
+            "label": "PSC",
+            "href": "/reference/tim-usart/#tim_psc-psc"
+          },
+          {
+            "label": "ARR",
+            "href": "/reference/tim-usart/#tim_arr-arr"
+          },
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ],
+        "id": "tim-15",
+        "category": "原有练习题"
+      },
+      {
+        "type": "排故题",
+        "question": "跳过 TIM1 的 MOE 设置后 CNT 在变化，PA8/PB13 没有 PWM，怎样复测？",
+        "answer": "<p>先检查 CC1E/CC1NE，再读 BDTR，确认输出总使能为 0。恢复 MOE 后同时测两路，并核对 BKIN 没有触发。</p>",
+        "related": [
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          },
+          {
+            "label": "MOE",
+            "href": "/reference/tim-usart/#tim_bdtr-moe"
+          },
+          {
+            "label": "BKIN",
+            "href": "/reference/tim-usart/#tim_bdtr-bke"
+          }
+        ],
+        "id": "tim-16",
+        "category": "原有练习题"
+      },
+      {
+        "type": "迁移",
+        "question": "怎样用内部触发让 TIM2 每更新一次、TIM3 加一？",
+        "answer": "<p>TIM2 用 TIM_SelectOutputTrigger 选 Update，TIM3 用 TIM_ITRxExternalClockConfig 选 ITR1，对应 TIM2 的 MMS=010、TIM3 的 TS=001、SMS=111。保持 TIM3 的 PSC=0，计数差为两次读取之间收到的触发次数。</p>",
+        "related": [
+          {
+            "label": "TIM_SelectOutputTrigger",
+            "href": "/reference/tim-usart/#tim_selectoutputtrigger"
+          },
+          {
+            "label": "TIM_ITRxExternalClockConfig",
+            "href": "/reference/tim-usart/#tim_itrxexternalclockconfig"
+          },
+          {
+            "label": "MMS",
+            "href": "/reference/tim-usart/#tim_cr2-mms"
+          },
+          {
+            "label": "TS",
+            "href": "/reference/tim-usart/#tim_smcr-ts"
+          },
+          {
+            "label": "SMS",
+            "href": "/reference/tim-usart/#tim_smcr-sms"
+          }
+        ],
+        "id": "tim-17",
+        "category": "原有练习题"
+      },
+      {
+        "type": "迁移",
+        "question": "用 TIM2 的 PA0 触发，怎样在 PA1 延迟 200 µs 后输出一个宽 800 µs 的高脉冲？",
+        "answer": "<p>PA0 上升沿经 TI1FP1（TS=101），SMS=110 让该边沿启动。TIM_SelectOnePulseMode 选 Single，TIM_OC2Init 选 PWM2。高电平从 CNT=200 开始，到 1000 格结束，更新自动清 CEN。初始化时先清 UIF，保持 CEN=0 等触发。</p>",
+        "related": [
+          {
+            "label": "TIM_SelectOnePulseMode",
+            "href": "/reference/tim-usart/#tim_selectonepulsemode"
+          },
+          {
+            "label": "TIM_OC2Init",
+            "href": "/reference/tim-usart/#tim_oc2init"
+          },
+          {
+            "label": "PSC",
+            "href": "/reference/tim-usart/#tim_psc-psc"
+          },
+          {
+            "label": "ARR",
+            "href": "/reference/tim-usart/#tim_arr-arr"
+          },
+          {
+            "label": "CCR2",
+            "href": "/reference/tim-usart/#tim_ccr2-ccr2"
+          }
+        ],
+        "id": "tim-18",
+        "category": "原有练习题"
+      },
+      {
+        "type": "迁移",
+        "question": "怎样用 TIM3 的 PA6/PA7 读编码器位置和方向？互换 A/B 后怎样验证？",
+        "answer": "<p>TIM_EncoderInterfaceConfig 选 TIM_EncoderMode_TI12，CH1/CH2 直接采各自输入，对应 CC1S=01、CC2S=01、SMS=011。开 CEN 后读 CNT。若输入相位互换且两路极性不变，计数方向反向。</p>",
+        "related": [
+          {
+            "label": "TIM_EncoderInterfaceConfig",
+            "href": "/reference/tim-usart/#tim_encoderinterfaceconfig"
+          },
+          {
+            "label": "SMS",
+            "href": "/reference/tim-usart/#tim_smcr-sms"
+          },
+          {
+            "label": "CNT",
+            "href": "/reference/tim-usart/#tim_cnt-cnt"
+          }
+        ],
+        "id": "tim-19",
+        "category": "原有练习题"
+      },
+      {
+        "id": "tim-20",
+        "type": "原理题",
+        "question": "为什么 PSC 读回新值，PWM 周期还是旧值？",
+        "answer": "<p>PSC 写入缓冲。新分频需要更新事件才能装载。先停表、确认 UDIS=0，再写 UG，处理可能产生的 UIF，然后测实际周期。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "TIM_PSC",
+            "href": "/reference/tim-usart/#tim_psc"
+          },
+          {
+            "label": "UG",
+            "href": "/reference/tim-usart/#tim_egr-ug"
+          }
+        ]
+      },
+      {
+        "id": "tim-21",
+        "type": "原创面试题",
+        "question": "同时需要互补 PWM 与两路输入捕获，如何分配？",
+        "answer": "<p>互补 PWM、死区和刹车需要 TIM1。捕获放到通用 TIM3，避开 TIM1 互补引脚。上板同时检查 PWM 死区与捕获计数，再核对重映射和 DMA 请求。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "TIM_BDTR",
+            "href": "/reference/tim-usart/#tim_bdtr"
+          },
+          {
+            "label": "TIM3 重映射",
+            "href": "/reference/clock-exti/#afio_mapr-tim3_remap"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "usart",
+    "title": "USART1–3",
+    "items": [
+      {
+        "type": "计算",
+        "question": "USART2 的 PCLK1 变为 18 MHz，9600 时 BRR 是什么？",
+        "answer": "<p>18000000 ÷ 9600 = 1875，写 0x0753。即使同总线定时器取 36 MHz，USART 仍取 18 MHz。</p>",
+        "id": "usart-1",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "USART_BRR",
+            "href": "/reference/tim-usart/#usart_brr"
+          },
+          {
+            "label": "PPRE1",
+            "href": "/reference/clock-exti/#rcc_cfgr-ppre1"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "M=0、PCE=1 还剩几个数据位？",
+        "answer": "<p>7 个。校验占字长的最高位，8 个数据加校验应选 9 位字长。</p>",
+        "id": "usart-2",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "PCE",
+            "href": "/reference/tim-usart/#usart_cr1-pce"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "0x55 的位宽约 208 µs，先查哪里？",
+        "answer": "<p>实际接近 4800 bit/s，先读 BRR 和 PCLK，再核对 USART 实例是否在预期总线。</p>",
+        "id": "usart-3",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "USART_BRR",
+            "href": "/reference/tim-usart/#usart_brr"
+          }
+        ]
+      },
+      {
+        "type": "原理",
+        "question": "TXE 已置位就撤掉发送使能，可能发生什么？",
+        "answer": "<p>最后一字可能仍在移位。观察 TX 的停止位，等待 TC 再结束方向或关闭外设。</p>",
+        "id": "usart-4",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "TXE",
+            "href": "/reference/tim-usart/#usart_sr-txe"
+          },
+          {
+            "label": "TC",
+            "href": "/reference/tim-usart/#usart_sr-tc"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "长时间运行后 ORE 增加但位宽正确，怎么查？",
+        "answer": "<p>先检查是否在打印、关中断或断点期间超过了单帧时间。用 RXNE IRQ 或 DMA 接住数据，并记录软件缓冲溢出。</p>",
+        "id": "usart-5",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "ORE",
+            "href": "/reference/tim-usart/#usart_sr-ore"
+          },
+          {
+            "label": "RXNE",
+            "href": "/reference/tim-usart/#usart_sr-rxne"
+          }
+        ]
+      },
+      {
+        "type": "读配置",
+        "question": "DMA 的传输完成和 USART 的 TC 有什么区别？",
+        "answer": "<p>DMA 已把最后一个字送进 TDR 时，串行移位还可能没完成。要释放总线或切换方向，看 TC。</p>",
+        "id": "usart-6",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "TC",
+            "href": "/reference/tim-usart/#usart_sr-tc"
+          }
+        ]
+      },
+      {
+        "type": "选型",
+        "question": "只有一根数据线且对端轮流回答，用什么模式？",
+        "answer": "<p>可用单线半双工，双方采用一致的开漏和上拉方案，协议约定方向和交接，实测最后停止位及回包间隔。</p>",
+        "id": "usart-7",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "HDSEL",
+            "href": "/reference/tim-usart/#usart_cr3-hdsel"
+          }
+        ]
+      },
+      {
+        "type": "排故",
+        "question": "开了 CTS 后 TX 一直高，先看什么？",
+        "answer": "<p>核对 CTS 实际输入电平和接线，再确认对端是否允许发送。仅用三线 TTL 时关闭硬件流控。</p>",
+        "id": "usart-8",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CTS",
+            "href": "/reference/tim-usart/#usart_cr3-ctse"
+          },
+          {
+            "label": "TXE",
+            "href": "/reference/tim-usart/#usart_sr-txe"
+          }
+        ]
+      },
+      {
+        "type": "迁移",
+        "question": "USART1 开启同步 CK，还能同脚输出 MCO 吗？",
+        "answer": "<p>默认 CK 和 MCO 都在 PA8。需要重新分配功能或改用另一个有可用 CK 引脚的 USART。</p>",
+        "id": "usart-9",
+        "category": "原有练习题",
+        "related": [
+          {
+            "label": "CLKEN",
+            "href": "/reference/tim-usart/#usart_cr2-clken"
+          }
+        ]
+      },
+      {
+        "type": "变更题",
+        "question": "把回显示例的波特率从 9600 改成 4800，终端需怎么改？",
+        "answer": "<p>程序和终端同时改成 4800，回显应继续工作。仅改一端时先核对波特率；同时检查 PCLK 与 BRR。</p>",
+        "related": [
+          {
+            "label": "USART_Init",
+            "href": "/reference/tim-usart/#usart_init"
+          },
+          {
+            "label": "USART_BRR",
+            "href": "/reference/tim-usart/#usart_brr"
+          }
+        ],
+        "id": "usart-10",
+        "category": "原有练习题"
+      },
+      {
+        "id": "usart-11",
+        "type": "原创面试题",
+        "question": "USART1 与 TIM1 同时占用 PA9 时怎么选引脚？",
+        "answer": "<p>USART1 默认 PA9 发送，TIM1_CH2 也在 PA9。可以改用 USART1 的 PB6/PB7，前提是该处未分给 I2C1/TIM4。用示波器检查串口位宽，并确认 PWM 仍在计划引脚。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "USART1_REMAP",
+            "href": "/reference/clock-exti/#afio_mapr-usart1_remap"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "adc",
+    "title": "ADC1／ADC2",
+    "items": [
+      {
+        "id": "adc-1",
+        "type": "原理题",
+        "question": "ADC 接高阻信号源时，为什么延长采样时间会改变读数？",
+        "answer": "<p>采样电容要经信号源阻抗充电。短采样时电压可能还未稳定，转换值会受上一个通道影响。用同一稳定直流输入把 SMP0 从 1.5 周期提高到 55.5 周期，比较均值是否收敛，再核对 ADCCLK。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "ADC_SMPR2-SMP0",
+            "href": "/reference/adc-dma/#adc_smpr2-smp0"
+          },
+          {
+            "label": "ADC_DR",
+            "href": "/reference/adc-dma/#adc_dr"
+          }
+        ]
+      },
+      {
+        "id": "adc-2",
+        "type": "读配置",
+        "question": "规则组 EXTSEL=100、EXTTRIG=1、CONT=0 时，ADC1 何时转换？",
+        "answer": "<p>TIM3 的 MMS 选 Update 时，一次有效更新触发会启动一轮规则转换。先关 EXTTRIG 完成 TIM3 的 UG 装载，再启用 ADC/DMA，最后启动计数。触发周期需长于转换时间。EOC 代表完成，CNDTR 递减代表搬运成功。DMA 读取 DR 会清 EOC，因此 DMA 正在工作时优先观察 CNDTR 与 TCIF。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "ADC_CR2-EXTSEL",
+            "href": "/reference/adc-dma/#adc_cr2-extsel"
+          },
+          {
+            "label": "ADC_CR2-EXTTRIG",
+            "href": "/reference/adc-dma/#adc_cr2-exttrig"
+          },
+          {
+            "label": "ADC_CR2-CONT",
+            "href": "/reference/adc-dma/#adc_cr2-cont"
+          }
+        ]
+      },
+      {
+        "id": "adc-3",
+        "type": "排故题",
+        "question": "注入组设成单项，JSQ1 写通道 1 后为什么读不到 PA1？",
+        "answer": "<p>JL=0 时只有 JSQ4 会参与。先读 JL，确认长度为 1，再把通道 1 写入 JSQ4。确认 PA1 模拟模式，触发后等待 JEOC，再用固定电压核对 JDR1。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "ADC_JSQR-JL",
+            "href": "/reference/adc-dma/#adc_jsqr-jl"
+          },
+          {
+            "label": "ADC_JSQR-JSQ4",
+            "href": "/reference/adc-dma/#adc_jsqr-jsq4"
+          },
+          {
+            "label": "ADC_JDR1",
+            "href": "/reference/adc-dma/#adc_jdr1"
+          }
+        ]
+      },
+      {
+        "id": "adc-4",
+        "type": "原创面试题",
+        "question": "两路电压必须在同一时刻采样，如何选 ADC 和 DMA 的配置？",
+        "answer": "<p>用 ADC1/2 规则同步，各自校准并选不同输入通道。外部触发只接主 ADC1，从 ADC2 选软件触发，两路均开 EXTTRIG。ADC1_CR2.DMA 必须置位，即使 CPU 整字读取也一样。若用 DMA1 通道 1，外设和内存宽度都设 32 位，目标用 uint32_t 数组。给 PA0、PA1 不同的已知电平，核对低半字 ADC1、高半字 ADC2。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "ADC_CR1-DUALMOD",
+            "href": "/reference/adc-dma/#adc_cr1-dualmod"
+          },
+          {
+            "label": "ADC_DR-ADC2DATA",
+            "href": "/reference/adc-dma/#adc_dr-adc2data"
+          },
+          {
+            "label": "DMA_CCR1-PSIZE",
+            "href": "/reference/adc-dma/#dma_ccr1-psize"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dma",
+    "title": "DMA1",
+    "items": [
+      {
+        "id": "dma-1",
+        "type": "原理题",
+        "question": "配置 DMA 循环模式后，为什么仍需及时处理半传输和全传输事件？",
+        "answer": "<p>计数到零会自动重装，硬件继续复用同一缓冲。半传输时处理前半段，全传输时处理后半段。若处理超过半缓冲的时间，新样本会覆盖旧数据。可以记录两类 IRQ 的间隔，并用递增的测试样本检查丢失。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "DMA_CCR1-CIRC",
+            "href": "/reference/adc-dma/#dma_ccr1-circ"
+          },
+          {
+            "label": "DMA_ISR-HTIF1",
+            "href": "/reference/adc-dma/#dma_isr-htif1"
+          },
+          {
+            "label": "DMA_ISR-TCIF1",
+            "href": "/reference/adc-dma/#dma_isr-tcif1"
+          }
+        ]
+      },
+      {
+        "id": "dma-2",
+        "type": "读配置",
+        "question": "DMA1 通道 1 设置 PSIZE=MSIZE=01、MINC=1、NDT=16，缓冲需要多大？",
+        "answer": "<p>每项半字，16 项需要 32 字节，目标地址按 2 字节对齐。MINC 使内存每项前进 2 字节。8 次请求后普通模式下 NDT 应读 8，16 次后 TCIF1 置位。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "DMA_CCR1-PSIZE",
+            "href": "/reference/adc-dma/#dma_ccr1-psize"
+          },
+          {
+            "label": "DMA_CCR1-MINC",
+            "href": "/reference/adc-dma/#dma_ccr1-minc"
+          },
+          {
+            "label": "DMA_CNDTR1-NDT",
+            "href": "/reference/adc-dma/#dma_cndtr1-ndt"
+          }
+        ]
+      },
+      {
+        "id": "dma-3",
+        "type": "排故题",
+        "question": "ADC1 有转换结果，DMA1 通道 1 的 CNDTR 却一直为 16，先检查什么？",
+        "answer": "<p>先核对 ADC_CR2.DMA 和 DMA_CCR1.EN，再查 CPAR 是否为 ADC1.DR。查看 TEIF1 以判断是否发生总线错误。若通道误分给 TIM2_CH3 或 TIM4_CH1，关闭冲突请求后逐个触发观察计数。</p><p>发现 TEIF 后先停止请求并确认 EN=0，记录 ISR 和 CNDTR，再用 CTEIF 逐项应答。活动时清 CGIF 可能漏报错误，见 ES096 §2.4.1。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "ADC_CR2-DMA",
+            "href": "/reference/adc-dma/#adc_cr2-dma"
+          },
+          {
+            "label": "DMA_CCR1-EN",
+            "href": "/reference/adc-dma/#dma_ccr1-en"
+          },
+          {
+            "label": "DMA_CPAR1",
+            "href": "/reference/adc-dma/#dma_cpar1"
+          },
+          {
+            "label": "DMA_ISR-TEIF1",
+            "href": "/reference/adc-dma/#dma_isr-teif1"
+          }
+        ]
+      },
+      {
+        "id": "dma-4",
+        "type": "原创面试题",
+        "question": "USART1_RX 和 TIM1_UP 都要 DMA，怎么处理通道冲突？",
+        "answer": "<p>两路请求都接 DMA1 通道 5，共用该通道的地址、计数和状态。可将串口迁到 USART2_RX 的通道 6，或让一个事件走中断。配置后分别只触发一个外设，检查预期通道的 CNDTR 是否递减。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "DMA_CNDTR5",
+            "href": "/reference/adc-dma/#dma_cndtr5"
+          },
+          {
+            "label": "DMA_CNDTR6",
+            "href": "/reference/adc-dma/#dma_cndtr6"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flash",
+    "title": "Flash、启动与器件标识",
+    "items": [
+      {
+        "id": "flash-1",
+        "type": "原理题",
+        "question": "为什么擦 Flash 要按页，而写入用半字？",
+        "answer": "<p>页擦除把该页所有位恢复为 1，FPEC 的编程粒度是半字。先预留一页，擦完抽读 0xFFFF，再编程 0x1234 并读回。覆盖保存需先缓存旧页有用内容。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "FLASH_ErasePage",
+            "href": "/reference/memory-crc/#flash_erasepage"
+          },
+          {
+            "label": "FLASH_ProgramHalfWord",
+            "href": "/reference/memory-crc/#flash_programhalfword"
+          }
+        ]
+      },
+      {
+        "id": "flash-2",
+        "type": "读配置",
+        "question": "WRPR 的 bit 15 为 0，在 C8 上会影响哪些地址？",
+        "answer": "<p>bit 15 管页 60–63，即 0x0800F000–0x0800FFFF。0 表示启用写保护。尝试写前先读 WRPR，受保护写会记录 WRPRTERR。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "FLASH_WRPR",
+            "href": "/reference/memory-crc/#flash_wrpr"
+          },
+          {
+            "label": "WRPRTERR",
+            "href": "/reference/memory-crc/#flash_sr-wrprterr"
+          }
+        ]
+      },
+      {
+        "id": "flash-3",
+        "type": "排故题",
+        "question": "Keil 显示烧录成功，复位却进入 USART1 系统引导。先查什么？",
+        "answer": "<p>量 BOOT0 与 PB2 的复位采样电平。BOOT0=1 且 BOOT1=0 会选择系统存储器。恢复 BOOT0=0 后复位，在地址 0 检查初始 MSP 和复位向量是否与主 Flash 一致。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "启动映射",
+            "href": "/reference/memory-crc/#%E5%90%AF%E5%8A%A8%E5%BC%95%E8%84%9A%E4%B8%8E%E5%AD%98%E5%82%A8%E6%98%A0%E5%B0%84"
+          }
+        ]
+      },
+      {
+        "id": "flash-4",
+        "type": "原创面试题",
+        "question": "要在固件升级后保留一页配置，如何处理链接、擦除与掉电？",
+        "answer": "<p>把该页从链接和升级擦除范围中划出。要抗中途断电，可以在两页中轮流写入带版本和校验的数据，写完并读回确认后才更新有效状态。测试在擦除和半字编程中间断电，复位后应能回退到上一份有效配置。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "FLASH_ProgramWord",
+            "href": "/reference/memory-crc/#flash_programword"
+          },
+          {
+            "label": "CRC_DR",
+            "href": "/reference/memory-crc/#crc_dr"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "crc",
+    "title": "CRC",
+    "items": [
+      {
+        "id": "crc-1",
+        "type": "原理题",
+        "question": "为什么多项式相同，硬件 CRC 与电脑 CRC 仍可能不同？",
+        "answer": "<p>先比初值、输入位序、最终异或和字节打包。F103 从 0xFFFFFFFF 开始，字内 MSB 优先且无最终异或。写入单字 0x12345678 应得到 0xDF8A8A2B。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "CRC_DR",
+            "href": "/reference/memory-crc/#crc_dr"
+          }
+        ]
+      },
+      {
+        "id": "crc-2",
+        "type": "读配置",
+        "question": "依次向 CRC_DR 写入两个字，最后读出的是什么？",
+        "answer": "<p>是从当前种子连续处理两个字后的累计余数。字次序改变一般会改变结果。调用 CRC_CalcBlockCRC 前重置种子，可与软件逐字对照。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "CRC_CalcBlockCRC",
+            "href": "/reference/memory-crc/#crc_calcblockcrc"
+          },
+          {
+            "label": "CRC_CR",
+            "href": "/reference/memory-crc/#crc_cr"
+          }
+        ]
+      },
+      {
+        "id": "crc-3",
+        "type": "排故题",
+        "question": "同一缓冲计算两遍，第二次结果不同，先看哪一位？",
+        "answer": "<p>看第二次开始前是否写 CRC_CR.RESET。验证 DR 回到 0xFFFFFFFF 后再送数据。若种子正确，再检查输入是否变化。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "RESET",
+            "href": "/reference/memory-crc/#crc_cr-reset"
+          }
+        ]
+      },
+      {
+        "id": "crc-4",
+        "type": "原创面试题",
+        "question": "通信协议要求反射 CRC，如何决定使用硬件还是软件？",
+        "answer": "<p>先固定协议的种子、反射、末尾异或和尾字节规则。若能正确转换输入输出且能处理非整字尾部，可以用硬件验证；否则用与协议直接一致的软件算法。用标准已知向量和带尾字节的帧交叉比较。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "CRC_DR",
+            "href": "/reference/memory-crc/#crc_dr"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "core",
+    "title": "Cortex-M3 与调试",
+    "items": [
+      {
+        "id": "core-1",
+        "type": "原理题",
+        "question": "为什么进了 HardFault 还要读 CFSR？",
+        "answer": "<p>HFSR.FORCED 表示其他故障升级，CFSR 保存具体原因。精确总线错误时结合 BFARVALID 与入栈 PC 定位。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SCB_CFSR",
+            "href": "/reference/clock-exti/#scb_cfsr"
+          },
+          {
+            "label": "SCB_HFSR",
+            "href": "/reference/clock-exti/#scb_hfsr"
+          }
+        ]
+      },
+      {
+        "id": "core-2",
+        "type": "读配置",
+        "question": "SysTick_Config(1) 成功返回时，是否产生周期中断？",
+        "answer": "<p>该版 CMSIS 会写 LOAD=0，没有产生周期异常所需的 1→0 跳变。将 ticks 改为至少 2，读取 LOAD 后用处理函数计数核对。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SysTick_Config",
+            "href": "/reference/clock-exti/#systick_config"
+          }
+        ]
+      },
+      {
+        "id": "core-3",
+        "type": "排故题",
+        "question": "断点停机后再继续，为什么定时器早已溢出？",
+        "answer": "<p>调试暂停内核时外设可继续运行。设置对应 DBG_TIMx_STOP 后，再停机观察 CNT。不要把这项调试设置当成正常运行时的控制。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "DBGMCU_CR",
+            "href": "/reference/clock-exti/#dbgmcu_cr"
+          }
+        ]
+      },
+      {
+        "id": "core-4",
+        "type": "原创面试题",
+        "question": "要定位谁写坏了一个 SRAM 变量，用代码断点还是硬件观察点？",
+        "answer": "<p>用 DWT 数据观察点捕获对该地址的写入，再查看命中指令和调用栈。若怀疑栈越界，先核对观察的地址和访问宽度。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "DWT_CTRL",
+            "href": "/reference/clock-exti/#dwt_ctrl"
+          },
+          {
+            "label": "DWTTRAP",
+            "href": "/reference/clock-exti/#scb_dfsr-dwttrap"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,19 @@
+---
+interface Props {
+  label: string;
+  groups: { title?: string; entries: string[] }[];
+}
+const { label, groups } = Astro.props;
+---
+
+<nav class="reference-index-group" aria-label={label} data-pagefind-ignore>
+  <p>{label}</p>
+  {groups.map(({ title, entries }) => (
+    <div class="reference-index-row">
+      {title && <p>{title}</p>}
+      <div class="reference-index">
+        {entries.map((entry) => <a href={`#${entry.toLowerCase()}`}><code>{entry}</code></a>)}
+      </div>
+    </div>
+  ))}
+</nav>

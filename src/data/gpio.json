@@ -1,0 +1,431 @@
+{
+  "regs": [
+    {
+      "id": "RCC_APB2ENR",
+      "off": "0x18",
+      "reset": "0x00000000",
+      "access": "RW",
+      "summary": "打开 APB2 外设的接口时钟，包括 GPIO、AFIO、TIM1、USART1、SPI1 和 ADC1/2。",
+      "fields": [
+        [
+          "14",
+          "USART1EN",
+          "USART1 时钟门控。",
+          "0｜关闭 USART1 时钟。\n1｜开启 USART1 时钟，再访问其寄存器。"
+        ],
+        [
+          "12",
+          "SPI1EN",
+          "打开 SPI1 的 APB2 接口时钟。",
+          "0｜关闭接口时钟。\n1｜开启接口时钟。读回后再访问 SPI1，主机 SCK 从 PCLK2 分频。"
+        ],
+        [
+          "11",
+          "TIM1EN",
+          "TIM1 时钟门控。",
+          "0｜关闭 TIM1 时钟。\n1｜开启 TIM1 时钟，再访问其寄存器。"
+        ],
+        [
+          "10",
+          "ADC2EN",
+          "ADC2 的 APB2 接口时钟。",
+          "0｜关闭 ADC2 的接口时钟。\n1｜开启接口。另用 ADCPRE 控制转换时钟频率，再配置 ADC。"
+        ],
+        [
+          "9",
+          "ADC1EN",
+          "ADC1 的 APB2 接口时钟。",
+          "0｜关闭 ADC1 的接口时钟。\n1｜开启接口。另用 ADCPRE 控制转换时钟频率，再配置 ADC。"
+        ],
+        [
+          "5",
+          "IOPDEN",
+          "LQFP48 上 PD0/PD1 仅能在停用 HSE 后经 PD01_REMAP 作 GPIO。输出仅允许 50 MHz 档，不能接 EXTI 或 CAN。",
+          "0｜关闭对应时钟。\n1｜开启对应时钟，再访问该外设寄存器。"
+        ],
+        [
+          "4",
+          "IOPCEN",
+          "GPIOC 时钟，1 启用。",
+          "0｜关闭对应时钟。\n1｜开启对应时钟，再访问该外设寄存器。"
+        ],
+        [
+          "3",
+          "IOPBEN",
+          "GPIOB 时钟，1 启用。",
+          "0｜关闭对应时钟。\n1｜开启对应时钟，再访问该外设寄存器。"
+        ],
+        [
+          "2",
+          "IOPAEN",
+          "GPIOA 时钟，1 启用。",
+          "0｜关闭 GPIOA 时钟；端口寄存器不能正常访问。\n1｜打开 GPIOA 时钟；读回门控位，再访问 CRL、IDR 等端口寄存器。"
+        ],
+        [
+          "0",
+          "AFIOEN",
+          "AFIO 时钟，1 启用。",
+          "0｜关闭对应时钟。\n1｜开启对应时钟，再访问该外设寄存器。"
+        ]
+      ],
+      "instances": "RCC",
+      "check": "开启 GPIOA 后读回 IOPAEN=1，再访问 GPIOA。若 CRL/IDR 仍读零，优先核对 GPIOA 基址和时钟位是否在后续代码被清掉。"
+    },
+    {
+      "id": "GPIOx_CRL",
+      "off": "0x00",
+      "reset": "0x44444444",
+      "access": "RW",
+      "summary": "配置引脚 0–7，每个引脚四位。",
+      "pinStart": 0,
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "若 PA1 字段读回仍为 0x4，先查 IOPAEN 和该引脚是否已被 LCKR 锁定。读回 0x2 后，用 BSRR/BRR 改输出，再看 IDR 或测引脚。"
+    },
+    {
+      "id": "GPIOx_CRH",
+      "off": "0x04",
+      "reset": "0x44444444",
+      "access": "RW",
+      "summary": "配置引脚 8–15，每个引脚四位。以 CNF13 和 MODE13 为例，偏移是 (13 − 8) × 4 = 20。",
+      "pinStart": 8,
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "若 PC13 字段不为 0x2，先查 IOPCEN，再核对 [23:20] 和 LCKR。核对数据手册表 5 的 PC13 电流、负载与速度限制。"
+    },
+    {
+      "id": "GPIOx_IDR",
+      "off": "0x08",
+      "reset": "0x00000000",
+      "access": "RO",
+      "summary": "读取引脚输入路径采到的数字电平。",
+      "fields": [
+        [
+          "31:16",
+          "保留",
+          "保留。"
+        ],
+        [
+          "15:0",
+          "IDRx",
+          "输入缓冲器随引脚电平更新：0 为低，1 为高。数字输入路径启用时有效；模拟模式下该读数不能反映引脚电压。"
+        ]
+      ],
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "若接地时仍读 1，先检查共地和 PA0 接线，再查 MODE/CNF 与 ODR0。模拟输入时数字输入路径被关断，不能用 IDR 验证模拟电压。"
+    },
+    {
+      "id": "GPIOx_ODR",
+      "off": "0x0C",
+      "reset": "0x00000000",
+      "access": "RW",
+      "summary": "输出数据锁存。输入上下拉模式也使用相应的输出锁存位选择方向。",
+      "fields": [
+        [
+          "31:16",
+          "保留",
+          "保持复位值。"
+        ],
+        [
+          "15:0",
+          "ODRx",
+          "ODR0–ODR15 分别保存引脚 0–15 的输出锁存值或上下拉选择。",
+          "0｜通用推挽输出低，通用开漏下拉。上下拉输入模式选择下拉。\n1｜通用推挽输出高，通用开漏释放。上下拉输入模式选择上拉。"
+        ]
+      ],
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "若 ODR1 和引脚不一致，先确认是通用输出、复用输出还是开漏释放，再测实际电平。"
+    },
+    {
+      "id": "GPIOx_BSRR",
+      "off": "0x10",
+      "reset": "0x00000000",
+      "access": "WO",
+      "summary": "一次写入可设置或清除 ODR 中指定的位，未选中的位不变。同位同时请求置位和复位时，置位优先。",
+      "fields": [
+        [
+          "31:16",
+          "BRx",
+          "对应 ODR 的清零命令。",
+          "0｜无动作。\n1｜清对应 ODR 位。若同次写入的 BSx 也为 1，置位优先。"
+        ],
+        [
+          "15:0",
+          "BSx",
+          "对应 ODR 的置位命令。",
+          "0｜无动作。\n1｜置对应 ODR 位。"
+        ]
+      ],
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "验证 ODR1 或 PA1 电平。BSRR 是写命令，直接赋掩码，避免用 |= 或把 BSRR 的读回当成状态。"
+    },
+    {
+      "id": "GPIOx_BRR",
+      "off": "0x14",
+      "reset": "0x00000000",
+      "access": "WO",
+      "summary": "一次写入清除 ODR 中指定的位。",
+      "fields": [
+        [
+          "31:16",
+          "保留",
+          "保持复位值。"
+        ],
+        [
+          "15:0",
+          "BRx",
+          "对应 ODR 的清零命令。",
+          "0｜无动作。\n1｜清对应 ODR 位。"
+        ]
+      ],
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "验证 ODR1 读 0、其他位不变。若引脚没变，先查 PA1 是否配置为通用输出。"
+    },
+    {
+      "id": "GPIOx_LCKR",
+      "off": "0x18",
+      "reset": "0x00000000",
+      "access": "RW",
+      "summary": "锁定选中引脚的 CRL/CRH 配置直到下一次复位。",
+      "fields": [
+        [
+          "31:17",
+          "保留",
+          "保持复位值。"
+        ],
+        [
+          "16",
+          "LCKK",
+          "锁定密钥。",
+          "1 → 0 → 1｜依次写入，期间 LCKx 掩码保持一致。然后读两次，第二次读 1 确认。复位前不能改已锁定引脚的 CRL/CRH。"
+        ],
+        [
+          "15:0",
+          "LCKx",
+          "选择要锁定的引脚。",
+          "0｜不选中对应引脚。\n1｜选中对应引脚，完成 LCKK 序列后生效。"
+        ]
+      ],
+      "instances": "GPIOA、GPIOB、GPIOC、GPIOD（实际引脚以 LQFP48 引脚表为准）",
+      "check": "最后一次读取应见 LCKK=1。若失败，先查三次写入的引脚掩码是否一致、访问是否为 32 位，以及是否已经锁定。"
+    }
+  ],
+  "api": [
+    {
+      "name": "RCC_APB2PeriphClockCmd",
+      "params": "RCC_APB2Periph 是外设掩码，如 RCC_APB2Periph_GPIOA；NewState=ENABLE 开启、DISABLE 关闭。",
+      "ret": "无",
+      "pre": "选择本芯片实现的 APB2 外设。",
+      "what": "按掩码对 RCC_APB2ENR 置位或清位。",
+      "related": [
+        "RCC_APB2ENR"
+      ],
+      "summary": "初始化前给 APB2 外设供时钟。",
+      "check": "读回 IOPAEN=1，再配置 GPIOA；若访问仍读零，先查门控和端口实例。"
+    },
+    {
+      "name": "GPIO_DeInit",
+      "params": "GPIOx 指定整个端口，例如 GPIOA。",
+      "ret": "无",
+      "pre": "端口必须在此芯片上实现。",
+      "what": "通过 RCC_APB2RSTR 脉冲复位整个端口，原有配置会丢失。",
+      "related": [],
+      "summary": "重新初始化前，把整个 GPIO 端口恢复为复位状态。",
+      "check": "释放复位后打开端口时钟，CRL/CRH 应为 0x44444444；再逐个重新配置所需引脚。"
+    },
+    {
+      "name": "GPIO_AFIODeInit",
+      "params": "无参数，作用于整个 AFIO。",
+      "ret": "无",
+      "pre": "确认可以清除已有复用及 EXTI 路由配置。",
+      "what": "通过 RCC_APB2RSTR 脉冲复位 AFIO。",
+      "related": [],
+      "summary": "重新分配引脚前，清掉已有 AFIO 路由。",
+      "check": "核对 EXTICR 恢复默认端口 A，并重配复用、EXTI 路由和调试接口。"
+    },
+    {
+      "name": "GPIO_Init",
+      "params": "GPIOx=GPIOC，选择端口。\nGPIO_InitStruct 指向配置。\nGPIO_Pin=GPIO_Pin_13，选择 PC13。可按位或选多个脚。\nGPIO_Mode=GPIO_Mode_Out_PP，选通用推挽。输入、开漏或复用功能需选对应模式。\nGPIO_Speed=GPIO_Speed_2MHz，只作用于输出，选择输出速度档位。",
+      "ret": "无",
+      "pre": "先使能 GPIOx 时钟。Pin 为引脚掩码，Mode 选模式，Speed 用于输出。",
+      "what": "按引脚位置读改写 CRL 或 CRH 的 MODE/CNF 四位，保留未选引脚。上下拉输入另用 BSRR 或 BRR 设置 ODR，决定上拉或下拉。",
+      "related": [
+        "RCC_APB2ENR",
+        "GPIOx_CRL",
+        "GPIOx_CRH",
+        "GPIOx_ODR"
+      ],
+      "summary": "初始化时选择引脚用来采样、输出还是连接片上外设。",
+      "check": "PC13 的 CRH[23:20] 应读 0x2。若仍为 0x4，检查 IOPCEN、引脚掩码和锁定。输出电平还需另写 ODR、BSRR 或 BRR。"
+    },
+    {
+      "name": "GPIO_StructInit",
+      "params": "GPIO_InitStruct 指向可写的 GPIO_InitTypeDef。",
+      "ret": "无",
+      "pre": "结构体指针有效。",
+      "what": "填入全部引脚、2 MHz 和浮空输入的默认值，只修改结构体。",
+      "related": [],
+      "summary": "初始化前填好 GPIO 配置结构体的默认成员。",
+      "check": "默认 Pin=全部、Mode=浮空输入、Speed=2 MHz。先缩小引脚掩码再调用 GPIO_Init，避免覆盖整个端口。"
+    },
+    {
+      "name": "GPIO_ReadInputDataBit",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 是单个引脚的掩码，如 GPIO_Pin_0。",
+      "ret": "0 或 1",
+      "pre": "先使能端口时钟，确认数字输入路径有效。",
+      "what": "读 IDR 并测试选中的位。",
+      "related": [
+        "GPIOx_IDR"
+      ],
+      "summary": "运行时判断一个引脚现在是高还是低。",
+      "check": "PA0 上拉、按下接地时返回 Bit_RESET；松开返回 Bit_SET。异常先查 IDR0 和实际电平。"
+    },
+    {
+      "name": "GPIO_ReadInputData",
+      "params": "GPIOx 如 GPIOA。",
+      "ret": "16 位采样值",
+      "pre": "先使能端口时钟。",
+      "what": "读取 IDR 的低 16 位。",
+      "related": [
+        "GPIOx_IDR"
+      ],
+      "summary": "运行时一次采样整个端口的数字输入。",
+      "check": "返回值 bit 0 应随 PA0 变化。异常先查输入模式和共地。"
+    },
+    {
+      "name": "GPIO_ReadOutputDataBit",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 如 GPIO_Pin_1。",
+      "ret": "0 或 1",
+      "pre": "先使能端口时钟。",
+      "what": "读 ODR 中选定的锁存位，适合查看写入状态。",
+      "related": [
+        "GPIOx_ODR"
+      ],
+      "summary": "运行时查询程序给某脚写了什么输出状态。",
+      "check": "返回 0 或 1，对应 ODR1。若与引脚电平不同，查输出模式或用 IDR 测数字电平。"
+    },
+    {
+      "name": "GPIO_ReadOutputData",
+      "params": "GPIOx 如 GPIOA。",
+      "ret": "16 位锁存值",
+      "pre": "先使能端口时钟。",
+      "what": "读取 ODR 的低 16 位。",
+      "related": [
+        "GPIOx_ODR"
+      ],
+      "summary": "运行时检查整个端口的输出锁存状态。",
+      "check": "返回值 bit 1 对应 ODR1；开漏释放和外部拉低时仍要看引脚电平。"
+    },
+    {
+      "name": "GPIO_SetBits",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 为引脚掩码，如 GPIO_Pin_1，可按位或。",
+      "ret": "无",
+      "pre": "先使能端口时钟。",
+      "what": "向 BSRR 低半区写掩码，置位对应 ODR 位。",
+      "related": [
+        "GPIOx_BSRR",
+        "GPIOx_ODR"
+      ],
+      "summary": "运行时只把指定输出锁存位置 1。",
+      "check": "PA1 推挽高有效 LED 应亮。ODR1 为 1 而灯未亮时先查模式和接线。"
+    },
+    {
+      "name": "GPIO_ResetBits",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 为引脚掩码，如 GPIO_Pin_1，可按位或。",
+      "ret": "无",
+      "pre": "先使能端口时钟。",
+      "what": "向 BRR 写掩码，清除对应 ODR 位。",
+      "related": [
+        "GPIOx_BRR",
+        "GPIOx_ODR"
+      ],
+      "summary": "运行时只把指定输出锁存位清 0。",
+      "check": "PA1 推挽高有效 LED 应灭；读 ODR1=0，其他位保持。"
+    },
+    {
+      "name": "GPIO_WriteBit",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 如 GPIO_Pin_1；BitVal=Bit_SET 置位，Bit_RESET 清位。",
+      "ret": "无",
+      "pre": "先使能端口时钟。",
+      "what": "根据值写 BSRR 或 BRR。",
+      "related": [
+        "GPIOx_BSRR",
+        "GPIOx_BRR"
+      ],
+      "summary": "运行时按条件更新单个输出。",
+      "check": "按键状态变化后对照 ODR1。若逻辑反了，先核对按键和 LED 的有效电平。"
+    },
+    {
+      "name": "GPIO_Write",
+      "params": "GPIOx 如 GPIOA；PortVal 为整个 16 位锁存值，示例把 bit 0/1 写 1。",
+      "ret": "无",
+      "pre": "调用方需要负责整个端口的输出锁存值。",
+      "what": "直接覆盖整个 ODR，包括输入上下拉模式用到的位。",
+      "related": [
+        "GPIOx_ODR"
+      ],
+      "summary": "在独占端口时一次设置整组输出锁存。",
+      "check": "ODR 应读 0x0003。其他位会被清零，可能改变上下拉方向；只改一个脚时用 GPIO_WriteBit。"
+    },
+    {
+      "name": "GPIO_PinLockConfig",
+      "params": "GPIOx 如 GPIOA；GPIO_Pin 如 GPIO_Pin_1，为需要锁定的掩码。",
+      "ret": "无",
+      "pre": "先使能端口时钟并确认目标引脚已配置好。",
+      "what": "执行 LCKR 密钥读写序列。",
+      "related": [
+        "GPIOx_LCKR"
+      ],
+      "summary": "初始化末尾锁住指定引脚的模式配置。",
+      "check": "读 LCKK 和掩码确认；复位前 CRL/CRH 不能再改对应脚，数据读写仍可用。"
+    },
+    {
+      "name": "GPIO_EventOutputConfig",
+      "params": "GPIO_PortSource 如 GPIO_PortSourceGPIOA；GPIO_PinSource 如 GPIO_PinSource1，是编号而非 GPIO_Pin_1 掩码。",
+      "ret": "无",
+      "pre": "开启 AFIO 时钟，确认封装提供该引脚。",
+      "what": "更新 AFIO_EVCR 的端口和引脚选择。",
+      "related": [],
+      "summary": "初始化时选择内核事件信号从哪个脚输出。",
+      "check": "EVCR 的 PORT=0、PIN=1；还需配 PA1 为复用输出并开启 EVOE。"
+    },
+    {
+      "name": "GPIO_EventOutputCmd",
+      "params": "NewState=ENABLE 开启 EVOE；DISABLE 关闭。",
+      "ret": "无",
+      "pre": "先使能 AFIO 时钟并完成事件输出引脚配置。",
+      "what": "更新 AFIO_EVCR 的事件输出使能位。",
+      "related": [],
+      "summary": "配置好引脚后打开或关断事件输出。",
+      "check": "读 EVOE=1，执行 SEV 后量输出脉冲；无脉冲先查引脚模式。"
+    },
+    {
+      "name": "GPIO_PinRemapConfig",
+      "params": "GPIO_Remap 如 GPIO_Remap_USART1；NewState=ENABLE 选重映射，DISABLE 恢复默认。",
+      "ret": "无",
+      "pre": "先使能 AFIO 时钟，核对型号、封装和 SWD 配置。",
+      "what": "按重映射常量更新 AFIO_MAPR 或 AFIO_MAPR2。",
+      "related": [],
+      "summary": "初始化时把片上外设信号换到另一组引脚。",
+      "check": "USART1_REMAP 读 1 后在 PB6/PB7 测信号。也要单独配 GPIO；涉及 MAPR 时核对 SWJ 设置，SWJ_CFG 读回未定义。"
+    },
+    {
+      "name": "GPIO_EXTILineConfig",
+      "params": "GPIO_PortSource 选端口，GPIO_PinSource 是引脚编号 0–15，如 GPIO_PinSource0。",
+      "ret": "无",
+      "pre": "先使能 AFIO 时钟。多个同号 GPIO 引脚共享一条 EXTI 线。",
+      "what": "写 AFIO_EXTICR 选择该 EXTI 线的 GPIO 端口。",
+      "related": [],
+      "summary": "初始化时选择同编号 EXTI 线从哪个 GPIO 端口取信号。",
+      "check": "PB0 示例应读 EXTICR1[3:0]=1；再配边沿、屏蔽和 NVIC，读取 ISR 计数确认。"
+    },
+    {
+      "name": "GPIO_ETH_MediaInterfaceConfig",
+      "params": "GPIO_ETH_MediaInterface 选择 MII 或 RMII。STM32F103C8T6 不实现该功能。",
+      "ret": "无",
+      "pre": "仅适用于支持以太网的互联型芯片。",
+      "what": "SPL 源码包含这个接口。STM32F103C8T6 没有以太网 MAC，因此该接口不适用于此芯片。",
+      "related": [],
+      "summary": "在有以太网 MAC 的器件上选择 PHY 接口。",
+      "check": "本型号不调用该接口。"
+    }
+  ]
+}

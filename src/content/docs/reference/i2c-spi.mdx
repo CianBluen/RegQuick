@@ -1,0 +1,222 @@
+---
+title: I²C 与 SPI 速查
+description: STM32F103C8T6 的 I2C1、I2C2、SPI1、SPI2 寄存器、SPL、引脚、DMA 与错误恢复
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/i2c-spi-registers.json';
+import api from '../../../data/i2c-spi-api.json';
+
+<SystemReference
+  groups={[
+    { id: 'i2c-registers', title: 'I2C1／I2C2', entries: registers.filter(({ id }) => id.startsWith('I2C_')) },
+    { id: 'spi-registers', title: 'SPI1／SPI2', entries: registers.filter(({ id }) => id.startsWith('SPI_')) },
+  ]}
+  api={api}
+  apiTitle="I²C 与 SPI 标准外设库函数"
+  apiIndex={[
+    { title: 'I²C', entries: api.filter(({ name }) => name.startsWith('I2C_')).map(({ name }) => name) },
+    { title: 'SPI', entries: api.filter(({ name }) => name.startsWith('SPI_')).map(({ name }) => name) },
+  ]}
+/>
+
+## 时钟、引脚、中断和 DMA
+
+| 实例 | 门控与时钟 | 默认引脚 | 可用重映射 | IRQ | DMA1 |
+| --- | --- | --- | --- | --- | --- |
+| I2C1 | [APB1](/reference/clock-exti/#rcc_apb1enr-i2c1en)，PCLK1 | SCL PB6、SDA PB7、SMBA PB5 | [I2C1_REMAP](/reference/clock-exti/#afio_mapr-i2c1_remap) 选 SCL PB8、SDA PB9，SMBA 仍为 PB5 | I2C1_EV_IRQn 31、I2C1_ER_IRQn 32 | TX 6、RX 7 |
+| I2C2 | [APB1](/reference/clock-exti/#rcc_apb1enr-i2c2en)，PCLK1 | SCL PB10、SDA PB11、SMBA PB12 | 无 | I2C2_EV_IRQn 33、I2C2_ER_IRQn 34 | TX 4、RX 5 |
+| SPI1 | [APB2](/reference/gpio/#rcc_apb2enr-spi1en)，PCLK2 | NSS PA4、SCK PA5、MISO PA6、MOSI PA7 | [SPI1_REMAP](/reference/clock-exti/#afio_mapr-spi1_remap) 选 NSS PA15、SCK PB3、MISO PB4、MOSI PB5。使用 SWD 并释放 JTAG 引脚 | SPI1_IRQn 35 | RX 2、TX 3 |
+| SPI2 | [APB1](/reference/clock-exti/#rcc_apb1enr-spi2en)，PCLK1 | NSS PB12、SCK PB13、MISO PB14、MOSI PB15 | 无 | SPI2_IRQn 36 | RX 4、TX 5 |
+
+[中文数据手册引脚表](/manuals/stm32f103x8b-zh.pdf#page=17) · [AFIO 重映射](/reference/clock-exti/#afio_mapr) · [DMA 请求表](/reference/adc-dma/#dma1-固定请求映射)
+
+I²C 的 SCL 和 SDA 配复用开漏，外接上拉，并与器件共地。快速模式需要核对上升时间和 PCLK1。SPI 主机的 SCK 和 MOSI 配复用推挽，MISO 配输入。软件片选由 GPIO 输出，空闲先置高。从机使用相反的数据方向，硬件 NSS 配输入。SPI1 和 SPI2 可用全双工、双线只收和单线双向，也支持自身 CRC。中容量 STM32F103C8T6 没有 I²S 音频功能。SPL 的 `SPI_I2S_*` 共用函数在本型号用于 SPI。专用的 `I2S_Init`、`I2S_Cmd`、`I2S_StructInit` 和 I²S 专用配置寄存器用于支持音频的其他型号。 [中文参考手册第 473 页](/manuals/rm0008-zh.pdf#page=473)
+
+### 资源冲突
+
+- I2C1 默认占 PB6/PB7，与 USART1 重映射冲突。改到 PB8/PB9 后检查 CAN 重映射。即使未使用 SMBA，I2C1 开时钟也会与重映射 SPI1 主机的 PB5 MOSI，以及重映射 TIM3_CH2 的 PB5 输出冲突。
+- I2C2 开时钟时，其 SMBA 与 PB12 的 SPI2 硬件 NSS 输出和 USART3 同步 CK 冲突。SPI2 主机使用软件 NSS 和独立 GPIO 片选。I2C2 与 SPI2 的 DMA 又共享通道 4、5，应分别分配或分时使用。
+- SPI1 主机的软件 NSS 与 USART2 同步时钟共享 PA4，SPI2 和 USART3 同理共享 PB12。若确需同时工作，核对对应 SPI 主机配置与勘误规定的 SSOE 条件。
+
+[ES096 Rev 15 §2.3.2–2.3.8](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=10)
+
+## I²C 起止和故障定位
+
+1. 先读实际 PCLK1。以 8 MHz 和 100 kHz 为例，设置 FREQ=8、CCR=40、TRISE=9。总线空闲时启用 PE，观察两线均高。
+2. 启动主发送时，发 START 后等待 SB，再写七位从地址及方向。等待地址应答或 AF。收到 ACK 后以 SR1→SR2 清 ADDR，等 TXE 后填数据。末字节等 BTF，再请求 STOP 或重复 START。每个等待都要有超时和错误检查。
+3. 主接收按长度分别处理。单字节用 POS=0、清 ACK 后才清 ADDR，紧接着请求 STOP，再等 RXNE。双字节接收用 POS=1，在 ADDR 清除后及时清 ACK，待 BTF 后请求 STOP，连续读两次 DR。三字节及以上按最后三字节的 BTF、ACK、STOP 次序结束。使用极短的临界区保护对 ADDR/BTF 敏感的访问，或选 DMA；区间以 ES096 的时序约束为准。
+4. 故意换一个不存在的七位地址，分析仪应看到地址后第九拍为 NACK，SR1.AF 置位。仍持有主机身份时发 STOP，按写 0 规则清 AF。恢复正确地址后检查 ADDR 和 BTF。出现 ARLO 时先释放并等待总线空闲，由赢得仲裁的主机结束事务。
+5. BUSY 卡住时先读 GPIO 电平。如果设备拉低 SDA，检查该设备是否等时钟、是否允许单主环境的开漏恢复。若两线均高而 BUSY 持续，按 ES096 清 PE，切普通开漏并释放两线，依次拉低 SDA、拉低 SCL、释放 SCL、释放 SDA，每步核对 IDR。切回复用开漏，置再清 SWRST，重新配置时序并启用，检查 BUSY 是否释放。主模式收到错位 STOP 后，按 ES096 执行 SWRST 并重配。
+
+标准模式在 88–100 kHz 且从机拉伸时钟，或 SCL 上升超过 300 ns 时，重复 START 的建立时间可能偏短。把 SCL 降到 88 kHz 或以下，或在从机支持时改用快速模式，并用分析仪核对。硬件 SMBus 支持 PEC、告警和部分 ARP。若应用要求对非法命令逐字节返回 NACK，需要用上层校验实现。禁用从机时钟拉伸时，OVR 未置位也可能存在数据建立时间问题，优先允许拉伸或加快服务。 [中文参考手册第 497 页](/manuals/rm0008-zh.pdf#page=497) · [ES096 §2.8](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=17)
+
+<details>
+<summary>展开 I2C1 地址应答验证</summary>
+
+保持 I2C1 默认映射，将 PB6/PB7 接到已供电的单主机 I²C 总线，接好上拉并共地。完成系统时钟配置后调用 `i2c1_probe_init`，再以实际从机地址调用 `i2c1_probe`。只发送地址和 STOP，可在分析仪上核对地址应答，也可换成确认未占用的地址复现 NACK。循环预算限制本次等待次数。正式驱动可用单调时基设置超时。
+
+```c
+#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_i2c.h"
+#include "stm32f10x_rcc.h"
+
+void i2c1_probe_init(void)
+{
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+    I2C_DeInit(I2C1);
+
+    GPIO_InitTypeDef pins;
+    GPIO_StructInit(&pins);
+    pins.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+    pins.GPIO_Mode = GPIO_Mode_AF_OD;
+    pins.GPIO_Speed = GPIO_Speed_2MHz;
+    GPIO_Init(GPIOB, &pins);
+
+    I2C_InitTypeDef timing;
+    I2C_StructInit(&timing);
+    timing.I2C_ClockSpeed = 100000u;
+    I2C_Init(I2C1, &timing);
+}
+
+static uint16_t i2c1_wait(uint16_t mask)
+{
+    for (unsigned remaining = 100000u; remaining; --remaining) {
+        uint16_t status = I2C1->SR1;
+        if (status & mask) {
+            return status;
+        }
+    }
+    return 0u;
+}
+
+/* 1: ACK, 0: NACK, -1: invalid address or bus busy,
+   -2: protocol error or timeout. Reinitialize after -2. */
+int i2c1_probe(uint8_t address)
+{
+    if (address < 0x08u || address > 0x77u || (I2C1->SR2 & I2C_SR2_BUSY)) {
+        return -1;
+    }
+    const uint16_t errors = I2C_SR1_ARLO | I2C_SR1_BERR;
+    I2C_GenerateSTART(I2C1, ENABLE);
+    uint16_t status = i2c1_wait(I2C_SR1_SB | errors);
+    if (!(status & I2C_SR1_SB) || (status & errors)) {
+        return -2;
+    }
+    I2C_Send7bitAddress(I2C1, address << 1, I2C_Direction_Transmitter);
+    status = i2c1_wait(I2C_SR1_ADDR | I2C_SR1_AF | errors);
+    if (!status || (status & errors)) {
+        return -2;
+    }
+    if (status & I2C_SR1_ADDR) {
+        (void)I2C1->SR2;
+    }
+    I2C_GenerateSTOP(I2C1, ENABLE);
+    if (status & I2C_SR1_AF) {
+        I2C_ClearFlag(I2C1, I2C_FLAG_AF);
+    }
+    for (unsigned remaining = 100000u; remaining; --remaining) {
+        if (!(I2C1->SR2 & I2C_SR2_BUSY)) {
+            return (status & I2C_SR1_ADDR) ? 1 : 0;
+        }
+    }
+    return -2;
+}
+```
+
+`-1` 时先检查 GPIO 实际电平。已发 START 却返回 `-2` 时记录 SR1，确认无人驱动总线后，再按上面的故障路径重置。调试器实时寄存器窗口会影响 ADDR 或 DR 的访问序列。
+
+</details>
+
+## SPI 回环和故障定位
+
+1. SPI1 使用默认映射，将 PA7 MOSI 接 PA6 MISO。PA5 接分析仪，配置 8 位、模式 0、PCLK2=8 MHz、BR=010、软件 NSS，GPIO 片选按外设需要单独控制。
+2. 等 TXE 后写 0xA5，等 RXNE 后读回 0xA5。每次写入产生 8 个约 1 MHz 的时钟，回环用于检查接线和基本数据路径。核对从机采样边沿需接真实对端或检查波形。主机全双工释放片选前，先处理最后的 RXNE，再等 TXE=1、BSY=0。
+3. 故意发送两帧且延迟到 RXNE 未读时收第二帧，可观察 OVR。按 DR→SR 清除后重发并逐帧读取。若发生 MODF，先恢复正确的内部或外部 NSS，再按 SR→CR1 清除，确认 MSTR、SPE 已恢复。
+
+从机 CRC 可能在 NSS 为高时仍受 SCK 影响。下一事务前，两端在 SPE=0 时清再置 CRCEN。若 SPI 用轮询或中断，而同一硬件请求通道正为另一外设做 DMA，结尾 CRC 也可能受影响。调整请求分配，或按勘误让 SPI 也通过 DMA 传输。 [ES096 §2.10](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=22)
+
+<details>
+<summary>展开 SPI1 回环验证</summary>
+
+保持 SPI1 默认映射，只在回环板上连接 PA7 到 PA6。GPIO 片选在此例中空置。用调试器查看 `spi1_loopback` 返回值，返回 `1` 表示读回 0xA5，`0` 表示回读不符，`-1` 表示等待超时。
+
+```c
+#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_spi.h"
+
+static int spi1_wait(uint16_t mask, uint16_t expected)
+{
+    for (unsigned remaining = 100000u; remaining; --remaining) {
+        if ((SPI1->SR & mask) == expected) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int spi1_loopback(void)
+{
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_SPI1, ENABLE);
+    SPI_I2S_DeInit(SPI1);
+
+    GPIO_InitTypeDef pins;
+    GPIO_StructInit(&pins);
+    pins.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+    pins.GPIO_Mode = GPIO_Mode_AF_PP;
+    pins.GPIO_Speed = GPIO_Speed_10MHz;
+    GPIO_Init(GPIOA, &pins);
+    pins.GPIO_Pin = GPIO_Pin_6;
+    pins.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOA, &pins);
+
+    SPI_InitTypeDef config;
+    SPI_StructInit(&config);
+    config.SPI_Mode = SPI_Mode_Master;
+    config.SPI_NSS = SPI_NSS_Soft;
+    config.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
+    SPI_Init(SPI1, &config);
+    SPI_Cmd(SPI1, ENABLE);
+
+    if (!spi1_wait(SPI_SR_TXE, SPI_SR_TXE)) {
+        return -1;
+    }
+    SPI_I2S_SendData(SPI1, 0xA5u);
+    if (!spi1_wait(SPI_SR_RXNE, SPI_SR_RXNE)) {
+        return -1;
+    }
+    uint16_t received = SPI_I2S_ReceiveData(SPI1);
+    if (!spi1_wait(SPI_SR_TXE | SPI_SR_BSY, SPI_SR_TXE)) {
+        return -1;
+    }
+    SPI_Cmd(SPI1, DISABLE);
+    return received == 0xA5u;
+}
+```
+
+若 PCLK2 为 8 MHz，PA5 应有 8 个约 1 MHz 的时钟。时钟正常而数据不对，先确认 PA6 没接到 PA5，再查两个数据引脚的模式与复用。
+
+</details>
+
+## 中文手册框图
+
+<details>
+<summary>展开 I²C 和 SPI 框图</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-i2c-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-i2c-block.png" width="1341" height="1269" loading="lazy" alt="I²C 的 SCL 时钟控制、SDA 移位寄存器、地址比较、PEC、DMA 与中断。" /></a>
+  <figcaption>图 242 · I²C 功能框图 · <a href="/manuals/rm0008-zh.pdf#page=495">中文参考手册第 495 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-spi-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-spi-block.png" width="1344" height="1086" loading="lazy" alt="SPI 的收发缓冲、移位寄存器、波特率发生器和片选控制。" /></a>
+  <figcaption>图 209 · SPI 框图 · <a href="/manuals/rm0008-zh.pdf#page=459">中文参考手册第 459 页</a></figcaption>
+</figure>
+
+</details>
+
+[I²C 题目](/questions/#i2c) · [SPI 题目](/questions/#spi)

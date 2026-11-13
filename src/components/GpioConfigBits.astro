@@ -1,0 +1,64 @@
+---
+interface Props { pinStart: number }
+
+const { pinStart } = Astro.props;
+const register = pinStart === 0 ? 'CRL' : 'CRH';
+const pairs = Array.from({ length: 8 }, (_, index) => {
+  const offset = 7 - index;
+  const pin = pinStart + offset;
+  const lsb = offset * 4;
+  return [
+    { label: `CNF${pin}`, range: `${lsb + 3}:${lsb + 2}`, kind: 'cnf' },
+    { label: `MODE${pin}`, range: `${lsb + 1}:${lsb}`, kind: 'mode' },
+  ];
+});
+---
+
+<div class="bit-layout" role="group" aria-label={`${register} 位布局，从最高位到最低位`}>
+  {[pairs.slice(0, 4), pairs.slice(4)].map((row) => (
+    <div class="bit-band">
+      {row.flat().map(({ label, range, kind }) => (
+        <a class:list={['bit-field', kind]} href="#gpio-config-values"
+          aria-label={`${label}，位 ${range}，查看写入效果`}>
+          <span>{range}</span>
+          <h5 id={label.toLowerCase()} data-pagefind-weight="8">{label}</h5>
+        </a>
+      ))}
+    </div>
+  ))}
+</div>
+<p class="bit-note">每格 2 位 · 读写属性 RW · <a class="write-link" href="#gpio-config-values">写入效果</a></p>
+
+<style>
+  .bit-layout { display: grid; gap: .6rem; }
+  .bit-band {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--lab-border);
+    border-radius: .5rem;
+    background: var(--lab-border);
+  }
+  .bit-band + .bit-band { margin-top: 0; }
+  .bit-field {
+    min-width: 0;
+    display: grid;
+    justify-items: center;
+    padding: .36rem 0 .45rem;
+    color: var(--sl-color-white);
+    background: var(--lab-surface);
+    font: 500 clamp(.62rem, 1.05vw, .84rem)/1.45 var(--__sl-font-mono);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    scroll-margin-top: .75rem;
+  }
+  .bit-field span { color: var(--sl-color-gray-3); }
+  .bit-field h5 { margin: .14rem 0 0; font: inherit; font-weight: 600; color: inherit; }
+  .cnf { background: var(--sl-color-accent-low); color: var(--sl-color-text-accent); }
+  .bit-field:hover, .bit-field:focus-visible, .bit-field:has(:target) {
+    box-shadow: inset 0 0 0 2px var(--sl-color-accent);
+    text-decoration: underline;
+  }
+  .bit-note { font-size: .82rem; color: var(--sl-color-gray-3); }
+</style>

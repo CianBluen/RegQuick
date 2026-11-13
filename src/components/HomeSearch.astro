@@ -1,0 +1,16 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+---
+
+<button class="home-search not-content" type="button" id="home-search" data-pagefind-ignore>
+  <Icon name="magnifier" />
+  <span>全站搜索</span>
+  <span class="search-examples">GPIO_Init、USART_BRR、开漏</span>
+</button>
+
+<script>
+  document.getElementById('home-search')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    document.querySelector<HTMLButtonElement>('site-search [data-open-modal]')?.click();
+  });
+</script>

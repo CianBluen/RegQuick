@@ -1,0 +1,72 @@
+---
+title: USB FS Device 与 bxCAN 速查
+description: STM32F103C8T6 的 USB 端点、PMA、枚举与 CAN1 邮箱、FIFO、过滤器和位时序
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/usb-can-registers.json';
+import api from '../../../data/usb-can-api.json';
+
+<SystemReference
+  groups={[
+    { id: 'usb-registers', title: 'USB FS Device', entries: registers.filter(({ id }) => id.startsWith('USB_')) },
+    { id: 'can-registers', title: 'bxCAN', entries: registers.filter(({ id }) => id.startsWith('CAN_')) },
+  ]}
+  api={api}
+  apiTitle="CAN 标准库与 USB 设备库函数"
+  apiIndex={[
+    { title: 'bxCAN · SPL V3.5.0', entries: api.filter(({ name }) => name.startsWith('CAN_')).map(({ name }) => name) },
+    { title: 'USB · ST USB-FS-Device V3.2.1', entries: api.filter(({ source }) => source).map(({ name }) => name) },
+  ]}
+/>
+
+## 实例、引脚与共享资源
+
+| 外设 | 时钟与接线 | 中断 |
+| --- | --- | --- |
+| USB FS Device | PA11 为 D−，PA12 为 D+。USB 需准确的 48 MHz，例如 PLL=72 MHz 后经 ÷1.5。全速设备通过板级 D+ 上拉声明连接，需核对板上电阻和软断开电路。 | IRQ19 为 USB 高优先级，IRQ20 为 USB 低优先级，独立 IRQ42 用于 USB 唤醒 |
+| CAN1 | 时钟来自 PCLK1。默认 PA11=RX、PA12=TX。AFIO 重映射可用 PB8=RX、PB9=TX。正常模式须接 CAN 收发器与正确的总线终端。 | IRQ19 为发送完成，IRQ20 为 FIFO0，独立 IRQ21 为 FIFO1、IRQ22 为状态变化与错误 |
+
+两者**不能同时运行**，因为互斥使用同一块 **512 B 专用 SRAM**。共享向量名为 `USB_HP_CAN1_TX` 和 `USB_LP_CAN1_RX0`。CAN 改用 PB8/PB9 只解决引脚争用。LQFP48 的 PD0/PD1 来自 OSC_IN/OSC_OUT 的 GPIO 重映射，不能用于 CAN_RX/TX。CAN1 无 DMA 请求，USB 使用端点分组缓冲 PMA。 [引脚表](/manuals/stm32f103x8b-zh.pdf#page=19) · [重映射与封装限制](/manuals/rm0008-zh.pdf#page=117) · [共享 SRAM](/manuals/rm0008-zh.pdf#page=403) · [中断向量表](/manuals/rm0008-zh.pdf#page=133)
+
+[USB 门控](/reference/clock-exti/#rcc_apb1enr-usben) · [USB 分频](/reference/clock-exti/#rcc_cfgr-usbpre) · [CAN 门控](/reference/clock-exti/#rcc_apb1enr-canen) · [CAN 重映射](/reference/clock-exti/#afio_mapr-can_remap)
+
+## USB 枚举与端点检查
+
+1. 建立准确的 48 MHz 时钟，保持 PCLK1 至少 13 MHz，再开启 USB 门控并完成收发器启动。预先配置 USB 的两个共享向量及设备类回调，按板级方案启用 D+ 上拉。
+2. 主机总线复位后，用 [USB_ISTR.RESET](#usb_istr-reset) 判源，恢复地址 0，配置 EP0 为控制端点。BTABLE=0 时可预留 0x00–0x3F，EP0 IN 用 0x40–0x7F，OUT 用 0x80–0xBF。地址是 PMA 本地字节偏移，CPU 访问地址为 `0x40006000 + 2 × 偏移`，每个 16 位字按 4 字节步进。
+3. 主机先向地址 0 发送 SETUP，EP0 处理描述符。用 [CTR_RX](#usb_ep0r-ctr_rx)、[SETUP](#usb_ep0r-setup) 和 [COUNT_RX](#usb_countn_rx-count_rx) 核对一次 SETUP 为 8 字节。SET_ADDRESS 的状态阶段成功后再提交新设备地址。
+4. 复现一次只设 PMA 和 COUNT_TX、忘记置 [STAT_TX](#usb_ep0r-stat_tx) 为 VALID 的故障。主机应反复收到 NAK。用专用设置接口恢复 VALID，复测正确的 IN 包和 CTR_TX。断点可能导致主机超时，应记录寄存器快照或用协议分析仪。
+5. 验证挂起与恢复时观察 SUSP、FSUSP、WKUP 与帧计数。远程唤醒需主机已授权、总线已挂起，并按规定控制 RESUME 脉冲宽度。
+
+USB 接口按本机 `USB-JoyStickMouse` 示例中的 ST USB-FS-Device Library V3.2.1 核对，覆盖设备初始化、控制核心、端点、PMA 和 SIL。驱动头文件来自 `Libraries/STM32_USB-FS-Device_Driver/inc`，配置头来自示例的 `USER/USB`。连接控制、描述符和类回调由具体应用提供。本芯片使用固定设备控制器，连接型器件的 OTG 分支与主机模式不适用。
+
+PCLK1 低于 13 MHz 时，满容量 OUT 包可能少报 1 字节。可提高 PCLK1，或在 PCLK1 至少 10 MHz 时把接收容量配置得比实际最大包更大。忽略包缓冲区内负载之后的 CRC 字节，硬件仍能正确校验。对挂起后立即误唤醒的情况，核对 ES096 中的软件复位规避方法及需恢复的端点状态。远程唤醒后前三毫秒的挂起事件需按勘误处理。 [芯片勘误 ES096 §2.12](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=23)
+
+## CAN 回环与外部通信检查
+
+1. 保持 USB 停用，打开 CAN1 时钟。停业务后请求初始化，等 [INAK](#can_msr-inak) 再写位时序。PCLK1=32 MHz 时，分频 4、BS1=13 tq、BS2=2 tq 得到 500 kbit/s，采样点 87.5%。
+2. 先用静默回环，过滤器组 0 设 32 位掩码，匹配标准数据帧 0x123 并送 FIFO0。退出初始化，发 0x123、DLC=2、负载 `55 A5`。验证 RQCP/TXOK，再读取 FIFO0 的 ID、长度与数据。
+3. 把 ID 改为 0x124 重试。发送仍可完成，FIFO0 应无新报文。若两帧都入队，先查掩码和其他仍启用的过滤器组。
+4. 外部通信改为正常模式，接收发器、共地和总线两端终端，使用相同波特率的活动对端。重复相同帧验证实际 ACK。只看到发送请求时，查 [LEC](#can_esr-lec)、实际位宽、对端是否处于静默模式及接线。
+
+中容量 STM32F103 的 CAN 时间触发通信和硬件报文时间戳不可用，保持 [TTCM](#can_mcr-ttcm) 清零。 [芯片勘误 ES096 §2.11.1](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=23)
+
+## 手册原图
+
+<details>
+<summary>展开 USB 与 CAN 信号路径</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-usb-device-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-usb-device-block.png" width="1356" height="1422" loading="lazy" alt="D+ 和 D− 经收发器进入 48 MHz 逻辑，USB 与 APB1 通过分组缓冲共享数据。" /></a>
+  <figcaption>图 192 · USB 设备框图 · <a href="/manuals/rm0008-zh.pdf#page=404">中文参考手册第 404 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-can-loopback-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-can-loopback-block.png" width="1356" height="468" loading="lazy" alt="CAN 静默回环在内部把发送反馈到接收端，外部 TX 维持隐性。" /></a>
+  <figcaption>图 199 · bxCAN 环回静默模式 · <a href="/manuals/rm0008-zh.pdf#page=428">中文参考手册第 428 页</a></figcaption>
+</figure>
+
+</details>
+
+[USB 题库](/questions/#usb) · [CAN 题库](/questions/#can)

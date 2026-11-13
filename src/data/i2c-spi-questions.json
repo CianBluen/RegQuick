@@ -1,0 +1,202 @@
+[
+  {
+    "id": "i2c",
+    "title": "I²C1／I²C2",
+    "items": [
+      {
+        "id": "i2c-1",
+        "type": "原理题",
+        "question": "I²C 为什么需要外部上拉？上升沿过慢时调 TRISE 能解决吗？",
+        "answer": "<p>开漏输出只能主动拉低。释放后上拉电阻给总线电容充电，阻值大或电容大都会拉长上升沿。TRISE 用于控制器的时序补偿，无法改变线上的 RC。示波器量从低到高的边沿时间，再调整上拉与负载，并核对低电平驱动电流。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "I2C_TRISE-TRISE",
+            "href": "/reference/i2c-spi/#i2c_trise-trise"
+          },
+          {
+            "label": "I2C_CCR-FS",
+            "href": "/reference/i2c-spi/#i2c_ccr-fs"
+          }
+        ]
+      },
+      {
+        "id": "i2c-2",
+        "type": "读配置",
+        "question": "PCLK1 为 8 MHz，FREQ=8、CCR=40、FS=0、TRISE=9，如何验证 I²C 时序？",
+        "answer": "<p>标准模式以 PCLK1/(2×CCR) 计算，得 100 kHz。TRISE 是 1000 ns/125 ns+1，等于 9。发送数据后测 SCL 高低时间及实际频率。上升沿太慢时先查上拉和负载。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "I2C_CR2-FREQ",
+            "href": "/reference/i2c-spi/#i2c_cr2-freq"
+          },
+          {
+            "label": "I2C_CCR-CCR",
+            "href": "/reference/i2c-spi/#i2c_ccr-ccr"
+          },
+          {
+            "label": "I2C_TRISE-TRISE",
+            "href": "/reference/i2c-spi/#i2c_trise-trise"
+          }
+        ]
+      },
+      {
+        "id": "i2c-3",
+        "type": "排故题",
+        "question": "I2C1 的 SCL 和 SDA 都为高，BUSY 仍为 1，SWRST 后复现，下一步查什么？",
+        "answer": "<p>先确认实际 GPIO 读回和引脚重映射。若两线都高且无其他主机工作，按 ES096 §2.8.7 先关闭 PE，用普通开漏依次拉低 SDA、拉低 SCL、释放 SCL、释放 SDA，并核对每步电平。还原复用开漏，再软件复位和重新初始化。验收为 BUSY=0、START 出现且有预期 ACK。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "I2C_SR2-BUSY",
+            "href": "/reference/i2c-spi/#i2c_sr2-busy"
+          },
+          {
+            "label": "I2C_CR1-SWRST",
+            "href": "/reference/i2c-spi/#i2c_cr1-swrst"
+          },
+          {
+            "label": "I2C_CR1-PE",
+            "href": "/reference/i2c-spi/#i2c_cr1-pe"
+          }
+        ]
+      },
+      {
+        "id": "i2c-4",
+        "type": "原创面试题",
+        "question": "一个驱动用 I2C_CheckEvent 检测读地址 ACK，单字节读取偶尔多出一拍 ACK，怎么改？",
+        "answer": "<p>该函数读 SR1 再读 SR2，会提前清 ADDR，导致接收流程在 ACK 策略准备前继续。用单独的 ADDR 标志等待。单字节接收先清 ACK，再清 ADDR 后立即请求 STOP，最后从 DR 取数，并按 ES096 保护敏感时序。分析仪应看到一个字节、第九拍 NACK、随后 STOP。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "I2C_CheckEvent",
+            "href": "/reference/i2c-spi/#i2c_checkevent"
+          },
+          {
+            "label": "I2C_SR1-ADDR",
+            "href": "/reference/i2c-spi/#i2c_sr1-addr"
+          },
+          {
+            "label": "I2C_CR1-ACK",
+            "href": "/reference/i2c-spi/#i2c_cr1-ack"
+          },
+          {
+            "label": "I2C_CR1-STOP",
+            "href": "/reference/i2c-spi/#i2c_cr1-stop"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "spi",
+    "title": "SPI1／SPI2",
+    "items": [
+      {
+        "id": "spi-1",
+        "type": "原理题",
+        "question": "SPI 主机只想读从机数据，为什么常要先写虚拟字节？",
+        "answer": "<p>全双工中主机靠发送帧产生 SCK。写虚拟帧后，移位器同步采样 MISO，收到后 RXNE 置位。分析仪检查每字节有八个 SCK，并验证驱动丢弃命令阶段的接收字节。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SPI_DR",
+            "href": "/reference/i2c-spi/#spi_dr"
+          },
+          {
+            "label": "SPI_SR-RXNE",
+            "href": "/reference/i2c-spi/#spi_sr-rxne"
+          },
+          {
+            "label": "SPI_CR1-MSTR",
+            "href": "/reference/i2c-spi/#spi_cr1-mstr"
+          }
+        ]
+      },
+      {
+        "id": "spi-2",
+        "type": "读配置",
+        "question": "SPI1 的 PCLK2=8 MHz，BR=010、CPOL=1、CPHA=0、DFF=1。线上波形如何？",
+        "answer": "<p>SCK 为 1 MHz，空闲高，第一个边沿为下降沿并用于采样。一次 DR 写产生 16 个时钟。用分析仪按相同模式解码，检查 16 个时钟与位序，若频率不符再查 PCLK2。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SPI_CR1-BR",
+            "href": "/reference/i2c-spi/#spi_cr1-br"
+          },
+          {
+            "label": "SPI_CR1-CPOL",
+            "href": "/reference/i2c-spi/#spi_cr1-cpol"
+          },
+          {
+            "label": "SPI_CR1-CPHA",
+            "href": "/reference/i2c-spi/#spi_cr1-cpha"
+          },
+          {
+            "label": "SPI_CR1-DFF",
+            "href": "/reference/i2c-spi/#spi_cr1-dff"
+          }
+        ]
+      },
+      {
+        "id": "spi-3",
+        "type": "排故题",
+        "question": "SPI 全双工连续写 DR 但只取一次接收数据，后来 OVR=1。如何恢复？",
+        "answer": "<p>每帧都会产生接收数据。缓冲仍未读又来下一帧时丢数据并置 OVR。停止发新帧，依次读 DR、SR 清标志，再重发整笔事务并逐帧服务 RXNE。用两帧回环确认两个字节都收到，且 OVR 保持为零。</p>",
+        "category": "原创练习题",
+        "source": "原创练习题",
+        "related": [
+          {
+            "label": "SPI_SR-OVR",
+            "href": "/reference/i2c-spi/#spi_sr-ovr"
+          },
+          {
+            "label": "SPI_SR-RXNE",
+            "href": "/reference/i2c-spi/#spi_sr-rxne"
+          },
+          {
+            "label": "SPI_I2S_ReceiveData",
+            "href": "/reference/i2c-spi/#spi_i2s_receivedata"
+          }
+        ]
+      },
+      {
+        "id": "spi-4",
+        "type": "原创面试题",
+        "question": "同一条 SPI 总线有两颗从机，要求独立片选且一颗使用模式 0，另一颗模式 3。怎样安排？",
+        "answer": "<p>主机选 SSM=1、SSI=1，每个从机用独立 GPIO 片选。结束前消费 RXNE，再等 TXE=1、BSY=0，释放本次片选；停 SPI，改 CPOL/CPHA 和需要的分频，再启用并选择下一颗。波形验证任意时刻仅一个片选为低，SCK 只在事务边界改变空闲电平。</p>",
+        "category": "面试题",
+        "source": "原创面试题",
+        "related": [
+          {
+            "label": "SPI_CR1-SSM",
+            "href": "/reference/i2c-spi/#spi_cr1-ssm"
+          },
+          {
+            "label": "SPI_CR1-SSI",
+            "href": "/reference/i2c-spi/#spi_cr1-ssi"
+          },
+          {
+            "label": "SPI_CR1-CPOL",
+            "href": "/reference/i2c-spi/#spi_cr1-cpol"
+          },
+          {
+            "label": "SPI_CR1-CPHA",
+            "href": "/reference/i2c-spi/#spi_cr1-cpha"
+          },
+          {
+            "label": "SPI_SR-BSY",
+            "href": "/reference/i2c-spi/#spi_sr-bsy"
+          }
+        ]
+      }
+    ]
+  }
+]

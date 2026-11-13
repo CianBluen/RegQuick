@@ -1,0 +1,46 @@
+---
+title: Flash、启动与 CRC 速查
+description: Flash 擦写、选项字节、BOOT0 启动映射、SRAM、器件容量、96 位 UID 和 CRC
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/memory-crc-registers.json';
+import api from '../../../data/memory-crc-api.json';
+
+<SystemReference
+  groups={[
+    { id: 'flash-registers', title: 'Flash 控制器与选项字节', entries: registers.filter(({ id }) => /^(FLASH_|OB_)/.test(id)) },
+    { id: 'crc-registers', title: 'CRC', entries: registers.filter(({ id }) => id.startsWith('CRC_')) },
+    { id: 'signature-registers', title: '容量与器件标识', entries: registers.filter(({ id }) => /^(FLASHSIZE|UID)/.test(id)) },
+  ]}
+  api={api}
+  apiTitle="Flash 与 CRC 标准外设库函数"
+/>
+
+## 启动引脚与存储映射
+
+| 区域 | STM32F103C8T6 地址与用途 |
+| --- | --- |
+| 主 Flash | `0x08000000–0x0800FFFF`，64 KB，共 64 个 1 KB 页。FPEC 基址 `0x40022000`。 |
+| SRAM | `0x20000000–0x20004FFF`，20 KB。复位入口使用向量表中的初始 MSP，向下增长的栈通常从 `0x20005000` 开始。 |
+| 系统存储器 | `0x1FFFF000–0x1FFFF7FF`，2 KB，厂内写入的启动程序。本型号的系统启动接口为 USART1（PA9/PA10）。 |
+| 选项字节 | `0x1FFFF800–0x1FFFF80F`，每个字节与反码成对存放。 |
+| 器件标识 | Flash 容量字在 `0x1FFFF7E0`，96 位 UID 从 `0x1FFFF7E8` 开始。 |
+| CRC | AHB 外设，基址 `0x40023000`。先开 [CRCEN](/reference/clock-exti/#rcc_ahbenr-crcen)。 |
+
+| BOOT0 | BOOT1（PB2） | 复位启动区域 |
+| --- | --- | --- |
+| 0 | 任意 | 主 Flash |
+| 1 | 0 | 系统存储器 |
+| 1 | 1 | SRAM |
+
+CPU 复位时通过启动区别名读取初始 MSP 和 Reset_Handler。将 BOOT0 拉高后需要复位才改变启动选择。SRAM 启动要求事先装载有效程序，初始化后将 [VTOR](/reference/clock-exti/#scb_vtor) 指向 SRAM 中的向量表。若烧录成功却进不了用户程序，先量 BOOT0/PB2，再查向量表首两个字。 [中文参考手册第 30–33 页](/manuals/rm0008-zh.pdf#page=30)
+
+## 擦写与读回
+
+- 预留实验页时同时调整链接布局。擦除按页进行，编程硬件按半字写入。擦完先读回 `0xFFFF`，编程后再核对完整内容并锁回控制器。
+- 普通擦写需 HSI 已就绪。中容量器件只有 Bank 1，SPL 中仅 XL 型号的 Bank 2 和启动银行配置 API 不适用。Flash 等待周期保留原入口。 [FLASH_ACR](/reference/clock-exti/#flash_acr)
+- 选项字节在复位时加载。解除 RDP 会自动擦除主 Flash。SPL 的 RDP 修改会擦选项字节块，之后应恢复需要保留的其他选项，再复位读 OBR 和 WRPR。旧版中文手册将 OBR[25:10] 列为保留，新版 PM0075 给出 DATA1/DATA0。
+- 对接软件 CRC 时明确初值 `0xFFFFFFFF`、MSB 优先、无反射、无最终异或。缓冲字节按协议打包为 32 位字。连续两次计算要分别重置种子，协议要求流式累计时保留上次结果。
+
+[Flash 与 CRC 题库](/questions/#flash)

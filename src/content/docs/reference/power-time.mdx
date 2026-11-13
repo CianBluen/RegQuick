@@ -1,0 +1,85 @@
+---
+title: RTC、备份域、电源与看门狗
+description: RTC 计数与闹钟、BKP 防拆与校准、PWR 低功耗及 IWDG、WWDG 超时与复位速查
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/power-time-registers.json';
+import api from '../../../data/power-time-api.json';
+
+export const modules = [
+  ['RTC', 'RTC 计数与闹钟'],
+  ['BKP', 'BKP 备份与防拆'],
+  ['PWR', 'PWR 电源控制'],
+  ['IWDG', 'IWDG 独立看门狗'],
+  ['WWDG', 'WWDG 窗口看门狗'],
+];
+
+<SystemReference
+  groups={modules.map(([key, title]) => ({
+    id: key.toLowerCase() + '-registers',
+    title,
+    entries: registers.filter(({ id }) => id.startsWith(key + '_')),
+  }))}
+  api={api}
+  apiTitle="RTC、BKP、PWR 与看门狗标准外设库函数"
+  apiIndex={modules.map(([key, title]) => ({
+    title,
+    entries: api.filter(({ name }) => name.startsWith(key + '_')).map(({ name }) => name),
+  }))}
+/>
+
+## 时钟、引脚与唤醒路径
+
+| 模块 | 时钟和电源 | 封装引脚与中断 |
+| --- | --- | --- |
+| RTC | [RTCSEL](/reference/clock-exti/#rcc_bdcr-rtcsel) 选 LSE、LSI 或 HSE ÷128，置 RTCEN。写前打开 PWREN/BKPEN 和 [DBP](#pwr_cr-dbp) | LSE 用 PC14/PC15，RTC 全局 IRQ3，闹钟另接 EXTI17 和 IRQ41。切换时钟源会涉及备份域复位 |
+| BKP | BKPEN 打开 APB1 接口。备份域在 VDD 消失时切到 VBAT | PC13 复用作 TAMPER 或 RTC 输出，防拆 IRQ2。防拆可清空 DR1–10，TEF=1 时持续阻止保存 |
+| PWR | PWREN 打开 APB1 接口。PVD 监视 VDD/VDDA | PA0 作 Standby WKUP 时强制下拉。PVD 送 EXTI16、IRQ1。POR/PDR 复位阈值由硬件确定，PVD 另有可选门槛 |
+| IWDG | LSI 驱动，运行后在 Stop/Standby 中也继续计数 | 到期产生复位，重启查看 [IWDGRSTF](/reference/clock-exti/#rcc_csr-iwdgrstf) |
+| WWDG | WWDGEN 打开 APB1 接口，PCLK1 决定计数速度 | 计数至 0x40 可发提前唤醒 IRQ0，到期或过早刷新可复位，重启查看 [WWDGRSTF](/reference/clock-exti/#rcc_csr-wwdgrstf) |
+
+LQFP48 有十个 16 位备份数据字、一个 RTC、一个 PWR 和两类看门狗。四类外设无需 DMA。PC13 还可能接板载 LED，PC14/15 有 LSE 占用时不能同时作 GPIO。 [中文数据手册引脚表](/manuals/stm32f103x8b-zh.pdf#page=17)
+
+## RTC 计时与低功耗验证
+
+1. 首次初始化先开启 PWREN、BKPEN 和 DBP。已有时间需要保留时，先检查 RTCSEL/RTCEN，避免无条件调用 [BKP_DeInit](#bkp_deinit)。使用 LSE 时给 LSERDY 等待设上限。RTCEN 打开后，在 APB1 复位或恢复时清 RSF 并等待重新同步。
+2. 以 32.768 kHz LSE 为例，等 RTOFF=1 后设置 [PRL](#rtc_prll)=32767、设置 CNT=100，再等 RTOFF 确认提交。测两次读取间隔，应约每秒增一。读取完整 CNT 时在意跨半字进位可用高–低–高校验。
+3. 设置未来闹钟并清旧 ALRF。验证 Stop 时，配 EXTI17 上升沿、清 PR 并启用 RTCAlarm_IRQn。WFI 前处理无关中断，避免立即返回。ISR 先处理 ALRF 再清 EXTI17。Stop 唤醒后从 WFI 后继续执行，系统时钟先回到 HSI，恢复 PLL 后再使用依赖时钟的串口和定时器。
+4. Standby 唤醒从复位入口开始。验证 PA0 时，先保持引脚低电平，清旧唤醒状态，启用 WKUP 后再进入 Standby。升高 PA0，启动早期记录 SBF/WUF。使用 RTC Alarm 时，确保 RTC 时钟能在目标模式持续运行，常用 LSE。
+5. 写 DR1 测试值后关闭 VDD 并保留 VBAT，恢复后重读。若值变 0，先查 VBAT 是否单独供电、启动是否重置备份域、PC13 是否触发防拆。为验证防拆，先使用无关测试值，触发后分别看 TEF、TIF 与 DR1。清 TEF 后才能重新保存。
+
+Sleep 由 CMSIS 清 SLEEPDEEP 后执行 WFI/WFE，外设时钟可继续工作。Stop 保留 SRAM 和寄存器，关闭 HSI/HSE/PLL。Standby 关闭主稳压器，保留备份域及唤醒逻辑。测电流时区分板载 LED、调试器和稳压器本身的消耗。 [中文参考手册低功耗模式](/manuals/rm0008-zh.pdf#page=40)
+
+ES096 对低功耗验证有三项直接影响。PVD 和 USB 唤醒使用 EXTI16/18 的中断路径配合 WFI。多个 Standby 唤醒源并用时，先禁用所有已用源，再清标志，确认输入回到非触发电平后重新启用并进入 Standby。打开 DBG_STOP 调试时，启用的 SysTick 中断可提前唤醒 Stop，调试可先关 SysTick 中断并用 WFI。 [ES096 §2.2.3–2.2.5、§2.2.8](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=7)
+
+## 看门狗窗口与复位检查
+
+- **IWDG** 适合需要独立于主时钟的超时保护。LSI=40 kHz、分频 64、重装 624 时名义约 1 s。按 30–60 kHz 估算约 0.667–1.333 s，另留跨域相位和调度裕量。仅在关键任务都完成时刷新，停止刷新后在启动早期记录 RCC 的复位原因。
+- **WWDG** 适合同时检查过早和过晚的周期任务。PCLK1=36 MHz、WDGTB=3 时每格约 910 µs。初值 0x7F、阈值 0x60，可在计数降至 0x50 附近刷新。用 GPIO 记录刷新和重启的间隔，提前刷新和错过窗口分别测试。EWI 在 0x40 置位，距复位约一格。
+- **调试** 先核对 DBGMCU 的 IWDG/WWDG 暂停位。用启动标志和外部波形核对真实时间。记录复位原因后再清 RCC 标志，避免把之前的标志当作本次证据。
+- **IWDG 跨域更新勘误**。改 PR 或 RLR 时，保持 APB 时钟高于 IWDG 时钟的两倍。写入后等 PVU、RVU 清零再进入 Stop。否则状态位可能一直置位，阻止后续更新。 [ES096 §2.7.1–2.7.3](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=16)
+
+## 中文手册框图和时序图
+
+<details>
+<summary>展开 RTC、PVD、IWDG 与 WWDG 图</summary>
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-rtc-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-rtc-block.png" width="1341" height="1038" loading="lazy" alt="RTC 时钟经预分频驱动计数，闹钟比较连接中断和待机唤醒路径。" /></a>
+  <figcaption>图 154 · RTC 框图 · <a href="/manuals/rm0008-zh.pdf#page=309">中文参考手册第 309 页</a></figcaption>
+</figure>
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-pvd-wave.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-pvd-wave.png" width="1341" height="705" loading="lazy" alt="电源电压上升和下降穿越 PVD 迟滞门槛时，输出发生变化。" /></a>
+  <figcaption>图 6 · PVD 门槛和迟滞 · <a href="/manuals/rm0008-zh.pdf#page=39">中文参考手册第 39 页</a></figcaption>
+</figure>
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-iwdg-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-iwdg-block.png" width="1341" height="462" loading="lazy" alt="独立看门狗由 LSI 驱动，经分频后递减计数，键寄存器控制重装。" /></a>
+  <figcaption>图 157 · IWDG 框图 · <a href="/manuals/rm0008-zh.pdf#page=317">中文参考手册第 317 页</a></figcaption>
+</figure>
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-wwdg-window.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-wwdg-window.png" width="1317" height="588" loading="lazy" alt="窗口看门狗从初值递减，进入刷新窗口后允许重装，T6 清零时复位。" /></a>
+  <figcaption>图 159 · WWDG 刷新窗口 · <a href="/manuals/rm0008-zh.pdf#page=321">中文参考手册第 321 页</a></figcaption>
+</figure>
+</details>
+
+[RTC 题库](/questions/#rtc) · [BKP 题库](/questions/#bkp) · [PWR 题库](/questions/#pwr) · [IWDG 题库](/questions/#iwdg) · [WWDG 题库](/questions/#wwdg)

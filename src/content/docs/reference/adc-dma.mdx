@@ -1,0 +1,264 @@
+---
+title: ADC 与 DMA 速查
+description: ADC1/2 模数转换、模拟看门狗、规则与注入触发和 DMA1 七通道请求映射
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/adc-dma-registers.json';
+import api from '../../../data/adc-dma-api.json';
+
+<SystemReference
+  groups={[
+    { id: 'adc-registers', title: 'ADC1／ADC2', entries: registers.filter(({ id }) => id.startsWith('ADC_')) },
+    { id: 'dma-registers', title: 'DMA1', entries: registers.filter(({ id }) => id.startsWith('DMA_')) },
+  ]}
+  api={api}
+  apiTitle="ADC 与 DMA 标准外设库函数"
+  apiIndex={[
+    { title: 'ADC', entries: api.filter(({ name }) => name.startsWith('ADC_')).map(({ name }) => name) },
+    { title: 'DMA', entries: api.filter(({ name }) => name.startsWith('DMA_')).map(({ name }) => name) },
+  ]}
+/>
+
+## 时钟、引脚与中断
+
+| 实例 | 时钟 | 引脚与内部通道 | IRQ 和 DMA |
+| --- | --- | --- | --- |
+| ADC1 | APB2 的 ADC1EN，ADCCLK 来自 PCLK2 经 ADCPRE | PA0–PA7 为 IN0–7，PB0/PB1 为 IN8/9。IN16 为温度传感器，IN17 为 VREFINT，均需 TSVREFE | 与 ADC2 共用 ADC1_2_IRQn，DMA1 通道 1 |
+| ADC2 | APB2 的 ADC2EN，与 ADC1 共用 ADCPRE | 同一组外部引脚。双模式可在 ADC1 的 DR 读取两路结果 | 与 ADC1 共用 ADC1_2_IRQn，可由 ADC1 在双规则模式中发配对搬运请求 |
+| DMA1 | AHB 的 DMA1EN | 每通道的地址和宽度由 CCR、CPAR、CMAR 配置 | DMA1_Channel1_IRQn 到 DMA1_Channel7_IRQn，每个通道一个 IRQ |
+
+[ADC1 门控](/reference/gpio/#rcc_apb2enr-adc1en) · [ADC2 门控](/reference/gpio/#rcc_apb2enr-adc2en) · [ADC 分频](/reference/clock-exti/#rcc_cfgr-adcpre) · [DMA1 门控](/reference/clock-exti/#rcc_ahbenr-dma1en) · [中文数据手册引脚表](/manuals/stm32f103x8b-zh.pdf#page=17)
+
+ADC 模拟输入使用 GPIO 模拟模式。ADC 时钟最高 14 MHz。PCLK2 为 72 MHz 时可选 ÷6 得 12 MHz。外部信号以 VDDA/VSSA 为参考并与板共地。LQFP48 的 IN10–15 没有封装引脚。本型号可用 ADC1、ADC2 和 DMA1 七通道。
+
+## DMA1 固定请求映射
+
+| 通道 | STM32F103C8T6 可用请求 |
+| --- | --- |
+| 1 | ADC1、TIM2_CH3、TIM4_CH1 |
+| 2 | SPI1_RX、USART3_TX、TIM1_CH1、TIM2_UP、TIM3_CH3 |
+| 3 | SPI1_TX、USART3_RX、TIM1_CH2、TIM3_CH4、TIM3_UP |
+| 4 | SPI2_RX、USART1_TX、I2C2_TX、TIM1_CH4、TIM1_TRIG、TIM1_COM、TIM4_CH2 |
+| 5 | SPI2_TX、USART1_RX、I2C2_RX、TIM1_UP、TIM2_CH1、TIM4_CH3 |
+| 6 | USART2_RX、I2C1_TX、TIM1_CH3、TIM3_CH1、TIM3_TRIG |
+| 7 | USART2_TX、I2C1_RX、TIM2_CH2、TIM2_CH4、TIM4_UP |
+
+每个通道的请求来源在硬件中合并，一次只给该通道启用一个外设请求。例如 USART1_RX 与 TIM1_UP 同用通道 5，无法各自维护一套地址和计数。可以改用 USART2_RX、关闭其中一方的 DMA 请求，或在停通道后分时重配。 [中文参考手册表 59](/manuals/rm0008-zh.pdf#page=148)
+
+## 定时采样的最小验证
+
+1. 先开 ADC1、DMA1、GPIOA 和 TIM3 时钟。保持 ADC 的 EXTTRIG 关闭，在 TIM3 停表时用 `TIM_TimeBaseInit` 完成 UG 装载。之后才把 [TIM3 更新设为 TRGO](/reference/tim-usart/#tim_cr2-mms)。装载时产生的 UG 也可能经 TRGO 送出，目标时钟必须已开。
+2. ADC1 的 PA0 配模拟输入，独立、右对齐、单次转换，完成上电和校准。选择 [TIM3_TRGO](#adc_cr2-extsel)，继续保持触发许可关闭。触发周期应大于采样周期加 12.5 个 ADCCLK 周期。8 MHz 的 TIM3 输入配 PSC=7、ARR=999，每 1 ms 更新。ADCCLK=4 MHz，采样 55.5 周期时转换约 17 µs。
+3. 用 [DMA_Init](#dma_init) 配通道 1，外设地址为 ADC1.DR，内存指向 16 项半字缓冲。停通道时清旧标志，使能 DMA，再打开 ADC 的 DMA 请求和触发许可，最后启动 TIM3。
+4. 普通模式第 16 次成功搬运后 TCIF1 置位、CNDTR=0。先停触发和通道，再清各状态位并重装计数。循环模式按 HT 和 TC 分半处理。DMA 读 DR 会清 EOC，验证搬运优先读 CNDTR 和 ISR，关闭调试器的 DR 自动刷新。
+
+
+```c
+/* Run once after reset with HSI=8 MHz and default bus dividers.
+ * pause_us uses an independent, already running timebase. */
+extern void pause_us(uint32_t us);
+
+static int calibrate(ADC_TypeDef *adc)
+{
+    ADC_Cmd(adc, DISABLE);
+    pause_us(10u);
+    ADC_Cmd(adc, ENABLE);
+    pause_us(10u);
+    ADC_ResetCalibration(adc);
+    uint32_t limit = 100000u;
+    while (ADC_GetResetCalibrationStatus(adc) == SET && --limit != 0u) {}
+    if (limit == 0u) return 0;
+    ADC_StartCalibration(adc);
+    limit = 100000u;
+    while (ADC_GetCalibrationStatus(adc) == SET && --limit != 0u) {}
+    return limit != 0u;
+}
+
+static uint16_t samples[16];
+
+int start_capture(void)
+{
+    ADC_InitTypeDef adc;
+    DMA_InitTypeDef dma;
+    TIM_TimeBaseInitTypeDef tim;
+    GPIO_InitTypeDef pin;
+
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_GPIOA, ENABLE);
+    RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
+    RCC_ADCCLKConfig(RCC_PCLK2_Div2);
+    GPIO_StructInit(&pin);
+    pin.GPIO_Pin = GPIO_Pin_0;
+    pin.GPIO_Mode = GPIO_Mode_AIN;
+    GPIO_Init(GPIOA, &pin);
+
+    ADC_ExternalTrigConvCmd(ADC1, DISABLE);
+    TIM_TimeBaseStructInit(&tim);
+    tim.TIM_Prescaler = 7u;
+    tim.TIM_Period = 999u;
+    TIM_TimeBaseInit(TIM3, &tim);
+    TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);
+
+    ADC_StructInit(&adc);
+    adc.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T3_TRGO;
+    ADC_Init(ADC1, &adc);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1u, ADC_SampleTime_55Cycles5);
+    if (!calibrate(ADC1)) return 0;
+
+    DMA_Cmd(DMA1_Channel1, DISABLE);
+    DMA_ClearFlag(DMA1_FLAG_TC1 | DMA1_FLAG_HT1 | DMA1_FLAG_TE1);
+    DMA_StructInit(&dma);
+    dma.DMA_PeripheralBaseAddr = (uint32_t)&ADC1->DR;
+    dma.DMA_MemoryBaseAddr = (uint32_t)samples;
+    dma.DMA_BufferSize = 16u;
+    dma.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+    dma.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+    dma.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_Init(DMA1_Channel1, &dma);
+    DMA_Cmd(DMA1_Channel1, ENABLE);
+    ADC_DMACmd(ADC1, ENABLE);
+    ADC_ExternalTrigConvCmd(ADC1, ENABLE);
+    TIM_Cmd(TIM3, ENABLE);
+    return 1;
+}
+
+/* Call on TEIF1 or TCIF1. Save the snapshot for diagnosis first. */
+uint32_t stop_capture(uint16_t *remaining)
+{
+    TIM_Cmd(TIM3, DISABLE);
+    ADC_ExternalTrigConvCmd(ADC1, DISABLE);
+    ADC_DMACmd(ADC1, DISABLE);
+    DMA_Cmd(DMA1_Channel1, DISABLE);
+    const uint32_t status = DMA1->ISR;
+    *remaining = DMA_GetCurrDataCounter(DMA1_Channel1);
+    DMA_ClearFlag(DMA1_FLAG_TC1 | DMA1_FLAG_HT1 | DMA1_FLAG_TE1);
+    return status;
+}
+```
+
+### 双 ADC 规则同步
+
+先以独立模式配置、校准 ADC1 和 ADC2。将 PA0 接到较低的已知电压，PA1 接较高电压。两路选相同采样时间和相同序列长度。主 ADC1 选 TIM3_TRGO，从 ADC2 选软件触发。停转换时设置 ADC1 的 DUALMOD=0110，再给两路开 EXTTRIG。ADC1_CR2.DMA 必须置位。由 CPU 读时保持 DMA1 通道 1 关闭，等两路规则转换都结束后从 ADC1.DR 读一次整字。由 DMA 读时将通道 1 两端都配为 32 位，使用 `uint32_t` 数组。低半字应对应 PA0，高半字应对应 PA1。
+
+
+```c
+/* GPIOA PA0/PA1 analog, ADC1/2 clocks on, ADCCLK set.
+ * Both ADCs already calibrated in independent mode.
+ * TIM3 stopped, PSC/ARR loaded, MMS=Update, DMA1 channel 1 disabled. */
+static void prepare_dual(void)
+{
+    ADC_InitTypeDef cfg;
+    ADC_StructInit(&cfg);
+    cfg.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    ADC_Init(ADC2, &cfg);
+    ADC_RegularChannelConfig(ADC2, ADC_Channel_1, 1u, ADC_SampleTime_55Cycles5);
+    cfg.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T3_TRGO;
+    ADC_Init(ADC1, &cfg);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1u, ADC_SampleTime_55Cycles5);
+
+    ADC1->CR1 = (ADC1->CR1 & ~(15u << 16)) | (6u << 16);
+    ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
+    ADC_ClearFlag(ADC2, ADC_FLAG_EOC);
+    ADC_DMACmd(ADC1, ENABLE);
+    ADC_ExternalTrigConvCmd(ADC2, ENABLE);
+    ADC_ExternalTrigConvCmd(ADC1, ENABLE);
+}
+
+void start_dual_cpu(void)
+{
+    prepare_dual();
+    TIM_Cmd(TIM3, ENABLE);
+}
+
+static uint32_t pairs[16];
+
+void start_dual_dma(void)
+{
+    DMA_InitTypeDef cfg;
+    DMA_Cmd(DMA1_Channel1, DISABLE);
+    DMA_ClearFlag(DMA1_FLAG_TC1 | DMA1_FLAG_HT1 | DMA1_FLAG_TE1);
+    DMA_StructInit(&cfg);
+    cfg.DMA_PeripheralBaseAddr = (uint32_t)&ADC1->DR;
+    cfg.DMA_MemoryBaseAddr = (uint32_t)pairs;
+    cfg.DMA_BufferSize = 16u;
+    cfg.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+    cfg.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
+    cfg.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_Init(DMA1_Channel1, &cfg);
+    DMA_Cmd(DMA1_Channel1, ENABLE);
+    prepare_dual();
+    TIM_Cmd(TIM3, ENABLE);
+}
+
+int read_dual_cpu(uint32_t *pair)
+{
+    uint32_t limit = 1000000u;
+    while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET ||
+           ADC_GetFlagStatus(ADC2, ADC_FLAG_EOC) == RESET) {
+        if (--limit == 0u) return 0;
+    }
+    *pair = ADC_GetDualModeConversionValue();
+    ADC_ClearFlag(ADC2, ADC_FLAG_EOC);
+    return 1;
+}
+```
+
+### DMA 错误恢复
+
+活动通道逐项写 CTCIF、CHTIF、CTEIF，应答已处理事件。ES096 §2.4.1 指出，活动时清 CGIF 可能掩盖同周期的传输错误。遇到 TEIF，先关请求源，关闭通道并确认 EN=0。记录 ISR、CNDTR、CPAR 和 CMAR，检查地址范围、对齐、搬运宽度和缓冲容量。修正后清旧标志、重装数量再重启。DMA 配置寄存器使用对齐的 32 位访问，搬运数据的宽度由 PSIZE/MSIZE 决定。 [ST ES096 §2.4](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=13)
+
+用 SRAM 到 SRAM 先排除外设请求的问题。示例占用 DMA1 通道 1，运行前关闭 ADC1、TIM2_CH3 和 TIM4_CH1 的 DMA 请求。预期 4 项搬完后 CNDTR=0、TCIF1=1，目标数组等于源数组。宽度与数组不匹配可能产生错值，即使 TEIF 没有置位也要检查。
+
+```c
+static uint16_t dma_src[4] = {0x1111u, 0x2222u, 0x3333u, 0x4444u};
+static volatile uint16_t dma_dst[4];
+
+int check_dma_memory(void)
+{
+    RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+    DMA_Cmd(DMA1_Channel1, DISABLE);
+    DMA1->IFCR = DMA_IFCR_CTCIF1 | DMA_IFCR_CHTIF1 | DMA_IFCR_CTEIF1;
+    DMA1_Channel1->CPAR = (uint32_t)dma_src;
+    DMA1_Channel1->CMAR = (uint32_t)dma_dst;
+    DMA1_Channel1->CNDTR = 4u;
+    DMA1_Channel1->CCR = (1u << 14) | (1u << 10) | (1u << 8) |
+                         (1u << 7) | (1u << 6);
+    DMA_Cmd(DMA1_Channel1, ENABLE);
+    uint32_t timeout = 100000u;
+    uint32_t flags;
+    do {
+        flags = DMA1->ISR;
+    } while (!(flags & (DMA_ISR_TCIF1 | DMA_ISR_TEIF1)) && --timeout != 0u);
+    DMA_Cmd(DMA1_Channel1, DISABLE);
+    if (timeout == 0u || (flags & DMA_ISR_TEIF1)) return 0;
+    if (DMA1_Channel1->CNDTR != 0u) return 0;
+    for (unsigned i = 0; i < 4u; ++i) {
+        if (dma_dst[i] != dma_src[i]) return 0;
+    }
+    return 1;
+}
+```
+
+### 温度与内部参考电压
+
+ADC1 的 IN16/17 分别接温度传感器和 VREFINT，ADC2 的对应通道接 VSS。开启 TSVREFE 后给温度通道留 10 µs 建立时间。12 MHz ADCCLK 下选 239.5 周期，采样窗口约 20 µs。校准前先让 ADC 保持掉电至少两个 ADCCLK 周期。上电等 tSTAB，再分别等待 RSTCAL 和 CAL 清零。两个等待都应有超时退出。 [中文数据手册第 51 页](/manuals/stm32f103x8b-zh.pdf#page=51)
+
+## 手册框图
+
+<details>
+<summary>展开 ADC 与 DMA 框图</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-adc-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-adc-block.png" width="1347" height="1911" loading="lazy" alt="触发源分别进入规则组和注入组，规则数据寄存器连到 DMA 请求，状态标志连到 NVIC。" /></a>
+  <figcaption>图 24 · 单个 ADC 框图 · <a href="/manuals/rm0008-zh.pdf#page=156">中文参考手册第 156 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-dma-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-dma-block.png" width="1326" height="1311" loading="lazy" alt="外设请求进入 DMA 通道，由 DMA 通过总线访问外设数据寄存器与 SRAM。" /></a>
+  <figcaption>图 21 · DMA 框图 · <a href="/manuals/rm0008-zh.pdf#page=143">中文参考手册第 143 页</a></figcaption>
+</figure>
+
+</details>
+
+[ADC 与 DMA 题库](/questions/#adc)

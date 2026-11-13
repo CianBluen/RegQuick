@@ -1,0 +1,104 @@
+<clock-calculator>
+  <form>
+    <label>SYSCLK 来源
+      <select name="source">
+        <option value="pll-hse">PLL ← HSE</option><option value="hsi">HSI</option>
+        <option value="hse">HSE</option><option value="pll-hsi">PLL ← HSI ÷ 2</option>
+      </select>
+    </label>
+    <label>HSE 晶振 (MHz)<input name="hse" type="number" min="4" max="16" step="any" value="8" required /></label>
+    <label>HSE 到 PLL<select name="pre"><option>1</option><option>2</option></select></label>
+    <label>PLL 倍频<select name="mult">{Array.from({ length: 15 }, (_, i) => <option selected={i + 2 === 9}>{i + 2}</option>)}</select></label>
+    <label>AHB 分频<select name="ahb">{[1, 2, 4, 8, 16, 64, 128, 256, 512].map(n => <option>{n}</option>)}</select></label>
+    <label>APB1 分频<select name="apb1">{[1, 2, 4, 8, 16].map(n => <option selected={n === 2}>{n}</option>)}</select></label>
+    <label>APB2 分频<select name="apb2">{[1, 2, 4, 8, 16].map(n => <option>{n}</option>)}</select></label>
+    <label>ADC 分频<select name="adc">{[2, 4, 6, 8].map(n => <option selected={n === 6}>{n}</option>)}</select></label>
+    <label>USB 分频<select name="usb"><option>1.5</option><option>1</option></select></label>
+  </form>
+  <output name="limits" aria-live="polite"></output>
+  <table>
+    <thead><tr><th scope="col">时钟</th><th scope="col">MHz</th></tr></thead>
+    <tbody>
+      {['SYSCLK', 'HCLK / CPU', 'PCLK1 / USART2/3', 'TIM2/3/4', 'PCLK2 / USART1', 'TIM1', 'ADCCLK', 'SysTick 外部源 HCLK ÷ 8', 'USBCLK'].map(name => (
+        <tr><th scope="row">{name}</th><td data-frequency>—</td></tr>
+      ))}
+    </tbody>
+  </table>
+  <noscript>启用 JavaScript 后可计算。下方列出默认配置的频率。</noscript>
+</clock-calculator>
+
+<script>
+  class ClockCalculator extends HTMLElement {
+    connectedCallback() {
+      const form = this.querySelector('form')!;
+      const output = this.querySelector('output')!;
+      const cells = this.querySelectorAll('[data-frequency]');
+      const format = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 6 });
+
+      const update = () => {
+        const data = new FormData(form);
+        const source = String(data.get('source'));
+        const pll = source.startsWith('pll');
+        const useHse = source.endsWith('hse');
+        const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement;
+        field('hse').disabled = !useHse;
+        field('pre').disabled = source !== 'pll-hse';
+        field('mult').disabled = !pll;
+        field('usb').disabled = !pll;
+
+        if (!form.checkValidity()) {
+          cells.forEach(cell => cell.textContent = '—');
+          output.textContent = '请输入 4–16 MHz 范围内的 HSE 晶振频率。';
+          return;
+        }
+        const read = (name: string) => Number(field(name).value);
+        const input = useHse ? read('hse') : 8;
+        const pllInput = input / (useHse ? read('pre') : 2);
+        const sys = pll ? pllInput * read('mult') : input;
+        const hclk = sys / read('ahb');
+        const pclk1 = hclk / read('apb1');
+        const pclk2 = hclk / read('apb2');
+        const adc = pclk2 / read('adc');
+        const usb = pll ? sys / read('usb') : null;
+        const timerClock = (pclk: number, divider: number) => pclk * (divider === 1 ? 1 : 2);
+        const values = [sys, hclk, pclk1, timerClock(pclk1, read('apb1')), pclk2, timerClock(pclk2, read('apb2')), adc, hclk / 8, usb];
+        cells.forEach((cell, index) => {
+          const value = values[index];
+          cell.textContent = value === null ? '本配置未开启 PLL' : format.format(value);
+        });
+
+        const problems = [];
+        if (sys > 72) problems.push('SYSCLK 超过 72 MHz');
+        if (pclk1 > 36) problems.push('PCLK1 超过 36 MHz');
+        if (adc > 14) problems.push('ADCCLK 超过 14 MHz');
+        if (pll && (pllInput < 1 || pllInput > 25 || sys < 16)) problems.push('PLL 超出数据手册工作范围');
+        if (usb !== null && Math.abs(usb - 48) > 0.000001) problems.push('USB 需要 48 MHz');
+        if (source === 'pll-hsi') problems.push('USB 还需要满足精度要求的 HSE 时钟源');
+        const flash = sys > 48 ? '2' : sys > 24 ? '1' : '0';
+        const latency = sys <= 72 ? '按 SYSCLK 档位，Flash 等待周期为 ' + flash + ' WS。' : '';
+        output.textContent = [latency, ...problems.map(problem => problem + '。')].filter(Boolean).join(' ');
+      };
+      form.addEventListener('submit', event => event.preventDefault());
+      form.addEventListener('input', update);
+      update();
+    }
+  }
+  customElements.define('clock-calculator', ClockCalculator);
+</script>
+
+<style>
+  clock-calculator { display: block; }
+  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .7rem; }
+  label { display: grid; gap: .2rem; font-size: .88rem; }
+  input, select {
+    min-width: 0;
+    color: var(--sl-color-white);
+    background: var(--lab-surface);
+    border: 1px solid var(--lab-border);
+    border-radius: .35rem;
+    padding: .35rem .5rem;
+    font: inherit;
+  }
+  :is(input, select):disabled { opacity: .55; }
+  output { display: block; color: var(--sl-color-text-accent); }
+</style>

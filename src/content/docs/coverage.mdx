@@ -1,0 +1,24 @@
+---
+title: 芯片覆盖清单
+description: 按 STM32F103C8T6 中容量型号和 LQFP48 封装核对速查与题库进度
+---
+
+清单按 STM32F103C8T6 的片上资源列出。「已覆盖」表示站内已有寄存器块、适用接口或系统功能说明及题目。「部分覆盖」表示条目仍有细项待展开。示例编译和真板观察分别记录。
+
+| 模块 | 本型号资源 | 状态 | 速查与题库 |
+| --- | --- | --- | --- |
+| GPIO、AFIO、EXTI | GPIOA/B/C、复用、内外中断线。LQFP48 的 PD0/PD1 在停 HSE 后重映射，仅作 GPIO。 | 已覆盖 | [GPIO](/reference/gpio/) · [AFIO 与 EXTI](/reference/clock-exti/#exti-registers) · [GPIO 题目](/questions/#gpio) · [EXTI 题目](/questions/#exti) |
+| RCC | HSI/HSE/PLL、LSI/LSE、门控、复位和 MCO | 已覆盖 | [速查](/reference/clock-exti/#clock-registers) · [题目](/questions/#rcc) |
+| Cortex-M3 与调试 | NVIC、SysTick、SCB、SWD/JTAG、DBGMCU、CoreDebug、DWT、ITM/SWV、FPB | 部分覆盖，跟踪与调试寄存器以常用配置和故障定位为主 | [速查](/reference/clock-exti/#core-registers) · [题目](/questions/#core) |
+| 定时器 | TIM1、TIM2/3/4 | 已覆盖 | [速查](/reference/tim-usart/#tim-registers) · [题目](/questions/#tim) |
+| USART | USART1/2/3 | 已覆盖 | [速查](/reference/tim-usart/#usart-registers) · [题目](/questions/#usart) |
+| ADC | ADC1/2、双 ADC、内部温度传感器和 VREFINT | 已覆盖 | [速查](/reference/adc-dma/#adc-registers) · [题目](/questions/#adc) |
+| DMA | DMA1 通道 1–7 | 已覆盖 | [速查](/reference/adc-dma/#dma-registers) · [题目](/questions/#dma) |
+| I²C 与 SPI | I²C1/2、SPI1/2 | 已覆盖 | [速查](/reference/i2c-spi/) · [I²C 题目](/questions/#i2c) · [SPI 题目](/questions/#spi) |
+| RTC、BKP、PWR | RTC、十个 16 位备份寄存器、防拆、校准、写保护、PVD 和低功耗唤醒 | 已覆盖 | [速查](/reference/power-time/) · [RTC](/questions/#rtc) · [BKP](/questions/#bkp) · [PWR](/questions/#pwr) |
+| 看门狗 | IWDG、WWDG | 已覆盖 | [IWDG](/reference/power-time/#iwdg-registers) · [WWDG](/reference/power-time/#wwdg-registers) · [题目](/questions/#iwdg) |
+| 存储与标识 | 64 KB Flash、20 KB SRAM、Flash 编程控制器、系统存储器、启动映射、选项字节、容量字、96 位 UID | 已覆盖 | [速查](/reference/memory-crc/) · [题目](/questions/#flash) |
+| CRC | 固定多项式的 32 位 CRC 外设 | 已覆盖 | [速查](/reference/memory-crc/#crc-registers) · [题目](/questions/#crc) |
+| USB 与 CAN | USB FS Device、bxCAN。两者互斥使用同一块 512 B 专用 SRAM，共用 IRQ19 和 IRQ20。CAN 换 PB8/PB9 只能避开 PA11/PA12 引脚冲突。 | 已覆盖 | [速查](/reference/usb-can/) · [USB 题目](/questions/#usb) · [CAN 题目](/questions/#can) |
+
+本型号的范围以中容量芯片和 LQFP48 引脚表为准。其他 STM32F1 型号的 DAC、DMA2、ADC3、SDIO、FSMC、I²S 或 USB OTG 需要另查适用型号。 [中文数据手册](/manuals/stm32f103x8b-zh.pdf#page=1) · [中文参考手册](/manuals/rm0008-zh.pdf#page=1)

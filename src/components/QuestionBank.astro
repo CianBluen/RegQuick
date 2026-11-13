@@ -1,0 +1,139 @@
+---
+import existing from '../data/questions.json';
+import serialBus from '../data/i2c-spi-questions.json';
+import powerTime from '../data/power-time-questions.json';
+import usbCan from '../data/usb-can-questions.json';
+
+const modules = [...existing, ...serialBus, ...powerTime, ...usbCan];
+
+const originLabel = (item: typeof modules[number]['items'][number]) => {
+  if ('source' in item && item.source) return item.source;
+  return item.category === '面试题' ? '面经改编' : '';
+};
+const total = modules.reduce((count, module) => count + module.items.length, 0);
+const types = [...new Set(modules.flatMap(({ items }) => items.map(({ type }) => type)))];
+---
+
+<question-bank>
+  <form class="question-filters" data-pagefind-ignore>
+    <label>外设或模块
+      <select name="module">
+        <option value="">全部模块</option>
+        {modules.map(({ id, title }) => <option value={id}>{title}</option>)}
+      </select>
+    </label>
+    <label>题目来源
+      <select name="category">
+        <option value="">全部题目</option>
+        <option>面试题</option>
+        <option>原有练习题</option>
+        <option>原创练习题</option>
+      </select>
+    </label>
+    <label>题型
+      <select name="type">
+        <option value="">全部题型</option>
+        {types.map((type) => <option>{type}</option>)}
+      </select>
+    </label>
+    <output aria-live="polite">{total} 道题</output>
+  </form>
+
+  {modules.map(({ id, title, items }) => (
+    <section data-module={id} aria-labelledby={id}>
+      <h2 id={id}>{title}</h2>
+      {items.map((item) => (
+        <article class="question" data-category={originLabel(item) === '原创练习题' ? '原创练习题' : item.category} data-type={item.type} aria-labelledby={item.id}>
+          <p class="question-kind">{item.type}{originLabel(item) && item.type !== originLabel(item) && ` · ${originLabel(item)}`}</p>
+          <h3 id={item.id}>{item.question}</h3>
+          <details>
+            <summary>查看答案与解析</summary>
+            <Fragment set:html={item.answer} />
+            {item.related.length > 0 && (
+              <p class="question-links">相关速查 {item.related.map(({ label, href }) => (
+                <a href={href}><code>{label}</code></a>
+              ))}</p>
+            )}
+          </details>
+        </article>
+      ))}
+    </section>
+  ))}
+</question-bank>
+
+<script>
+  class QuestionBank extends HTMLElement {
+    connectedCallback() {
+      const form = this.querySelector('form')!;
+      const module = form.querySelector<HTMLSelectElement>('select[name="module"]')!;
+      const category = form.querySelector<HTMLSelectElement>('select[name="category"]')!;
+      const type = form.querySelector<HTMLSelectElement>('select[name="type"]')!;
+      const output = form.querySelector('output')!;
+      const sections = [...this.querySelectorAll<HTMLElement>('[data-module]')];
+
+      const update = () => {
+        let total = 0;
+        for (const section of sections) {
+          let visible = 0;
+          for (const item of section.querySelectorAll<HTMLElement>('[data-category]')) {
+            item.hidden = Boolean(
+              (category.value && item.dataset.category !== category.value) ||
+              (type.value && item.dataset.type !== type.value)
+            );
+            if (!item.hidden) visible++;
+          }
+          section.hidden = visible === 0 || Boolean(module.value && section.dataset.module !== module.value);
+          if (!section.hidden) total += visible;
+        }
+        output.textContent = total ? `${total} 道题` : '没有符合条件的题目';
+      };
+
+      const revealTarget = () => {
+        const target = this.querySelector(':target');
+        const item = target?.closest<HTMLElement>('[data-category]');
+        const section = target?.closest<HTMLElement>('[data-module]');
+        if (item && section && (item.hidden || section.hidden)) {
+          module.value = section.dataset.module!;
+          category.value = '';
+          type.value = '';
+          update();
+          target?.scrollIntoView();
+        }
+      };
+
+      form.addEventListener('change', update);
+      form.addEventListener('submit', (event) => event.preventDefault());
+      window.addEventListener('hashchange', revealTarget);
+      update();
+      revealTarget();
+    }
+  }
+  customElements.define('question-bank', QuestionBank);
+</script>
+
+<style>
+  question-bank { display: block; }
+  .question-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: .65rem 1rem;
+    padding: .9rem 1rem;
+    border: 1px solid var(--lab-border);
+    border-radius: .55rem;
+    background: var(--lab-surface);
+  }
+  .question-filters label { display: grid; gap: .25rem; font-size: .9rem; }
+  .question-filters select {
+    padding: .38rem .55rem;
+    color: var(--sl-color-white);
+    background: var(--sl-color-bg);
+    border: 1px solid var(--lab-border);
+    border-radius: .35rem;
+  }
+  .question-filters output { font-size: .86rem; color: var(--sl-color-gray-3); }
+  .question { padding: .85rem 0 1rem; border-bottom: 1px solid var(--lab-border); }
+  .question-kind { margin: 0; font-size: .82rem; color: var(--sl-color-gray-3); }
+  .question h3 { margin: .2rem 0 .6rem; font-size: 1.06rem; }
+  .question-links a { display: inline-block; margin-inline: .2rem; }
+</style>

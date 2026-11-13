@@ -1,0 +1,659 @@
+{
+  "registers": {
+    "RCC_CR": [
+      "rcc",
+      60
+    ],
+    "RCC_CFGR": [
+      "rcc",
+      61
+    ],
+    "RCC_CIR": [
+      "rcc",
+      63
+    ],
+    "RCC_APB1ENR": [
+      "rcc",
+      71
+    ],
+    "RCC_CSR": [
+      "rcc",
+      75
+    ],
+    "AFIO_MAPR": [
+      "rcc",
+      121
+    ],
+    "AFIO_EVCR": [
+      "rcc",
+      121
+    ],
+    "AFIO_EXTICR1": [
+      "rcc",
+      126
+    ],
+    "AFIO_EXTICR2": [
+      "rcc",
+      127
+    ],
+    "AFIO_EXTICR3": [
+      "rcc",
+      127
+    ],
+    "AFIO_EXTICR4": [
+      "rcc",
+      128
+    ],
+    "EXTI_IMR": [
+      "rcc",
+      138
+    ],
+    "EXTI_EMR": [
+      "rcc",
+      138
+    ],
+    "EXTI_RTSR": [
+      "rcc",
+      139
+    ],
+    "EXTI_FTSR": [
+      "rcc",
+      139
+    ],
+    "EXTI_SWIER": [
+      "rcc",
+      140
+    ],
+    "EXTI_PR": [
+      "rcc",
+      140
+    ],
+    "DBGMCU_CR": [
+      "rcc",
+      748
+    ],
+    "RCC_AHBENR": [
+      "rcc",
+      69
+    ],
+    "RCC_APB2RSTR": [
+      "rcc",
+      65
+    ],
+    "RCC_APB1RSTR": [
+      "rcc",
+      67
+    ],
+    "RCC_BDCR": [
+      "rcc",
+      74
+    ],
+    "RCC_APB2ENR": [
+      "rcc",
+      70
+    ],
+    "GPIOx_CRL": [
+      "rcc",
+      113
+    ],
+    "GPIOx_CRH": [
+      "rcc",
+      114
+    ],
+    "GPIOx_IDR": [
+      "rcc",
+      114
+    ],
+    "GPIOx_ODR": [
+      "rcc",
+      115
+    ],
+    "GPIOx_BSRR": [
+      "rcc",
+      115
+    ],
+    "GPIOx_BRR": [
+      "rcc",
+      115
+    ],
+    "GPIOx_LCKR": [
+      "rcc",
+      116
+    ],
+    "SCB_VTOR": [
+      "core",
+      305
+    ],
+    "SCB_AIRCR": [
+      "core",
+      306
+    ],
+    "NVIC_ISER": [
+      "core",
+      303
+    ],
+    "NVIC_IPR": [
+      "core",
+      304
+    ],
+    "SYST_CSR": [
+      "core",
+      302
+    ],
+    "SYST_RVR": [
+      "core",
+      302
+    ],
+    "SYST_CVR": [
+      "core",
+      302
+    ],
+    "SCB_ICSR": [
+      "core",
+      305
+    ],
+    "FLASH_ACR": [
+      "flash",
+      15
+    ],
+    "TIM_CR1": [
+      "rcc",
+      282
+    ],
+    "TIM_CR2": [
+      "rcc",
+      283
+    ],
+    "TIM_SMCR": [
+      "rcc",
+      284
+    ],
+    "TIM_DIER": [
+      "rcc",
+      285
+    ],
+    "TIM_SR": [
+      "rcc",
+      286
+    ],
+    "TIM_EGR": [
+      "rcc",
+      287
+    ],
+    "TIM_CCMR1": [
+      "rcc",
+      288
+    ],
+    "TIM_CCMR2": [
+      "rcc",
+      290
+    ],
+    "TIM_CCER": [
+      "rcc",
+      292
+    ],
+    "TIM_CNT": [
+      "rcc",
+      293
+    ],
+    "TIM_PSC": [
+      "rcc",
+      293
+    ],
+    "TIM_ARR": [
+      "rcc",
+      293
+    ],
+    "TIM_RCR": [
+      "rcc",
+      246
+    ],
+    "TIM_CCR1": [
+      "rcc",
+      293
+    ],
+    "TIM_CCR2": [
+      "rcc",
+      294
+    ],
+    "TIM_CCR3": [
+      "rcc",
+      294
+    ],
+    "TIM_CCR4": [
+      "rcc",
+      294
+    ],
+    "TIM_BDTR": [
+      "rcc",
+      248
+    ],
+    "TIM_DCR": [
+      "rcc",
+      295
+    ],
+    "TIM_DMAR": [
+      "rcc",
+      295
+    ],
+    "USART_SR": [
+      "rcc",
+      540
+    ],
+    "USART_DR": [
+      "rcc",
+      541
+    ],
+    "USART_BRR": [
+      "rcc",
+      542
+    ],
+    "USART_CR1": [
+      "rcc",
+      542
+    ],
+    "USART_CR2": [
+      "rcc",
+      544
+    ],
+    "USART_CR3": [
+      "rcc",
+      545
+    ],
+    "USART_GTPR": [
+      "rcc",
+      546
+    ],
+    "ADC_SR": [
+      "rcc",
+      170
+    ],
+    "ADC_CR1": [
+      "rcc",
+      171
+    ],
+    "ADC_CR2": [
+      "rcc",
+      173
+    ],
+    "ADC_SMPR1": [
+      "rcc",
+      175
+    ],
+    "ADC_SMPR2": [
+      "rcc",
+      175
+    ],
+    "ADC_JOFR1": [
+      "rcc",
+      176
+    ],
+    "ADC_JDR1": [
+      "rcc",
+      179
+    ],
+    "ADC_JOFR2": [
+      "rcc",
+      176
+    ],
+    "ADC_JDR2": [
+      "rcc",
+      179
+    ],
+    "ADC_JOFR3": [
+      "rcc",
+      176
+    ],
+    "ADC_JDR3": [
+      "rcc",
+      179
+    ],
+    "ADC_JOFR4": [
+      "rcc",
+      176
+    ],
+    "ADC_JDR4": [
+      "rcc",
+      179
+    ],
+    "ADC_HTR": [
+      "rcc",
+      176
+    ],
+    "ADC_LTR": [
+      "rcc",
+      176
+    ],
+    "ADC_SQR1": [
+      "rcc",
+      177
+    ],
+    "ADC_SQR2": [
+      "rcc",
+      177
+    ],
+    "ADC_SQR3": [
+      "rcc",
+      178
+    ],
+    "ADC_JSQR": [
+      "rcc",
+      178
+    ],
+    "ADC_DR": [
+      "rcc",
+      179
+    ],
+    "DMA_ISR": [
+      "rcc",
+      149
+    ],
+    "DMA_IFCR": [
+      "rcc",
+      150
+    ],
+    "DMA_CCR1": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR1": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR1": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR1": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR2": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR2": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR2": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR2": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR3": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR3": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR3": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR3": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR4": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR4": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR4": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR4": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR5": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR5": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR5": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR5": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR6": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR6": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR6": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR6": [
+      "rcc",
+      152
+    ],
+    "DMA_CCR7": [
+      "rcc",
+      150
+    ],
+    "DMA_CNDTR7": [
+      "rcc",
+      152
+    ],
+    "DMA_CPAR7": [
+      "rcc",
+      152
+    ],
+    "DMA_CMAR7": [
+      "rcc",
+      152
+    ]
+  },
+  "functions": {
+    "RCC_APB2PeriphClockCmd": 208,
+    "GPIO_DeInit": 123,
+    "GPIO_AFIODeInit": 123,
+    "GPIO_Init": 124,
+    "GPIO_StructInit": 126,
+    "GPIO_ReadInputDataBit": 126,
+    "GPIO_ReadInputData": 127,
+    "GPIO_ReadOutputDataBit": 127,
+    "GPIO_ReadOutputData": 128,
+    "GPIO_SetBits": 128,
+    "GPIO_ResetBits": 129,
+    "GPIO_WriteBit": 129,
+    "GPIO_Write": 130,
+    "GPIO_PinLockConfig": 130,
+    "GPIO_EventOutputConfig": 131,
+    "GPIO_EventOutputCmd": 131,
+    "GPIO_PinRemapConfig": 132,
+    "GPIO_EXTILineConfig": 133,
+    "RCC_GetClocksFreq": 206,
+    "RCC_HSEConfig": 195,
+    "RCC_WaitForHSEStartUp": 196,
+    "RCC_PLLConfig": 197,
+    "RCC_PLLCmd": 198,
+    "RCC_SYSCLKConfig": 199,
+    "RCC_GetSYSCLKSource": 199,
+    "RCC_HCLKConfig": 200,
+    "RCC_PCLK1Config": 200,
+    "RCC_PCLK2Config": 201,
+    "RCC_ADCCLKConfig": 203,
+    "RCC_USBCLKConfig": 202,
+    "RCC_MCOConfig": 210,
+    "EXTI_DeInit": 98,
+    "EXTI_StructInit": 100,
+    "EXTI_Init": 99,
+    "EXTI_GenerateSWInterrupt": 101,
+    "EXTI_GetFlagStatus": 101,
+    "EXTI_GetITStatus": 102,
+    "EXTI_ClearFlag": 102,
+    "EXTI_ClearITPendingBit": 103,
+    "RCC_DeInit": 195,
+    "RCC_AdjustHSICalibrationValue": 196,
+    "RCC_HSICmd": 197,
+    "RCC_ITConfig": 202,
+    "RCC_GetITStatus": 212,
+    "RCC_ClearITPendingBit": 213,
+    "RCC_GetFlagStatus": 211,
+    "RCC_ClearFlag": 212,
+    "RCC_LSEConfig": 204,
+    "RCC_LSICmd": 204,
+    "RCC_RTCCLKConfig": 205,
+    "RCC_RTCCLKCmd": 205,
+    "RCC_BackupResetCmd": 210,
+    "RCC_ClockSecuritySystemCmd": 210,
+    "RCC_AHBPeriphClockCmd": 207,
+    "RCC_APB1PeriphClockCmd": 208,
+    "RCC_APB1PeriphResetCmd": 209,
+    "RCC_APB2PeriphResetCmd": 209,
+    "TIM_DeInit": 246,
+    "TIM_TimeBaseInit": 246,
+    "TIM_ICInit": 249,
+    "TIM_TimeBaseStructInit": 251,
+    "TIM_OCStructInit": 251,
+    "TIM_ICStructInit": 252,
+    "USART_StructInit": 349,
+    "TIM_Cmd": 252,
+    "TIM_ITConfig": 253,
+    "TIM_GenerateEvent": 271,
+    "TIM_DMAConfig": 253,
+    "TIM_DMACmd": 255,
+    "TIM_ITRxExternalClockConfig": 256,
+    "TIM_TIxExternalClockConfig": 256,
+    "TIM_ETRClockMode1Config": 257,
+    "TIM_ETRClockMode2Config": 258,
+    "TIM_ETRConfig": 258,
+    "TIM_PrescalerConfig": 260,
+    "TIM_CounterModeConfig": 260,
+    "TIM_SelectInputTrigger": 259,
+    "TIM_EncoderInterfaceConfig": 270,
+    "TIM_ARRPreloadConfig": 263,
+    "TIM_SelectCCDMA": 263,
+    "TIM_UpdateDisableConfig": 270,
+    "TIM_UpdateRequestConfig": 273,
+    "TIM_SelectHallSensor": 274,
+    "TIM_SelectOnePulseMode": 274,
+    "TIM_SelectOutputTrigger": 275,
+    "TIM_SelectSlaveMode": 276,
+    "TIM_SelectMasterSlaveMode": 277,
+    "TIM_SetCounter": 277,
+    "TIM_SetAutoreload": 278,
+    "TIM_SetClockDivision": 282,
+    "TIM_ClearFlag": 286,
+    "TIM_ClearITPendingBit": 287,
+    "TIM_InternalClockConfig": 255,
+    "TIM_ForcedOC1Config": 261,
+    "TIM_OC1PreloadConfig": 264,
+    "TIM_OC1FastConfig": 266,
+    "TIM_ClearOC1Ref": 268,
+    "TIM_OC1PolarityConfig": 271,
+    "TIM_SetCompare1": 278,
+    "TIM_SetIC1Prescaler": 280,
+    "TIM_GetCapture1": 283,
+    "TIM_ForcedOC2Config": 261,
+    "TIM_OC2PreloadConfig": 264,
+    "TIM_OC2FastConfig": 266,
+    "TIM_ClearOC2Ref": 268,
+    "TIM_OC2PolarityConfig": 272,
+    "TIM_SetCompare2": 279,
+    "TIM_SetIC2Prescaler": 281,
+    "TIM_GetCapture2": 283,
+    "TIM_ForcedOC3Config": 262,
+    "TIM_OC3PreloadConfig": 265,
+    "TIM_OC3FastConfig": 267,
+    "TIM_ClearOC3Ref": 269,
+    "TIM_OC3PolarityConfig": 272,
+    "TIM_SetCompare3": 279,
+    "TIM_SetIC3Prescaler": 281,
+    "TIM_GetCapture3": 283,
+    "TIM_ForcedOC4Config": 262,
+    "TIM_OC4PreloadConfig": 265,
+    "TIM_OC4FastConfig": 267,
+    "TIM_ClearOC4Ref": 269,
+    "TIM_OC4PolarityConfig": 273,
+    "TIM_SetCompare4": 280,
+    "TIM_SetIC4Prescaler": 282,
+    "TIM_GetCapture4": 284,
+    "TIM_GetCounter": 284,
+    "TIM_GetPrescaler": 285,
+    "TIM_GetFlagStatus": 285,
+    "TIM_GetITStatus": 286,
+    "USART_DeInit": 345,
+    "USART_Init": 346,
+    "USART_Cmd": 349,
+    "USART_ITConfig": 350,
+    "USART_DMACmd": 351,
+    "USART_SetAddress": 351,
+    "USART_WakeUpConfig": 352,
+    "USART_ReceiverWakeUpCmd": 352,
+    "USART_LINBreakDetectLengthConfig": 353,
+    "USART_LINCmd": 353,
+    "USART_SetGuardTime": 355,
+    "USART_SetPrescaler": 356,
+    "USART_SmartCardCmd": 356,
+    "USART_SmartCardNACKCmd": 357,
+    "USART_HalfDuplexCmd": 357,
+    "USART_IrDAConfig": 358,
+    "USART_IrDACmd": 358,
+    "USART_ClearFlag": 360,
+    "USART_ClearITPendingBit": 361,
+    "USART_SendData": 354,
+    "USART_ReceiveData": 354,
+    "USART_SendBreak": 355,
+    "USART_GetFlagStatus": 359,
+    "USART_GetITStatus": 360,
+    "ADC_DeInit": 42,
+    "ADC_Init": 42,
+    "ADC_StructInit": 44,
+    "ADC_Cmd": 44,
+    "ADC_DMACmd": 45,
+    "ADC_ITConfig": 45,
+    "ADC_ResetCalibration": 46,
+    "ADC_GetResetCalibrationStatus": 46,
+    "ADC_StartCalibration": 46,
+    "ADC_GetCalibrationStatus": 47,
+    "ADC_SoftwareStartConvCmd": 47,
+    "ADC_GetSoftwareStartConvStatus": 48,
+    "ADC_DiscModeChannelCountConfig": 48,
+    "ADC_DiscModeCmd": 49,
+    "ADC_RegularChannelConfig": 49,
+    "ADC_GetConversionValue": 51,
+    "ADC_AutoInjectedConvCmd": 52,
+    "ADC_InjectedDiscModeCmd": 53,
+    "ADC_ExternalTrigInjectedConvConfig": 53,
+    "ADC_ExternalTrigInjectedConvCmd": 54,
+    "ADC_InjectedSequencerLengthConfig": 55,
+    "ADC_GetInjectedConversionValue": 57,
+    "ADC_AnalogWatchdogCmd": 57,
+    "ADC_GetFlagStatus": 59,
+    "ADC_ClearFlag": 60,
+    "ADC_GetITStatus": 60,
+    "ADC_ClearITPendingBit": 61,
+    "DMA_DeInit": 89,
+    "DMA_Init": 89,
+    "DMA_StructInit": 92,
+    "DMA_Cmd": 92,
+    "DMA_ITConfig": 93,
+    "DMA_GetFlagStatus": 94,
+    "DMA_ClearFlag": 95,
+    "DMA_GetITStatus": 95,
+    "DMA_ClearITPendingBit": 96
+  }
+}

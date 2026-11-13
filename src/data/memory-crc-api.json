@@ -1,0 +1,881 @@
+[
+  {
+    "name": "FLASH_SetLatency",
+    "summary": "调整 CPU 从 Flash 读指令和数据的等待周期。",
+    "params": "FLASH_Latency=FLASH_Latency_2，选择 2 WS。",
+    "pre": "计划将 SYSCLK 升至 72 MHz。升频前先写。",
+    "what": "改 FLASH_ACR.LATENCY。降频时先切低频再减等待周期。",
+    "check": "读 LATENCY=2。升频后异常先查 SWS 和实际 SYSCLK。",
+    "ret": "无。",
+    "related": [
+      "/reference/clock-exti/#flash_acr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "计划将 SYSCLK 升至 72 MHz。升频前先写。",
+      "code": "FLASH_SetLatency(FLASH_Latency_2);"
+    },
+    "manual": {
+      "page": 106,
+      "label": "FLASH_SetLatency",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_HalfCycleAccessCmd",
+    "summary": "设置 Flash 半周期访问。",
+    "params": "FLASH_HalfCycleAccess=FLASH_HalfCycleAccess_Disable。",
+    "pre": "正常高速配置保持关闭。",
+    "what": "改 FLASH_ACR.HLFCYA。仅在手册允许的 HSI/HSE 低速条件启用。",
+    "check": "读 HLFCYA=0。排查高速取指异常先核对等待周期。",
+    "ret": "无。",
+    "related": [
+      "/reference/clock-exti/#flash_acr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "正常高速配置保持关闭。",
+      "code": "FLASH_HalfCycleAccessCmd(FLASH_HalfCycleAccess_Disable);"
+    },
+    "manual": {
+      "page": 107,
+      "label": "FLASH_HalfCycleAccessCmd",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_PrefetchBufferCmd",
+    "summary": "开关 Flash 指令预取。",
+    "params": "FLASH_PrefetchBuffer=FLASH_PrefetchBuffer_Enable。",
+    "pre": "在改变系统时钟前安排预取。",
+    "what": "改 ACR.PRFTBE，用 PRFTBS 查询状态。",
+    "check": "读预取状态，分频条件不符先查 HPRE。",
+    "ret": "无。",
+    "related": [
+      "/reference/clock-exti/#flash_acr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "在改变系统时钟前安排预取。",
+      "code": "FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);"
+    },
+    "manual": {
+      "page": 107,
+      "label": "FLASH_PrefetchBufferCmd",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_Unlock",
+    "summary": "擦写前打开 FPEC。",
+    "params": "无。",
+    "pre": "Flash 空闲，HSI 已就绪。",
+    "what": "按 KEYR 顺序写两把密钥。",
+    "check": "读 LOCK=0。若失败，复核密钥顺序与当前复位状态。",
+    "ret": "无。",
+    "related": [
+      "FLASH_KEYR",
+      "FLASH_CR-LOCK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "Flash 空闲，HSI 已就绪。",
+      "code": "FLASH_Unlock();"
+    },
+    "manual": {
+      "page": 108,
+      "label": "FLASH_Unlock",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_Lock",
+    "summary": "完成擦写后重新锁定控制器。",
+    "params": "无。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。",
+    "what": "置 CR.LOCK。",
+    "check": "读 LOCK=1。后续写请求需先解锁。",
+    "ret": "无。",
+    "related": [
+      "FLASH_CR-LOCK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。",
+      "code": "FLASH_Lock();"
+    },
+    "manual": {
+      "page": 108,
+      "label": "FLASH_Lock",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ErasePage",
+    "summary": "把单个 1 KB 页恢复到擦除态。",
+    "params": "Page_Address=0x0800FC00，页 63 的起点。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。",
+    "what": "设置 PER 和 AR，写 STRT，再等待完成并清 PER。",
+    "check": "逐半字读回 0xFFFF。若失败先看 WRP 与目标地址。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_CR-PER",
+      "FLASH_AR",
+      "FLASH_CR-STRT",
+      "FLASH_SR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。",
+      "code": "const FLASH_Status status = FLASH_ErasePage(0x0800FC00u);"
+    },
+    "manual": {
+      "page": 109,
+      "label": "FLASH_ErasePage",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_EraseAllPages",
+    "summary": "擦除主 Flash 的全部用户页。",
+    "params": "无。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于可整体擦除的备份器件或受控维护路径。",
+    "what": "置 MER、STRT 等待，再清 MER。会擦掉用户程序及数据。",
+    "check": "用调试器核对全部用户页。若操作中断，先查写保护和供电。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_CR-MER",
+      "FLASH_SR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于可整体擦除的备份器件或受控维护路径。",
+      "code": "const FLASH_Status status = FLASH_EraseAllPages();"
+    },
+    "manual": {
+      "page": 109,
+      "label": "FLASH_EraseAllPages",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_EraseOptionBytes",
+    "summary": "将选项字节恢复到擦除态，再按策略重写。",
+    "params": "无。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 选项字节改动会影响下次复位的启动状态。先保存 RDP、USER、DATA 和 WRP 策略，整组修改后复位核对。",
+    "what": "用 OPTKEYR 解锁并触发 OPTER+STRT。随后重写 RDP，原先无保护写 0xA5，原先有保护写 0x00。其他选项由调用者恢复。",
+    "check": "检查状态并立即重写所需选项。复位后看 OBR/WRPR。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_OPTKEYR",
+      "FLASH_CR-OPTER",
+      "FLASH_OBR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 选项字节改动会影响下次复位的启动状态。先保存 RDP、USER、DATA 和 WRP 策略，整组修改后复位核对。",
+      "code": "const FLASH_Status status = FLASH_EraseOptionBytes();"
+    },
+    "manual": {
+      "page": 110,
+      "label": "FLASH_EraseOptionBytes",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ProgramWord",
+    "summary": "写入一个32 位字到已擦除的用户 Flash。",
+    "params": "Address=0x0800FC00u，Data=0x12345678u。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。 目标半字均为 0xFFFF。",
+    "what": "控制器用 PG 模式编程半字。ProgramWord 依次写低、高半字，两次写入各自完成，中间断电可能留下半个字。",
+    "check": "确认状态并读取目标地址。PGERR 时先查是否擦除和地址是否按半字对齐。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_CR-PG",
+      "FLASH_SR-PGERR",
+      "FLASH_SR-WRPRTERR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。 目标半字均为 0xFFFF。",
+      "code": "const FLASH_Status status = FLASH_ProgramWord(0x0800FC00u, 0x12345678u);"
+    },
+    "manual": {
+      "page": 110,
+      "label": "FLASH_ProgramWord",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ProgramHalfWord",
+    "summary": "写入一个16 位半字到已擦除的用户 Flash。",
+    "params": "Address=0x0800FC00u，Data=0x1234u。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。 目标半字均为 0xFFFF。",
+    "what": "控制器用 PG 模式编程半字。ProgramWord 依次写低、高半字，两次写入各自完成，中间断电可能留下半个字。",
+    "check": "确认状态并读取目标地址。PGERR 时先查是否擦除和地址是否按半字对齐。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_CR-PG",
+      "FLASH_SR-PGERR",
+      "FLASH_SR-WRPRTERR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。 目标半字均为 0xFFFF。",
+      "code": "const FLASH_Status status = FLASH_ProgramHalfWord(0x0800FC00u, 0x1234u);"
+    },
+    "manual": {
+      "page": 111,
+      "label": "FLASH_ProgramHalfWord",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ProgramOptionByteData",
+    "summary": "写选项字节的用户数据槽。",
+    "params": "Address=0x1FFFF804 选 DATA0，Data=0x5A。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 DATA0 已擦除，其他选项已备份。",
+    "what": "经 OPTKEYR 解锁，置 OPTPG，对指定半字写入，由控制器生成反码。",
+    "check": "读低字节 0x5A，核对反码。复位后再核对 OBR。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "OB_DATA0",
+      "FLASH_CR-OPTPG",
+      "FLASH_OBR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 DATA0 已擦除，其他选项已备份。",
+      "code": "const FLASH_Status status = FLASH_ProgramOptionByteData(0x1FFFF804u, 0x5Au);"
+    },
+    "manual": {
+      "page": 111,
+      "label": "FLASH_ProgramOptionByteData",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_EnableWriteProtection",
+    "summary": "保护指定页组，防止应用误擦写。",
+    "params": "FLASH_Pages=FLASH_WRProt_Pages60to63，选择页 60–63。",
+    "pre": "HSI 已就绪，FPEC 已解锁，BSY=0。受影响 WRP 半字须为擦除态。更新已有保护时应先备份全部选项，再擦除和恢复。",
+    "what": "计算 WRP 字节的低有效掩码，通过 OPTPG 编程。复位后 WRPR 反映新配置。",
+    "check": "复位后 WRPR bit 15 应为 0。保护未变先查返回状态和选项装载。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_WRPR",
+      "OB_WRP1",
+      "FLASH_CR-OPTPG"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 选项字节改动会影响下次复位的启动状态。先保存 RDP、USER、DATA 和 WRP 策略，整组修改后复位核对。",
+      "code": "const FLASH_Status status = FLASH_EnableWriteProtection(FLASH_WRProt_Pages60to63);"
+    },
+    "manual": {
+      "page": 112,
+      "label": "FLASH_EnableWriteProtection",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ReadOutProtection",
+    "summary": "修改用户 Flash 的读出保护。",
+    "params": "NewState=ENABLE 开启，DISABLE 解除。由已保护切换到解除保护时会自动擦除主 Flash。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于备份完毕的测试器件。",
+    "what": "通过 OPTER 擦整个选项字节块，然后只写 RDP。变更在复位后生效，应按备份恢复其他选项。",
+    "check": "复位后读 OBR.RDPRT，并确认预期的调试或读出权限。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "OB_RDP",
+      "FLASH_OBR-RDPRT",
+      "FLASH_CR-OPTER"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于备份完毕的测试器件。",
+      "code": "const FLASH_Status status = FLASH_ReadOutProtection(ENABLE);"
+    },
+    "manual": {
+      "page": 113,
+      "label": "FLASH_ReadOutProtection",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_UserOptionByteConfig",
+    "summary": "设置 IWDG 启动方式以及进入 Stop/Standby 时的复位策略。",
+    "params": "OB_IWDG=OB_IWDG_SW，软件启动。\nOB_STOP=OB_STOP_NoRST，进入 Stop 不触发选项复位。\nOB_STDBY=OB_STDBY_NoRST，进入 Standby 不触发选项复位。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 USER 已为可编程状态，保留其他选项的备份。",
+    "what": "解锁选项字节后以 OPTPG 写 USER。",
+    "check": "复位后核对 OBR 位 2–4。Standby 唤醒仍走复位式启动。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "OB_USER",
+      "FLASH_OBR",
+      "FLASH_CR-OPTPG"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 USER 已为可编程状态，保留其他选项的备份。",
+      "code": "const FLASH_Status status = FLASH_UserOptionByteConfig(OB_IWDG_SW, OB_STOP_NoRST, OB_STDBY_NoRST);"
+    },
+    "manual": {
+      "page": 114,
+      "label": "FLASH_UserOptionByteConfig",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetUserOptionByte",
+    "summary": "读取已装载的 USER 策略。",
+    "params": "无。",
+    "pre": "选项状态在复位装载之后核对。",
+    "what": "读取 FLASH_OBR 并返回对应状态。",
+    "check": "对照 FLASH_OBR 原始位。若读到旧选项，确认是否已经复位重新装载。",
+    "ret": "返回 OBR 整体右移 2 位，低三位对应看门狗和复位策略。使用时按所需字段掩码。",
+    "related": [
+      "FLASH_OBR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "选项状态在复位装载之后核对。",
+      "code": "const uint32_t value = (uint32_t)FLASH_GetUserOptionByte();"
+    },
+    "manual": {
+      "page": 115,
+      "label": "FLASH_GetUserOptionByte",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetWriteProtectionOptionByte",
+    "summary": "读取各页组的已装载写保护。",
+    "params": "无。",
+    "pre": "选项状态在复位装载之后核对。",
+    "what": "读取 FLASH_WRPR 并返回对应状态。",
+    "check": "对照 FLASH_WRPR 原始位。若读到旧选项，确认是否已经复位重新装载。",
+    "ret": "返回 WRPR，C8 有效位 0–15，0 表示保护。",
+    "related": [
+      "FLASH_WRPR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "选项状态在复位装载之后核对。",
+      "code": "const uint32_t value = (uint32_t)FLASH_GetWriteProtectionOptionByte();"
+    },
+    "manual": {
+      "page": 115,
+      "label": "FLASH_GetWriteProtectionOptionByte",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetReadOutProtectionStatus",
+    "summary": "检查读保护是否生效。",
+    "params": "无。",
+    "pre": "选项状态在复位装载之后核对。",
+    "what": "读取 FLASH_OBR 并返回对应状态。",
+    "check": "对照 FLASH_OBR 原始位。若读到旧选项，确认是否已经复位重新装载。",
+    "ret": "SET 表示 OBR.RDPRT=1。",
+    "related": [
+      "FLASH_OBR-RDPRT"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "选项状态在复位装载之后核对。",
+      "code": "const uint32_t value = (uint32_t)FLASH_GetReadOutProtectionStatus();"
+    },
+    "manual": {
+      "page": 116,
+      "label": "FLASH_GetReadOutProtectionStatus",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetPrefetchBufferStatus",
+    "summary": "查询预取缓冲是否启用。",
+    "params": "无。",
+    "pre": "可在 Flash 正常取指时读取。",
+    "what": "读取 FLASH_ACR 并返回对应状态。",
+    "check": "读 ACR.PRFTBS 核对当前预取状态。",
+    "ret": "SET 表示 ACR.PRFTBS=1。",
+    "related": [
+      "/reference/clock-exti/#flash_acr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "可在 Flash 正常取指时读取。",
+      "code": "const uint32_t value = (uint32_t)FLASH_GetPrefetchBufferStatus();"
+    },
+    "manual": {
+      "page": 116,
+      "label": "FLASH_GetPrefetchBufferStatus",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetStatus",
+    "summary": "检查主 Flash 操作当前状态。",
+    "params": "无。",
+    "pre": "擦写期间或之后读取，无需解锁。",
+    "what": "读取 FLASH_SR 并返回对应状态。",
+    "check": "核对 SR 的忙位和错误位。FLASH_COMPLETE 后再读回目标内容。",
+    "ret": "按 BSY、PGERR、WRPRTERR 顺序返回 FLASH_BUSY、FLASH_ERROR_PG、FLASH_ERROR_WRP，三者皆无时返回 FLASH_COMPLETE。",
+    "related": [
+      "FLASH_SR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "查看当前操作是否仍忙或已有错误。",
+      "code": "const uint32_t value = (uint32_t)FLASH_GetStatus();"
+    },
+    "manual": {
+      "page": 119,
+      "label": "FLASH_GetStatus",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ITConfig",
+    "summary": "选择 Flash 完成或错误中断。",
+    "params": "FLASH_IT=FLASH_IT_EOP 选结束。也可选 FLASH_IT_ERROR。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 已清旧状态，NVIC 已配置。",
+    "what": "修改 CR.EOPIE 或 ERRIE。",
+    "check": "读 EOPIE=1。结束未进中断先看 EOP 和 NVIC。",
+    "ret": "无。",
+    "related": [
+      "FLASH_CR-EOPIE",
+      "FLASH_CR-ERRIE",
+      "FLASH_SR-EOP"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 已清旧状态，NVIC 已配置。",
+      "code": "FLASH_ITConfig(FLASH_IT_EOP, ENABLE);"
+    },
+    "manual": {
+      "page": 117,
+      "label": "FLASH_ITConfig",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_GetFlagStatus",
+    "summary": "查询 Flash 状态位。",
+    "params": "FLASH_FLAG=FLASH_FLAG_EOP，检查结束。",
+    "pre": "可在完成后读取。OPTERR 应直接读 OBR。",
+    "what": "通常读 SR。此版 OPTERR 与 BSY 常量同值，源码会优先读 OBR.OPTERR。要检查 BUSY 时直接读 SR.BSY 或用 FLASH_GetStatus。",
+    "check": "若想判断能否开始下一次操作，另查 BSY 与错误标志。",
+    "ret": "SET 表示对应标志置位。",
+    "related": [
+      "FLASH_SR",
+      "FLASH_OBR-OPTERR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "可在完成后读取。OPTERR 应直接读 OBR。",
+      "code": "const FlagStatus done = FLASH_GetFlagStatus(FLASH_FLAG_EOP);"
+    },
+    "manual": {
+      "page": 117,
+      "label": "FLASH_GetFlagStatus",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_ClearFlag",
+    "summary": "清除已处理的 Flash 状态。",
+    "params": "FLASH_FLAG=FLASH_FLAG_EOP，可组合 PGERR 或 WRPRTERR。",
+    "pre": "先保存本次错误状态。",
+    "what": "写 SR 掩码，选中位写 1 清除。",
+    "check": "EOP 应为 0，未选错误位保留。",
+    "ret": "无。",
+    "related": [
+      "FLASH_SR-EOP",
+      "FLASH_SR-PGERR",
+      "FLASH_SR-WRPRTERR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "先保存本次错误状态。",
+      "code": "FLASH_ClearFlag(FLASH_FLAG_EOP);"
+    },
+    "manual": {
+      "page": 118,
+      "label": "FLASH_ClearFlag",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_WaitForLastOperation",
+    "summary": "等待操作结束，限制轮询次数。",
+    "params": "Timeout=100000，为轮询次数，单位不是微秒。",
+    "pre": "操作已发出，调用者另外处理超时和错误。",
+    "what": "循环读 SR，结束时返回状态，耗尽轮询返回 FLASH_TIMEOUT。",
+    "check": "完成时仍需读回目标。超时先检查实际 BSY 及供电条件。 Timeout=0 会直接得到 FLASH_TIMEOUT。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_SR-BSY"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "操作已发出，调用者另外处理超时和错误。",
+      "code": "const FLASH_Status status = FLASH_WaitForLastOperation(100000u);"
+    },
+    "manual": {
+      "page": 119,
+      "label": "FLASH_WaitForLastOperation",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "FLASH_UnlockBank1",
+    "summary": "解锁唯一的 Flash Bank 1。",
+    "params": "无。",
+    "pre": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+    "what": "通过 KEYR 写密钥。",
+    "check": "读取相应状态位验证。异常先查 BSY 与 LOCK。",
+    "ret": "无。",
+    "related": [
+      "FLASH_KEYR",
+      "FLASH_CR-LOCK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+      "code": "FLASH_UnlockBank1();"
+    },
+    "manual": {
+      "page": 18,
+      "label": "操作与寄存器说明",
+      "kind": "flash"
+    }
+  },
+  {
+    "name": "FLASH_LockBank1",
+    "summary": "锁定唯一的 Flash Bank 1。",
+    "params": "无。",
+    "pre": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+    "what": "置 CR.LOCK。",
+    "check": "读取相应状态位验证。异常先查 BSY 与 LOCK。",
+    "ret": "无。",
+    "related": [
+      "FLASH_CR-LOCK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+      "code": "FLASH_LockBank1();"
+    },
+    "manual": {
+      "page": 18,
+      "label": "操作与寄存器说明",
+      "kind": "flash"
+    }
+  },
+  {
+    "name": "FLASH_EraseAllBank1Pages",
+    "summary": "擦除唯一 Bank 的所有用户页。",
+    "params": "无。",
+    "pre": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于可整体擦除的备份器件。",
+    "what": "置 MER 并启动。会清除应用和用户数据。",
+    "check": "完成后核对目标区全为擦除态。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_CR-MER",
+      "FLASH_SR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 此示例只用于可整体擦除的备份器件。",
+      "code": "const FLASH_Status status = FLASH_EraseAllBank1Pages();"
+    },
+    "manual": {
+      "page": 18,
+      "label": "操作与寄存器说明",
+      "kind": "flash"
+    }
+  },
+  {
+    "name": "FLASH_GetBank1Status",
+    "summary": "读唯一 Bank 的操作状态。",
+    "params": "无。",
+    "pre": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+    "what": "读取 SR 并解码。",
+    "check": "读取相应状态位验证。异常先查 BSY 与 LOCK。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_SR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+      "code": "const FLASH_Status status = FLASH_GetBank1Status();"
+    },
+    "manual": {
+      "page": 18,
+      "label": "操作与寄存器说明",
+      "kind": "flash"
+    }
+  },
+  {
+    "name": "FLASH_WaitForLastBank1Operation",
+    "summary": "有界轮询 Bank 1 的擦写完成。",
+    "params": "Timeout=100000，单位为轮询次数。",
+    "pre": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+    "what": "循环读取 SR。",
+    "check": "读取相应状态位验证。异常先查 BSY 与 LOCK。",
+    "ret": "FLASH_COMPLETE 表示控制器结束。错误可由 PGERR/WRPRTERR 区分，FLASH_TIMEOUT 表示等待超限。",
+    "related": [
+      "FLASH_SR-BSY"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "C8 仅有 Bank 1。先核对 HSI 和控制器状态。",
+      "code": "const FLASH_Status status = FLASH_WaitForLastBank1Operation(100000u);"
+    },
+    "manual": {
+      "page": 18,
+      "label": "操作与寄存器说明",
+      "kind": "flash"
+    }
+  },
+  {
+    "name": "CRC_ResetDR",
+    "summary": "开始新的 CRC 累计。",
+    "params": "无。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "向 CR.RESET 写 1。",
+    "check": "读 DR 应为 0xFFFFFFFF。",
+    "ret": "无。",
+    "related": [
+      "CRC_CR-RESET",
+      "CRC_DR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC_ResetDR();"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_ResetDR",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CRC_CalcCRC",
+    "summary": "把一个 32 位数据字加入当前 CRC。",
+    "params": "Data=0x12345678，按位 31 到位 0 馈入。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "写 DR 再读 DR。",
+    "check": "期望 0xDF8A8A2B。错误先查是否复位种子。",
+    "ret": "返回累计结果。",
+    "related": [
+      "CRC_DR",
+      "CRC_CR-RESET"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC_ResetDR();\nconst uint32_t crc = CRC_CalcCRC(0x12345678u);"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_CalcCRC",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CRC_CalcBlockCRC",
+    "summary": "批量累计一组 32 位字。",
+    "params": "pBuffer 指向数组，BufferLength=2 表示两个字。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "依序写 DR，最后读回。调用前需要按协议重置或保留累计值。",
+    "check": "比较软件逐字计算。差异先查字的顺序和长度单位。",
+    "ret": "返回最后累计结果。",
+    "related": [
+      "CRC_DR",
+      "CRC_CR-RESET"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "uint32_t words[] = {0x12345678u, 0x9ABCDEF0u};\nCRC_ResetDR();\nconst uint32_t crc = CRC_CalcBlockCRC(words, 2u);"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_CalcBlockCRC",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CRC_GetCRC",
+    "summary": "读取当前 CRC 累计结果。",
+    "params": "无。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "读取 DR。",
+    "check": "连续读两次应一致。",
+    "ret": "返回 32 位结果。",
+    "related": [
+      "CRC_DR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "const uint32_t crc = CRC_GetCRC();"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_GetCRC",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CRC_SetIDRegister",
+    "summary": "写一个独立用户字节。",
+    "params": "IDValue=0x5A。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "写 IDR 的低 8 位。",
+    "check": "读回 0x5A，CRC 重置后仍保留。",
+    "ret": "无。",
+    "related": [
+      "CRC_IDR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC_SetIDRegister(0x5Au);"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_SetIDRegister",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CRC_GetIDRegister",
+    "summary": "读取独立用户字节。",
+    "params": "无。",
+    "pre": "已开 AHB CRCEN。",
+    "what": "读 IDR 的低 8 位。",
+    "check": "若读值不符先核对是否有人重写 IDR。",
+    "ret": "返回用户字节。",
+    "related": [
+      "CRC_IDR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "const uint8_t tag = CRC_GetIDRegister();"
+    },
+    "manual": {
+      "page": 35,
+      "label": "CRC_GetIDRegister",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "FLASH_UnlockBank2",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "无。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  },
+  {
+    "name": "FLASH_LockBank2",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "无。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  },
+  {
+    "name": "FLASH_EraseAllBank2Pages",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "无。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  },
+  {
+    "name": "FLASH_GetBank2Status",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "无。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  },
+  {
+    "name": "FLASH_WaitForLastBank2Operation",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "Timeout 为轮询次数。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  },
+  {
+    "name": "FLASH_BootConfig",
+    "summary": "此接口针对具备 Bank 2 的 STM32F10X_XL。",
+    "params": "FLASH_BOOT 选择启动银行。",
+    "ret": "此型号无对应调用。",
+    "pre": "仅当目标型号具备 Bank 2 且头文件启用 STM32F10X_XL 时提供。",
+    "what": "C8 只有 Bank 1。BOOT 引脚决定启动区。",
+    "check": "擦写请查 Bank 1 对应函数。启动区请查 BOOT0/PB2。",
+    "related": [
+      "FLASH_CR"
+    ],
+    "manual": {
+      "page": 31,
+      "kind": "rcc",
+      "label": "中容量 Flash 组织"
+    }
+  }
+]

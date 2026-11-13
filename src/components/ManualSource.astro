@@ -1,0 +1,51 @@
+---
+import sources from '../data/manual-sources.json';
+
+interface Props {
+  entry: string;
+  section?: { page: number; label: string; kind?: string };
+}
+const { entry, section: manualSection } = Astro.props;
+const reference = sources.registers[entry as keyof typeof sources.registers];
+const page = sources.functions[entry as keyof typeof sources.functions];
+const referenceSections: Record<string, [number, string]> = {
+  TIM_OC1Init: [217, '输出比较模式'],
+  TIM_OC2Init: [217, '输出比较模式'],
+  TIM_OC3Init: [217, '输出比较模式'],
+  TIM_OC4Init: [217, '输出比较模式'],
+  TIM_SelectOCxM: [217, '输出比较模式'],
+  TIM_CtrlPWMOutputs: [221, '刹车与主输出使能'],
+  TIM_BDTRConfig: [248, '死区和刹车寄存器'],
+  TIM_BDTRStructInit: [248, '死区和刹车寄存器'],
+  TIM_SelectCOM: [223, '换相事件与控制位预装载'],
+  TIM_CCPreloadControl: [223, '换相事件与控制位预装载'],
+  TIM_CCxCmd: [244, '捕获比较使能'],
+  TIM_CCxNCmd: [244, '捕获比较使能'],
+  TIM_OC1NPolarityConfig: [244, '捕获比较输出极性'],
+  TIM_OC2NPolarityConfig: [244, '捕获比较输出极性'],
+  TIM_OC3NPolarityConfig: [244, '捕获比较输出极性'],
+  TIM_PWMIConfig: [267, 'PWM 输入模式'],
+  USART_ClockInit: [530, 'USART 同步模式'],
+  USART_ClockStructInit: [530, 'USART 同步模式'],
+};
+const section = manualSection ? [manualSection.page, manualSection.label] as const : referenceSections[entry];
+const manuals: Record<string, [string, string]> = {
+  rcc: ['rm0008-zh', '中文参考手册'],
+  flash: ['flash-programming-zh', '中文闪存编程手册'],
+  core: ['cortex-m3-guide-zh', 'Cortex-M3 权威指南（中文）'],
+  spl: ['spl-user-manual-zh', '中文固件函数库手册'],
+  datasheet: ['stm32f103x8b-zh', '中文数据手册'],
+};
+const [file, label] = reference ? manuals[reference[0]] : ['spl-user-manual-zh', '中文固件函数库手册'];
+const [sectionFile, sectionLabel] = manuals[manualSection?.kind ?? 'rcc'] ?? manuals.rcc;
+---
+
+{(reference || page || section) && (
+  <p class="manual-source">
+    {section ? (
+      <a href={`/manuals/${sectionFile}.pdf#page=${section[0]}`} target="_blank" rel="noopener">{sectionLabel} · {section[1]}</a>
+    ) : (
+      <a href={`/manuals/${file}.pdf#page=${reference?.[1] ?? page}`} target="_blank" rel="noopener">{label}</a>
+    )}
+  </p>
+)}

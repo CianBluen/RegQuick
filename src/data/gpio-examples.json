@@ -1,0 +1,132 @@
+{
+  "RCC_APB2ENR": [
+    "开启 GPIOA 时钟",
+    "IOPAEN 对应 bit 2。读回 APB2ENR，bit 2 应为 1，其余使能位保留。",
+    "RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;\n(void)RCC->APB2ENR;  // 读回后再访问 GPIOA"
+  ],
+  "GPIOx_CRL": [
+    "把 PA1 配成 2 MHz 通用推挽输出",
+    "先开启 GPIOA 时钟。PA1 在 CRL 的 [7:4]，移位量为 1 × 4 = 4。CNF = 00，MODE = 10，合成 0x2。完成后这四位读回 0x2，其余引脚不变。",
+    "GPIOA->CRL = (GPIOA->CRL & ~(0xFu << 4))\n           | (0x2u << 4);"
+  ],
+  "GPIOx_CRH": [
+    "把 PC13 配成 2 MHz 通用推挽输出",
+    "先开启 GPIOC 时钟。CRL 对应 Pin 0–7，PC13 用 CRH。[23:20] 的起点是 (13 − 8) × 4 = 20。CNF13 = 00，MODE13 = 10。检查这四位读回 0x2。实验只检查配置，外接负载前须核对 PC13 的驱动限制。",
+    "GPIOC->CRH = (GPIOC->CRH & ~(0xFu << 20))\n           | (0x2u << 20);"
+  ],
+  "GPIOx_IDR": [
+    "读取 PA0 的按键电平",
+    "沿用实验接线，GPIOA 时钟已开启，PA0 为上拉输入。掩码选 bit 0。松开读高，按下接地读低。",
+    "const uint32_t pa0_level = GPIOA->IDR & (1u << 0);"
+  ],
+  "GPIOx_ODR": [
+    "检查 PA1 的输出锁存值",
+    "先开启 GPIOA 时钟。掩码选 bit 1，再右移得到 0 或 1。此值对应最近一次写入的输出状态，引脚实测电平用 IDR 或仪表检查。",
+    "const uint32_t pa1_latch = (GPIOA->ODR >> 1) & 1u;"
+  ],
+  "GPIOx_BSRR": [
+    "只置位 PA1",
+    "GPIOA 时钟已开启，PA1 已配置为推挽输出。直接写低半区 bit 1，ODR1 变为 1，其余位保持原值。",
+    "GPIOA->BSRR = 1u << 1;"
+  ],
+  "GPIOx_BRR": [
+    "只清除 PA1",
+    "GPIOA 时钟已开启，PA1 已配置为推挽输出。直接写 bit 1，ODR1 变为 0，其余位保持原值。",
+    "GPIOA->BRR = 1u << 1;"
+  ],
+  "GPIOx_LCKR": [
+    "锁定 PA1 的配置",
+    "先开启 GPIOA 时钟并配置好 PA1。bit 1 选中 PA1，bit 16 为 LCKK。三次写入的引脚掩码一致，最后一次读回检查 LCKK。锁定后须复位才能重配，仍可读写数据。",
+    "const uint32_t pins = 1u << 1;\nconst uint32_t key = 1u << 16;\n\nGPIOA->LCKR = pins | key;\nGPIOA->LCKR = pins;\nGPIOA->LCKR = pins | key;\n(void)GPIOA->LCKR;\nconst uint32_t locked = (GPIOA->LCKR & key) != 0u;"
+  ],
+  "RCC_APB2PeriphClockCmd": [
+    "开启 GPIOA 时钟",
+    "IOPAEN 置 1，之后可配置 GPIOA。",
+    "RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);"
+  ],
+  "GPIO_DeInit": [
+    "把 GPIOA 恢复到复位状态",
+    "在可重配的实验中执行。GPIOA 的 CRL 和 CRH 恢复到 0x44444444，整个端口的原有配置都会被清除。",
+    "GPIO_DeInit(GPIOA);"
+  ],
+  "GPIO_AFIODeInit": [
+    "恢复 AFIO 默认配置",
+    "在专用实验中执行。复用映射和 EXTI 端口选择恢复到默认值，现有外设可能要重新配置。",
+    "GPIO_AFIODeInit();"
+  ],
+  "GPIO_Init": [
+    "用 SPL 配置 PC13 推挽输出",
+    "对应 CRH 示例。GPIO_Pin_13 选中 PC13，2 MHz 推挽对应 CRH[23:20] = 0x2。按 PC13 的驱动限制接负载。",
+    "GPIO_InitTypeDef config;\nRCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);\n\nconfig.GPIO_Pin = GPIO_Pin_13;\nconfig.GPIO_Speed = GPIO_Speed_2MHz;\nconfig.GPIO_Mode = GPIO_Mode_Out_PP;\nGPIO_Init(GPIOC, &config);"
+  ],
+  "GPIO_StructInit": [
+    "从默认值准备 PA0 的配置",
+    "调用后 config 含默认字段。把引脚掩码缩到 PA0，后续应用时只影响选中的引脚。",
+    "GPIO_InitTypeDef config;\nGPIO_StructInit(&config);\nconfig.GPIO_Pin = GPIO_Pin_0;"
+  ],
+  "GPIO_ReadInputDataBit": [
+    "读取 PA0 按键",
+    "沿用实验的上拉输入。松开为 Bit_SET，按下为 Bit_RESET。",
+    "const uint8_t state = GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0);"
+  ],
+  "GPIO_ReadInputData": [
+    "一次读取 GPIOA 输入",
+    "GPIOA 时钟已开启。返回值的 bit 0 随实验按键改变，其余位来自对应引脚的数字输入路径。",
+    "const uint16_t levels = GPIO_ReadInputData(GPIOA);"
+  ],
+  "GPIO_ReadOutputDataBit": [
+    "检查 PA1 的输出锁存位",
+    "GPIOA 时钟已开启。返回 0 或 1，和 ODR1 一致。",
+    "const uint8_t level = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_1);"
+  ],
+  "GPIO_ReadOutputData": [
+    "读取 GPIOA 的全部输出锁存位",
+    "GPIOA 时钟已开启。返回值的 bit 1 对应 PA1 的输出锁存位。",
+    "const uint16_t latched = GPIO_ReadOutputData(GPIOA);"
+  ],
+  "GPIO_SetBits": [
+    "只置位 PA1",
+    "GPIOA 时钟已开启且 PA1 为推挽输出。实验的高有效 LED 点亮。",
+    "GPIO_SetBits(GPIOA, GPIO_Pin_1);"
+  ],
+  "GPIO_ResetBits": [
+    "只清除 PA1",
+    "GPIOA 时钟已开启且 PA1 为推挽输出。实验的高有效 LED 熄灭。",
+    "GPIO_ResetBits(GPIOA, GPIO_Pin_1);"
+  ],
+  "GPIO_WriteBit": [
+    "根据按键电平更新 PA1",
+    "沿用实验配置。按键为低时传 Bit_SET，松开时传 Bit_RESET。",
+    "const BitAction led = GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == Bit_RESET\n                    ? Bit_SET : Bit_RESET;\nGPIO_WriteBit(GPIOA, GPIO_Pin_1, led);"
+  ],
+  "GPIO_Write": [
+    "写入 GPIOA 的整组输出锁存位",
+    "只在独占该端口的实验中执行。ODR0 保持上拉，ODR1 置高，其余锁存位写 0。实际项目只改 PA1 时优先用 GPIO_SetBits。",
+    "GPIO_Write(GPIOA, GPIO_Pin_0 | GPIO_Pin_1);"
+  ],
+  "GPIO_PinLockConfig": [
+    "锁定 PA1 的模式配置",
+    "GPIOA 时钟已开启且 PA1 已配置。可在 LCKR 检查 LCKK 和 bit 1。复位后才能再次修改该引脚的模式。",
+    "GPIO_PinLockConfig(GPIOA, GPIO_Pin_1);"
+  ],
+  "GPIO_EventOutputConfig": [
+    "把事件输出路由选到 PA1",
+    "先开 AFIO 时钟。在独立实验中使用 PA1。可读回 EVCR 检查 PORT 和 PIN 选择，输出还需要配置 PA1 为复用输出并使能 EVOE。",
+    "RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);\nGPIO_EventOutputConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);"
+  ],
+  "GPIO_EventOutputCmd": [
+    "使能已经选好的事件输出",
+    "AFIO 时钟已开启，已选定事件输出引脚并配置为复用输出。调用后 EVCR.EVOE 为 1。",
+    "GPIO_EventOutputCmd(ENABLE);"
+  ],
+  "GPIO_PinRemapConfig": [
+    "将 USART1 的 TX/RX 重映射到 PB6/PB7",
+    "先开 AFIO 时钟，确认板上这两个引脚可用。可检查 MAPR 的 USART1_REMAP，串口与引脚模式随后分别配置。",
+    "RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);\nGPIO_PinRemapConfig(GPIO_Remap_USART1, ENABLE);"
+  ],
+  "GPIO_EXTILineConfig": [
+    "将 PB0 接到 EXTI0",
+    "先开 AFIO 时钟。EXTICR1 的 EXTI0 字段应为 0001。边沿、屏蔽位和 NVIC 仍需按需求配置。",
+    "RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);\nGPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource0);"
+  ]
+}

@@ -1,0 +1,728 @@
+[
+  {
+    "id": "FLASH_KEYR",
+    "off": "0x04",
+    "reset": "未定义",
+    "access": "WO",
+    "summary": "按密钥顺序解除主 Flash 控制器写锁。",
+    "fields": [
+      [
+        "31:0",
+        "KEY",
+        "软件依次写入两次密钥。",
+        "顺序｜先 0x45670123，再 0xCDEF89AB。错序后需复位重新解锁。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "Flash 空闲且 HSI 已就绪。",
+      "code": "FLASH->KEYR = 0x45670123u;\nFLASH->KEYR = 0xCDEF89ABu;"
+    },
+    "check": "读 CR.LOCK=0。若仍锁定，先确认密钥顺序与芯片是否已复位。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 16,
+      "label": "FLASH_KEYR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_OPTKEYR",
+    "off": "0x08",
+    "reset": "未定义",
+    "access": "WO",
+    "summary": "解除选项字节的单独写保护。",
+    "fields": [
+      [
+        "31:0",
+        "OPTKEY",
+        "解锁选项字节写入。",
+        "顺序｜主控制器先解锁，再依次写 0x45670123、0xCDEF89AB。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 选项字节改动会影响下次复位的启动状态。先保存 RDP、USER、DATA 和 WRP 策略，整组修改后复位核对。",
+      "code": "FLASH->OPTKEYR = 0x45670123u;\nFLASH->OPTKEYR = 0xCDEF89ABu;"
+    },
+    "check": "读 CR.OPTWRE=1。仍为零先查 LOCK 与 BSY。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 16,
+      "label": "FLASH_OPTKEYR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_SR",
+    "off": "0x0C",
+    "reset": "0x00000000",
+    "access": "RO / W1C",
+    "summary": "判断 Flash 操作是否完成或出错。",
+    "fields": [
+      [
+        "5",
+        "EOP",
+        "完成后由硬件置位。",
+        "0｜保留当前标志。\n1｜清除所选标志。"
+      ],
+      [
+        "4",
+        "WRPRTERR",
+        "写受保护页或无权写选项字节时置位。",
+        "0｜保留当前标志。\n1｜清除所选标志。"
+      ],
+      [
+        "2",
+        "PGERR",
+        "非法编程时置位，例如目标未擦除且尝试写入非零数据。",
+        "0｜保留当前标志。\n1｜清除所选标志。"
+      ],
+      [
+        "0",
+        "BSY",
+        "擦除或编程期间由硬件置位。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 已记录本次 EOP。",
+      "code": "FLASH->SR = FLASH_SR_EOP;"
+    },
+    "check": "EOP 应清零，错误标志保留。读改写可能误清同时存在的其他标志。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 17,
+      "label": "FLASH_SR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_CR",
+    "off": "0x10",
+    "reset": "0x00000080",
+    "access": "RW / 触发",
+    "summary": "选择 Flash 擦写动作并控制编程锁。",
+    "fields": [
+      [
+        "12",
+        "EOPIE",
+        "结束中断许可。",
+        "0｜保持关闭。\n1｜EOP 可发 FLASH_IRQn。"
+      ],
+      [
+        "10",
+        "ERRIE",
+        "错误中断许可。",
+        "0｜保持关闭。\n1｜错误可发 FLASH_IRQn。"
+      ],
+      [
+        "9",
+        "OPTWRE",
+        "选项字节写许可。",
+        "0｜软件可关写许可。\n1｜通过 OPTKEYR 密钥序列打开。"
+      ],
+      [
+        "7",
+        "LOCK",
+        "控制 FPEC 锁定。",
+        "0｜解锁后可改控制位。\n1｜立即锁定。通过 KEYR 正确序列解锁。"
+      ],
+      [
+        "6",
+        "STRT",
+        "执行已选的擦除操作。",
+        "0｜无触发。\n1｜启动 PER、MER 或 OPTER 选定的擦除。硬件完成后清位。"
+      ],
+      [
+        "5",
+        "OPTER",
+        "准备擦选项字节。",
+        "0｜保持关闭。\n1｜允许以 STRT 开始擦选项字节。"
+      ],
+      [
+        "4",
+        "OPTPG",
+        "准备写选项字节。",
+        "0｜保持关闭。\n1｜允许向选项字节半字地址编程。"
+      ],
+      [
+        "2",
+        "MER",
+        "选择主 Flash 整片擦除。",
+        "0｜保持关闭。\n1｜STRT 后擦除整个用户 Flash。"
+      ],
+      [
+        "1",
+        "PER",
+        "选择页擦除。",
+        "0｜保持关闭。\n1｜STRT 后擦除 AR 指向的页。"
+      ],
+      [
+        "0",
+        "PG",
+        "选择半字编程。",
+        "0｜保持关闭。\n1｜随后对已擦除的目标地址执行 16 位写入。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 本次写入已结束。",
+      "code": "FLASH->CR |= FLASH_CR_LOCK;"
+    },
+    "check": "LOCK 应读 1。若操作仍在进行，先查 SR.BSY，完成后再锁。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 18,
+      "label": "FLASH_CR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_AR",
+    "off": "0x14",
+    "reset": "0x00000000",
+    "access": "WO",
+    "summary": "指定下一次页擦除的目标页。",
+    "fields": [
+      [
+        "31:0",
+        "FAR",
+        "PER=1 时选择目标地址。",
+        "页地址｜BSY=0 时写所选 1 KB 页的起始地址，STRT 后才擦除。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "HSI 已开且就绪，FPEC 已解锁，等待 BSY=0 后操作。 仅使用链接脚本已留出的实验页 0x0800FC00，备份已有内容。",
+      "code": "FLASH->AR = 0x0800FC00u;"
+    },
+    "check": "软件保存写入的目标地址。随后选 PER 和 STRT 擦除，操作完成后检查 EOP 并读目标页是否为 0xFFFF。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 19,
+      "label": "FLASH_AR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_OBR",
+    "off": "0x1C",
+    "reset": "0x03FFFFFC（受选项装载影响）",
+    "access": "RO",
+    "summary": "查看复位后实际采用的选项字节策略。",
+    "fields": [
+      [
+        "25:18",
+        "DATA1",
+        "装载的用户数据字节 1。"
+      ],
+      [
+        "17:10",
+        "DATA0",
+        "装载的用户数据字节 0。"
+      ],
+      [
+        "4",
+        "nRST_STDBY",
+        "0 表示进入 Standby 时触发复位。"
+      ],
+      [
+        "3",
+        "nRST_STOP",
+        "0 表示进入 Stop 时触发复位。"
+      ],
+      [
+        "2",
+        "WDG_SW",
+        "1 为软件启动 IWDG，0 为硬件启动。"
+      ],
+      [
+        "1",
+        "RDPRT",
+        "1 表示读保护已生效。"
+      ],
+      [
+        "0",
+        "OPTERR",
+        "装载时发现数据和反码错误。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "复位后读取。",
+      "code": "const uint32_t options = FLASH->OBR;"
+    },
+    "check": "比较位 2–4 与预期策略。写入后读到旧值先确认是否已复位重新装载。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 19,
+      "label": "FLASH_OBR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "FLASH_WRPR",
+    "off": "0x20",
+    "reset": "0xFFFFFFFF（受选项装载影响）",
+    "access": "RO",
+    "summary": "查看哪些页组已启用写保护。",
+    "fields": [
+      [
+        "15:0",
+        "WRP",
+        "C8 的每个有效位对应连续 4 页，0 为保护，1 为可写。bit 15 对应页 60–63。"
+      ],
+      [
+        "31:16",
+        "未用页组",
+        "C8 仅有页 0–63。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "复位后读取。",
+      "code": "const uint32_t protected_tail = (FLASH->WRPR & (1u << 15)) == 0u;"
+    },
+    "check": "若尾页擦除报 WRPRTERR，先读 bit 15 和实际目标地址。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 20,
+      "label": "FLASH_WRPR",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_RDP",
+    "off": "0x1FFFF800",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的读保护。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "RDP",
+        "0xA5 且反码有效时允许读出。由已保护切换到无保护会自动擦除用户 Flash，复位后核对 OBR.RDPRT。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF800u;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_RDP",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_USER",
+    "off": "0x1FFFF802",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的看门狗和低功耗复位。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "USER",
+        "bit 0 为 1 选软件 IWDG，bit 1/2 为 1 时进入 Stop/Standby 不因此触发复位。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF802u;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_USER",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_DATA0",
+    "off": "0x1FFFF804",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的用户字节 0。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "DATA0",
+        "保存用户数据，可通过 OBR 查看装载值。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF804u;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_DATA0",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_DATA1",
+    "off": "0x1FFFF806",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的用户字节 1。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "DATA1",
+        "保存用户数据，可通过 OBR 查看装载值。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF806u;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_DATA1",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_WRP0",
+    "off": "0x1FFFF808",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的写保护字节 0。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "WRP0",
+        "每位管理 4 页，0 保护，1 允许写入。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF808u;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_WRP0",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_WRP1",
+    "off": "0x1FFFF80A",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的写保护字节 1。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "WRP1",
+        "每位管理 4 页，0 保护，1 允许写入。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF80Au;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_WRP1",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_WRP2",
+    "off": "0x1FFFF80C",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的写保护字节 2。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "WRP2",
+        "C8 没有该字节覆盖的主 Flash 页。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF80Cu;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_WRP2",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "OB_WRP3",
+    "off": "0x1FFFF80E",
+    "reset": "由选项字节决定",
+    "access": "RO / FPEC 编程",
+    "summary": "读取选项字节中的写保护字节 3。",
+    "fields": [
+      [
+        "15:8",
+        "COMPLEMENT",
+        "编程时由 FPEC 生成反码。复位装载时用于校验。"
+      ],
+      [
+        "7:0",
+        "WRP3",
+        "C8 没有该字节覆盖的主 Flash 页。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "只读核对原始选项字节。",
+      "code": "const uint16_t raw = *(volatile const uint16_t *)0x1FFFF80Eu;"
+    },
+    "check": "对照 FLASH_OBR/WRPR 的装载值。若反码不匹配，先读 OPTERR，擦除态 0xFFFF 按擦除规则处理。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 13,
+      "label": "OB_WRP3",
+      "kind": "flash"
+    }
+  },
+  {
+    "id": "CRC_DR",
+    "off": "0x00",
+    "reset": "0xFFFFFFFF",
+    "access": "RW",
+    "summary": "以 32 位字为单位累计硬件 CRC。",
+    "fields": [
+      [
+        "31:0",
+        "DR",
+        "写入一个字更新余数。读取返回当前累计值。",
+        "写入｜按位 31 到位 0 馈入数据。固定多项式 0x04C11DB7。软件先按协议组织字节顺序。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC->CR = 1u;\nCRC->DR = 0x12345678u;\nconst uint32_t result = CRC->DR;"
+    },
+    "check": "应读 0xDF8A8A2B。若软件结果不同，先对照初值、位序和末尾异或。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 35,
+      "label": "CRC_DR",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "CRC_IDR",
+    "off": "0x04",
+    "reset": "0x00000000",
+    "access": "RW",
+    "summary": "存放独立的 8 位用户数据。",
+    "fields": [
+      [
+        "7:0",
+        "IDR",
+        "CRC 累计逻辑不使用这 8 位。",
+        "0–255｜保存字节，CRC_CR.RESET 之后仍保留。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC->IDR = 0x5Au;"
+    },
+    "check": "读回 0x5A，写 CRC_CR.RESET 后仍应为 0x5A。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 35,
+      "label": "CRC_IDR",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "CRC_CR",
+    "off": "0x08",
+    "reset": "0x00000000",
+    "access": "WO",
+    "summary": "开始新的 CRC 累计。",
+    "fields": [
+      [
+        "0",
+        "RESET",
+        "硬件处理后自动清位。",
+        "0｜无动作。\n1｜恢复 CRC_DR=0xFFFFFFFF，保留 IDR。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "已开 AHB CRCEN。",
+      "code": "CRC->CR = 1u;\nconst uint32_t seed = CRC->DR;"
+    },
+    "check": "DR 应回到 0xFFFFFFFF，失败先查 AHB 门控。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 36,
+      "label": "CRC_CR",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "FLASHSIZE",
+    "off": "0x1FFFF7E0",
+    "reset": "出厂写入",
+    "access": "RO",
+    "summary": "查看芯片标称 Flash 容量。",
+    "fields": [
+      [
+        "15:0",
+        "F_SIZE",
+        "单位 KB，C8 的额定值为 64。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "通过调试器或程序做 16 位读取。",
+      "code": "const uint16_t kilobytes = *(volatile const uint16_t *)0x1FFFF7E0u;"
+    },
+    "check": "C8 预期 0x0040。若读值不同，先核对芯片丝印、订货料号和调试器识别信息。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 732,
+      "label": "FLASHSIZE",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "UID0",
+    "off": "0x1FFFF7E8",
+    "reset": "出厂写入",
+    "access": "RO",
+    "summary": "读取 96 位芯片标识的第 1 个字。",
+    "fields": [
+      [
+        "31:0",
+        "VALUE",
+        "UID 位 0–31。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "按对齐地址读取，保存顺序为低地址到高地址。",
+      "code": "const uint32_t id = *(volatile const uint32_t *)0x1FFFF7E8u;"
+    },
+    "check": "同一芯片跨复位应一致。若用于生成序列号，完整读取三个字。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 732,
+      "label": "UID0",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "UID1",
+    "off": "0x1FFFF7EC",
+    "reset": "出厂写入",
+    "access": "RO",
+    "summary": "读取 96 位芯片标识的第 2 个字。",
+    "fields": [
+      [
+        "31:0",
+        "VALUE",
+        "UID 位 32–63。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "按对齐地址读取，保存顺序为低地址到高地址。",
+      "code": "const uint32_t id = *(volatile const uint32_t *)0x1FFFF7ECu;"
+    },
+    "check": "同一芯片跨复位应一致。若用于生成序列号，完整读取三个字。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 733,
+      "label": "UID1",
+      "kind": "rcc"
+    }
+  },
+  {
+    "id": "UID2",
+    "off": "0x1FFFF7F0",
+    "reset": "出厂写入",
+    "access": "RO",
+    "summary": "读取 96 位芯片标识的第 3 个字。",
+    "fields": [
+      [
+        "31:0",
+        "VALUE",
+        "UID 位 64–95。"
+      ]
+    ],
+    "example": {
+      "title": "最小寄存器示例",
+      "explanation": "按对齐地址读取，保存顺序为低地址到高地址。",
+      "code": "const uint32_t id = *(volatile const uint32_t *)0x1FFFF7F0u;"
+    },
+    "check": "同一芯片跨复位应一致。若用于生成序列号，完整读取三个字。",
+    "instances": "STM32F103C8T6",
+    "manual": {
+      "page": 733,
+      "label": "UID2",
+      "kind": "rcc"
+    }
+  }
+]

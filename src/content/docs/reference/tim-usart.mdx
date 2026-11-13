@@ -1,0 +1,126 @@
+---
+title: 定时器与 USART 速查
+description: TIM1/2/3/4、USART1/2/3 的寄存器、写入效果与 SPL 调用
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import registers from '../../../data/tim-usart-registers.json';
+import api from '../../../data/tim-usart-api.json';
+
+<SystemReference
+  groups={[
+    { id: 'tim-registers', title: 'TIM1–4 寄存器', entries: registers.filter((reg) => reg.id.startsWith('TIM')) },
+    { id: 'usart-registers', title: 'USART1–3 寄存器', entries: registers.filter((reg) => reg.id.startsWith('USART')) },
+  ]}
+  api={api}
+  apiIndex={[
+    { title: '定时器 SPL', entries: api.filter((fn) => fn.name.startsWith('TIM_')).map((fn) => fn.name) },
+    { title: 'USART SPL', entries: api.filter((fn) => fn.name.startsWith('USART_')).map((fn) => fn.name) },
+  ]}
+  apiId="tim-usart-api"
+  apiTitle="定时器与 USART 标准库函数"
+/>
+
+
+寄存器偏移相对各实例基址。定时器共有字段按 [中文参考手册 §14.4](/manuals/rm0008-zh.pdf#page=282)，TIM1 专有字段按 [§13.4](/manuals/rm0008-zh.pdf#page=233)，USART 按 [§25.6](/manuals/rm0008-zh.pdf#page=540)。示例以 HSI 8 MHz 和默认引脚为前提。使用前先开启外设时钟，涉及 GPIO 时配置对应输入或复用输出。
+
+[定时器框图](/reference/tim-usart/#timer-diagrams) · [USART 框图](/reference/tim-usart/#usart-diagrams) · [TIM2–4 和 USART2/3 门控](/reference/clock-exti/#rcc_apb1enr)
+
+TIM1 和 USART1 分别由 [TIM1EN](/reference/gpio/#rcc_apb2enr-tim1en) 和 [USART1EN](/reference/gpio/#rcc_apb2enr-usart1en) 开启时钟。函数按工程的 SPL V3.5.0 源码核对。中文函数库手册有对应条目的函数附页码。SPL 还声明 `USART_OverSampling8Cmd` 和 `USART_OneBitMethodCmd`，本型号的 CR1[15]、CR3[11] 保留，使用 16 倍采样和默认采样规则。
+
+## 定时器实例与封装引脚
+
+| 实例 | 默认 CH1／CH2／CH3／CH4 | LQFP48 上可用的重映射 |
+| --- | --- | --- |
+| TIM1 | PA8／PA9／PA10／PA11。ETR=PA12，BKIN=PB12，CH1N–3N=PB13–PB15 | 部分映射 01 保留 CH1–4 和 ETR，把 BKIN 改到 PA6，CH1N–3N 改到 PA7/PB0/PB1。完整映射到 PE7–PE15，封装未引出 |
+| TIM2 | PA0／PA1／PA2／PA3。ETR 与 CH1 共脚 | 01 把 CH1/ETR、CH2 移至 PA15、PB3。10 把 CH3、CH4 移至 PB10、PB11。11 同时应用两组。共享 CH1/ETR 的引脚一次只承担一项功能 |
+| TIM3 | PA6／PA7／PB0／PB1。ETR 所在 PD2 未引出 | 部分映射 10 把 CH1、CH2 移至 PB4、PB5。完整映射到 PC6–PC9，封装未引出 |
+| TIM4 | PB6／PB7／PB8／PB9。ETR 所在 PE0 未引出 | 完整映射到 PD12–PD15，封装未引出 |
+
+TIM2 取 PA15 或 PB3、TIM3 取 PB4 时，检查 JTAG 是否仍占脚。可切到保留 SWD 的配置释放这些引脚。TIM1 部分映射使用 PA6/PA7/PB0/PB1 时，与 TIM3 默认通道竞争。 [AFIO_MAPR](/reference/clock-exti/#afio_mapr) · [中文参考手册重映射表](/manuals/rm0008-zh.pdf#page=119) · [中文数据手册引脚表](/manuals/stm32f103x8b-zh.pdf#page=17)
+
+| 实例 | 时钟与外部 IRQ 编号 | DMA1 请求与通道 |
+| --- | --- | --- |
+| TIM1 | APB2。24 刹车、25 更新、26 触发/换相、27 捕获/比较 | CH1→2、CH2→3、CH3→6、CH4/TRIG/COM→4、UP→5 |
+| TIM2 | APB1。28，所有事件共用 TIM2_IRQn | CH1→5、CH2/CH4→7、CH3→1、UP→2 |
+| TIM3 | APB1。29，所有事件共用 TIM3_IRQn | CH1/TRIG→6、CH3→2、CH4/UP→3。CH2 无固定 DMA1 请求 |
+| TIM4 | APB1。30，所有事件共用 TIM4_IRQn | CH1→1、CH2→4、CH3→5、UP→7。CH4 无固定 DMA1 请求 |
+
+定时器所在 APB 预分频为 1 时，TIMxCLK=PCLK，否则为 2×PCLK。表中的 DMA 通道共享请求入口，例如 TIM3_UP 和 USART3_RX 共用 DMA1 通道 3。不同的数据地址或方向需要更换资源或停通道后分时重配。 [时钟分频](/reference/clock-exti/#rcc_cfgr) · [DMA1 请求总表](/manuals/rm0008-zh.pdf#page=148)
+
+### 定时器内部触发
+
+表中是从定时器的每个 [TS](#tim_smcr-ts) 选择所连接的主定时器 TRGO。主定时器仍需用 [MMS](#tim_cr2-mms) 选择具体事件。
+
+| 从定时器 | ITR0 | ITR1 | ITR2 | ITR3 |
+| --- | --- | --- | --- | --- |
+| TIM1 | 本型号无信号 | TIM2 | TIM3 | TIM4 |
+| TIM2 | TIM1 | 本型号无信号 | TIM3 | TIM4 |
+| TIM3 | TIM1 | TIM2 | 本型号无信号 | TIM4 |
+| TIM4 | TIM1 | TIM2 | TIM3 | 本型号无信号 |
+
+例如 TIM2 用更新事件驱动 TIM3 时，TIM2 选 MMS=010，TIM3 选 ITR1 并根据用途配置 SMS。ADC 的触发映射有独立表，ADC1 规则组可选 TIM3_TRGO 或 TIM2_CC2，TIM2_TRGO 可用于注入组。排查时从主事件标志、从端 TS/SMS 或 ADC 触发许可逐段验证。 [TIM1 内部触发](/manuals/rm0008-zh.pdf#page=237) · [通用定时器内部触发](/manuals/rm0008-zh.pdf#page=285) · [ADC 触发源](/reference/adc-dma/#adc_cr2-extsel)
+
+## USART 实例与引脚冲突
+
+| 实例 | 默认 TX/RX 与同步／流控引脚 | LQFP48 重映射 | 时钟、IRQ、DMA1 |
+| --- | --- | --- | --- |
+| USART1 | TX/RX=PA9/PA10，CK=PA8，CTS/RTS=PA11/PA12 | TX/RX 可移至 PB6/PB7，CK/CTS/RTS 保持原脚 | PCLK2，IRQ37，TX→4、RX→5 |
+| USART2 | TX/RX=PA2/PA3，CK=PA4，CTS/RTS=PA0/PA1 | PD3–PD7 未引出 | PCLK1，IRQ38，TX→7、RX→6 |
+| USART3 | TX/RX=PB10/PB11，CK=PB12，CTS/RTS=PB13/PB14 | 部分映射移走 TX/RX/CK 至 PC10–PC12，CTS/RTS 仍在 PB13/PB14。完整映射到 PD8–PD12。两套映射均缺封装引脚 | PCLK1，IRQ39，TX→2、RX→3 |
+
+异步 8N1 只用 TX/RX。同步模式另用 CK，硬件流控另用 CTS/RTS，半双工收发共用 TX。USART1 重映射的 PB6/PB7 与默认 I²C1 或 TIM4_CH1/2 竞争，USART3 的 PB10/PB11 与 I²C2 或 TIM2_CH3/4 重映射竞争。 [中文参考手册 USART 重映射](/manuals/rm0008-zh.pdf#page=120) · [同步模式](/manuals/rm0008-zh.pdf#page=530) · [单线半双工](/manuals/rm0008-zh.pdf#page=532)
+
+### ES096 的复用限制
+
+- **PA12 与 USART1_RTS**。默认 CAN_TX 即使未使用也可能把复用输出拉高。需要 RTS 时，把正在使用的 CAN 移至 PB8/PB9。CAN 未使用时，ES096 给出设置 CAN_REMAP=01 的专用规避方式。
+- **PA4、PB12 的同步 CK**。SPI1 从机与 USART2 同步 CK 冲突，SPI2 从机与 USART3 同步 CK 冲突。两个冲突都没有勘误规避。SPI 主机软件 NSS 情形下，勘误要求在对应 SPI_CR2 置 SSOE 以允许 USART 的 CK 输出。改配置后仍需确认板级片选不会争用。
+- **PB12 与 USART3_CK**。只要 I²C2 和 USART3 同时开时钟，I²C2 的 SMBA 路径就可能让该复用输出保持高，即使软件没有使用 SMBA。两者并用时让 USART3 工作在异步模式。
+- **PB5 与 TIM3_CH2**。I²C1 开时钟时，TIM3_CH2 重映射到 PB5 的输出可能被 SMBA 路径压成高电平。勘误允许该脚作为 TIM3_CH2 输入。需要 PWM 输出时改用默认 PA7 或其他通道。
+- **USART 的 TX 与其他复用输出**。只收不发时，TE=0 也不保证该 TX 脚可供其他复用输出使用。USART1 默认 PA9 与 TIM1_CH2 的冲突甚至可能在 PWM 未送出引脚时造成串口乱码。LQFP48 上 TIM1 部分映射保持 PA9，可将 USART1 TX/RX 改到 PB6/PB7，或换用其他定时器通道。验证时用示波器分别测 TX 和 PWM，并核对 AFIO 映射。
+
+[ST ES096 Rev 15 §2.3.1–2.3.10](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=10)
+
+<h2 id="timer-diagrams">定时器框图与死区波形</h2>
+
+<details>
+<summary>展开定时器框图与死区波形</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-tim-general-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-tim-general-block.png" width="1458" height="1349" loading="lazy" alt="通用定时器框图，时钟源、PSC、CNT、ARR、捕获比较通道和触发控制。" /></a>
+  <figcaption>中文参考手册图 98 · 通用定时器框图 · <a href="/manuals/rm0008-zh.pdf#page=254">第 254 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-tim-capture-compare.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-tim-capture-compare.png" width="1335" height="2019" loading="lazy" alt="捕获比较通道的输入滤波、边沿检测、捕获寄存器与输出比较路径。" /></a>
+  <figcaption>中文参考手册图 123–125 · 捕获比较通道 · <a href="/manuals/rm0008-zh.pdf#page=266">第 266 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-tim1-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-tim1-block.png" width="1458" height="1440" loading="lazy" alt="高级定时器的计数、重复计数、互补输出、死区和刹车路径。" /></a>
+  <figcaption>中文参考手册图 50 · 高级控制定时器框图 · <a href="/manuals/rm0008-zh.pdf#page=200">第 200 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-tim1-deadtime.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-tim1-deadtime.png" width="1338" height="346" loading="lazy" alt="互补输出在换向时两路均未激活的死区波形。" /></a>
+  <figcaption>中文参考手册图 84 · 带死区的互补输出 · <a href="/manuals/rm0008-zh.pdf#page=220">第 220 页</a></figcaption>
+</figure>
+
+</details>
+
+<h2 id="usart-diagrams">USART 框图与字长</h2>
+
+<details>
+<summary>展开USART 框图与字长</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-usart-frame.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-usart-frame.png" width="1335" height="931" loading="lazy" alt="USART 的 8 位和 9 位字长、起始位、校验位位置和停止位。" /></a>
+  <figcaption>中文参考手册图 249 · 字长设置 · <a href="/manuals/rm0008-zh.pdf#page=519">第 519 页</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-usart-block.png" target="_blank" rel="noopener"><img src="/manuals/rm0008-usart-block.png" width="1348" height="1588" loading="lazy" alt="USART 的发送与接收数据寄存器、移位寄存器、控制逻辑和波特率发生器。" /></a>
+  <figcaption>中文参考手册图 248 · USART 框图 · <a href="/manuals/rm0008-zh.pdf#page=518">第 518 页</a></figcaption>
+</figure>
+
+</details>

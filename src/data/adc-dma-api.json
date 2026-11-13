@@ -1,0 +1,915 @@
+[
+  {
+    "name": "ADC_DeInit",
+    "summary": "初始化前将选定 ADC 恢复到复位状态。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "向 APB2RSTR 对应复位位写 1 再释放。会丢失 ADC 配置。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb2rstr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_DeInit(ADC1);"
+    },
+    "check": "读 CR1/CR2=0。异常先查复位实例与门控。"
+  },
+  {
+    "name": "ADC_Init",
+    "summary": "设定规则组的基本工作方式和序列长度。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_InitStruct 指向配置。\nADC_Mode=ADC_Mode_Independent 独立模式。双 ADC 模式只在 ADC1 上选择。\nADC_ScanConvMode=DISABLE 只处理首项。\nADC_ContinuousConvMode=DISABLE 每次触发转换一次序列。\nADC_ExternalTrigConv=ADC_ExternalTrigConv_T3_TRGO 选择 TIM3 主触发。\nADC_DataAlign=ADC_DataAlign_Right 右对齐。\nADC_NbrOfChannel=1：规则组一个转换项。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "覆盖 CR1.DUALMOD/SCAN、CR2.EXTSEL/CONT/ALIGN 和 SQR1.L。随后选通道、上电校准并开 EXTTRIG。",
+    "related": [
+      "ADC_CR1-DUALMOD",
+      "ADC_CR1-SCAN",
+      "ADC_CR2-EXTSEL",
+      "ADC_CR2-EXTTRIG",
+      "ADC_CR2-CONT",
+      "ADC_CR2-ALIGN",
+      "ADC_SQR1-L"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "ADC1 门控已开，停转换。此例配置 TIM3_TRGO 驱动单次规则转换。",
+      "code": "ADC_InitTypeDef cfg;\nADC_StructInit(&cfg);\ncfg.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T3_TRGO;\nADC_Init(ADC1, &cfg);"
+    },
+    "check": "读 EXTSEL=100、CONT=0、L=0。开触发后每个 TIM3 TRGO 应得到一次转换。没有结果先查 TRGO 与 EXTTRIG。"
+  },
+  {
+    "name": "ADC_StructInit",
+    "summary": "在初始化前为 ADC 配置填入默认值。",
+    "params": "ADC_InitStruct 指向可写结构体。",
+    "ret": "无。",
+    "pre": "结构体存放在可写内存。",
+    "what": "独立、关闭扫描和连续、触发来源 TIM1_CC1、右对齐、一个规则项。只写 RAM。软件启动前需显式选择 ADC_ExternalTrigConv_None（EXTSEL=111）。",
+    "related": [],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_InitTypeDef cfg;\nADC_StructInit(&cfg);"
+    },
+    "check": "在 Keil 看结构体，再传给 ADC_Init 才修改硬件。"
+  },
+  {
+    "name": "ADC_Cmd",
+    "summary": "为 ADC 上电或关断。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。",
+    "what": "读改写 CR2.ADON。从关闭状态上电后要等 tSTAB。已上电时重复写 ADON 可能启动规则转换。",
+    "related": [
+      "ADC_CR2-ADON"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_Cmd(ADC1, ENABLE);"
+    },
+    "check": "读 ADON=1。上电后先等稳定再校准，位未置先查 APB2 门控。"
+  },
+  {
+    "name": "ADC_DMACmd",
+    "summary": "把规则转换结果交给 DMA 搬运。",
+    "params": "ADCx 取 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 已准备 DMA1 通道 1。",
+    "what": "修改 CR2.DMA。另开 DMA 通道和触发源。",
+    "related": [
+      "ADC_CR2-DMA",
+      "DMA_CCR1-EN",
+      "DMA_CPAR1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_DMACmd(ADC1, ENABLE);"
+    },
+    "check": "触发后 CNDTR 递减。若 EOC 出现但数组不变，先查 DMA=1 与通道 1 的 EN、CPAR。"
+  },
+  {
+    "name": "ADC_ITConfig",
+    "summary": "允许 ADC 的指定事件发出中断请求。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_IT=ADC_IT_EOC 选转换结束，也可选择 JEOC 或 AWD。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 处理旧标志，准备共享 ADC1_2_IRQHandler。",
+    "what": "从 ADC_IT 编码取使能位并更新 CR1，保留 SR。",
+    "related": [
+      "ADC_CR1-EOCIE",
+      "ADC_SR-EOC",
+      "/reference/clock-exti/#nvic_iser"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ITConfig(ADC1, ADC_IT_EOC, ENABLE);"
+    },
+    "check": "EOC 和 EOCIE 都为 1 时可请求 IRQ。无 ISR 先核对 NVIC 和向量。"
+  },
+  {
+    "name": "ADC_ResetCalibration",
+    "summary": "初始化 ADC 校准逻辑，准备执行校准。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 当前无转换。",
+    "what": "置 CR2.RSTCAL，完成后硬件清零。",
+    "related": [
+      "ADC_CR2-RSTCAL"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ResetCalibration(ADC1);"
+    },
+    "check": "等待 RSTCAL=0 再启动校准。一直不清先查 ADON 与 ADCCLK。"
+  },
+  {
+    "name": "ADC_GetResetCalibrationStatus",
+    "summary": "轮询校准初始化是否结束。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "SET 表示初始化尚未结束，RESET 表示该位为零。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已请求 RSTCAL。",
+    "what": "读取 CR2.RSTCAL。",
+    "related": [
+      "ADC_CR2-RSTCAL"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const FlagStatus busy = ADC_GetResetCalibrationStatus(ADC1);"
+    },
+    "check": "RESET 后可开始校准。超时先查 ADON 与 ADC 时钟。"
+  },
+  {
+    "name": "ADC_StartCalibration",
+    "summary": "启动 ADC 上电后的内部校准。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "无。",
+    "pre": "先将 ADC 保持掉电至少两个 ADCCLK 周期。上电等 tSTAB 后发 RSTCAL，带超时等清零。校准期间保持停转换。",
+    "what": "写 CR2.CAL，硬件结束后清零。",
+    "related": [
+      "ADC_CR2-CAL",
+      "ADC_CR2-RSTCAL"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_StartCalibration(ADC1);"
+    },
+    "check": "CAL 清零后才发转换请求。若迟迟不清，先查 ADON、时钟与 RSTCAL。"
+  },
+  {
+    "name": "ADC_GetCalibrationStatus",
+    "summary": "轮询校准是否仍在进行。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "SET 为仍忙，RESET 表示位为零。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已发出 CAL 请求。",
+    "what": "读 CR2.CAL。",
+    "related": [
+      "ADC_CR2-CAL"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const FlagStatus busy = ADC_GetCalibrationStatus(ADC1);"
+    },
+    "check": "CAL 清零后可配置触发或开始转换。超时先查 ADCCLK。"
+  },
+  {
+    "name": "ADC_SoftwareStartConvCmd",
+    "summary": "用软件请求一次规则组转换。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 请求启动，DISABLE 清软件启动位和触发许可。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，配置单次转换，EXTSEL=111。",
+    "what": "改 CR2.EXTTRIG 和 SWSTART，EXTSEL 不变。",
+    "related": [
+      "ADC_CR2-SWSTART",
+      "ADC_CR2-EXTTRIG",
+      "ADC_CR2-EXTSEL",
+      "ADC_SR-EOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_SoftwareStartConvCmd(ADC1, ENABLE);"
+    },
+    "check": "等待 EOC 后读 DR。无结果先查 EXTSEL=111、ADON 与序列首项。"
+  },
+  {
+    "name": "ADC_GetSoftwareStartConvStatus",
+    "summary": "读取软件启动请求位，排查触发是否被接受。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "SET 表示 SWSTART=1。RESET 表示位为零。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，配置单次转换，EXTSEL=111。",
+    "what": "读 CR2.SWSTART，开始转换后硬件可迅速清零。",
+    "related": [
+      "ADC_CR2-SWSTART",
+      "ADC_SR-EOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const FlagStatus pending = ADC_GetSoftwareStartConvStatus(ADC1);"
+    },
+    "check": "查询结果为 RESET 时仍需等 EOC。无 EOC 先核对触发与 ADON。"
+  },
+  {
+    "name": "ADC_DiscModeChannelCountConfig",
+    "summary": "设置规则组间断模式每次触发处理几项。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNumber=2 选两项，范围 1–8。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "把 Number−1 写入 CR1.DISCNUM。另开 DISCEN。",
+    "related": [
+      "ADC_CR1-DISCNUM",
+      "ADC_CR1-DISCEN"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_DiscModeChannelCountConfig(ADC1, 2u);"
+    },
+    "check": "读 DISCNUM=1。设总长度 4 时两次触发各转换两项。异常先查 SCAN、CONT 与 DISCEN。"
+  },
+  {
+    "name": "ADC_DiscModeCmd",
+    "summary": "开关规则组间断转换。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 已配置序列和 DISCNUM，CONT=0，注入组间断关闭。",
+    "what": "修改 CR1.DISCEN。",
+    "related": [
+      "ADC_CR1-DISCEN",
+      "ADC_CR1-DISCNUM",
+      "ADC_CR2-CONT"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_DiscModeCmd(ADC1, ENABLE);"
+    },
+    "check": "单个触发只产生 DISCNUM+1 项，最后一段取剩余项。若全部连续出来先查 CONT。"
+  },
+  {
+    "name": "ADC_RegularChannelConfig",
+    "summary": "把一个模拟输入放进规则序列，并选它的采样时间。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_Channel=ADC_Channel_0 选 PA0。\nRank=1 选第一项。\nADC_SampleTime=ADC_SampleTime_55Cycles5，采样 55.5 个 ADCCLK 周期。 Rank 范围 1–16。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 将 PA0 配成模拟输入。",
+    "what": "按通道写 SMPR1/2，按 Rank 写 SQR1/2/3 的对应槽。保持序列长度 L，采样时间由该 ADC 的同编号通道共享。",
+    "related": [
+      "ADC_SMPR1",
+      "ADC_SMPR2-SMP0",
+      "ADC_SQR1-L",
+      "ADC_SQR2",
+      "ADC_SQR3-SQ1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1u, ADC_SampleTime_55Cycles5);"
+    },
+    "check": "读 SQ1=0、SMP0=101。电压偏差先查 GPIO 模式、信号源阻抗和采样时间。"
+  },
+  {
+    "name": "ADC_ExternalTrigConvCmd",
+    "summary": "开关规则组对所选触发事件的响应。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，ADC_Init 已选择 TIM3_TRGO。",
+    "what": "写 CR2.EXTTRIG，保留 EXTSEL。",
+    "related": [
+      "ADC_CR2-EXTTRIG",
+      "ADC_CR2-EXTSEL",
+      "/reference/tim-usart/#tim_cr2-mms"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ExternalTrigConvCmd(ADC1, ENABLE);"
+    },
+    "check": "TIM3 输出一次 TRGO 后应取得一笔结果。无结果先核对 EXTSEL 和 TIM3.MMS。",
+    "manual": {
+      "page": 173,
+      "label": "规则组触发许可"
+    }
+  },
+  {
+    "name": "ADC_GetConversionValue",
+    "summary": "取出一笔规则转换结果。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "16 位返回值按 ALIGN 解读。右对齐独立模式下低 12 位有效。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 单次右对齐，EOC=1，CPU 独占读取。",
+    "what": "读 DR 的低半字，同时清 EOC。",
+    "related": [
+      "ADC_DR-DATA",
+      "ADC_SR-EOC",
+      "ADC_CR2-ALIGN"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const uint16_t sample = ADC_GetConversionValue(ADC1);"
+    },
+    "check": "已知半量程输入应约为 2048。异常先查 ALIGN、EOC 以及有没有其他读者抢读 DR。"
+  },
+  {
+    "name": "ADC_GetDualModeConversionValue",
+    "summary": "读取双规则同步模式的一对转换结果。",
+    "params": "无参数，固定读取 ADC1。",
+    "ret": "低半字是 ADC1，高半字是 ADC2。",
+    "pre": "ADC1/2 已校准，右对齐且已完成同步规则转换。主 ADC1 选择外部触发，从 ADC2 选择软件触发，两边均开 EXTTRIG。即使 CPU 读，也须置 ADC1_CR2.DMA。由 CPU 读取时保持 DMA1 通道 1 关闭。",
+    "what": "从 ADC1.DR 读完整 32 位。",
+    "related": [
+      "ADC_DR-ADC2DATA",
+      "ADC_DR-DATA",
+      "ADC_CR1-DUALMOD",
+      "ADC_CR2-DMA",
+      "ADC_CR2-EXTTRIG"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "两路输入分别接已知电平，等待配对转换完成。DMA 通道关闭，CPU 对 ADC1.DR 做一次整字读取。",
+      "code": "const uint32_t pair = ADC_GetDualModeConversionValue();\nconst uint16_t adc1 = (uint16_t)pair;\nconst uint16_t adc2 = (uint16_t)(pair >> 16);\n(void)adc1;\n(void)adc2;"
+    },
+    "check": "给两路不同已知电压，检查两半字。若 ADC2 半字为旧值，先查 DUALMOD、序列和 ADC2 上电状态。",
+    "manual": {
+      "page": 179,
+      "label": "双 ADC 数据布局"
+    }
+  },
+  {
+    "name": "ADC_AutoInjectedConvCmd",
+    "summary": "让规则转换结束后自动接续注入组。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 注入序列已设，关注入外部触发与间断模式。",
+    "what": "改 CR1.JAUTO。",
+    "related": [
+      "ADC_CR1-JAUTO",
+      "ADC_JSQR-JL",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_AutoInjectedConvCmd(ADC1, ENABLE);"
+    },
+    "check": "发一次规则触发后应等到 JEOC。只见 EOC 时先查 JAUTO 与注入长度。"
+  },
+  {
+    "name": "ADC_InjectedDiscModeCmd",
+    "summary": "把注入序列拆成逐次触发的单项。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 JAUTO=0，规则组间断关闭。",
+    "what": "改 CR1.JDISCEN。",
+    "related": [
+      "ADC_CR1-JDISCEN",
+      "ADC_CR1-JAUTO",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_InjectedDiscModeCmd(ADC1, ENABLE);"
+    },
+    "check": "配置两项后分两次触发，JEOC 在整个序列结束后出现。异常先看 JDISCEN 与 JAUTO。"
+  },
+  {
+    "name": "ADC_ExternalTrigInjectedConvConfig",
+    "summary": "选择注入组的触发来源。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_ExternalTrigInjecConv=ADC_ExternalTrigInjecConv_T2_TRGO，选 TIM2 主触发。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "改 CR2.JEXTSEL。还要开 JEXTTRIG，配置 TIM2.MMS 和计数。",
+    "related": [
+      "ADC_CR2-JEXTSEL",
+      "ADC_CR2-JEXTTRIG",
+      "/reference/tim-usart/#tim_cr2-mms"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ExternalTrigInjectedConvConfig(ADC1, ADC_ExternalTrigInjecConv_T2_TRGO);"
+    },
+    "check": "JEXTSEL=010。若 TIM2 更新后无 JEOC，先查 TIM2 的 TRGO 和 JEXTTRIG。"
+  },
+  {
+    "name": "ADC_ExternalTrigInjectedConvCmd",
+    "summary": "开关注入组的外部触发许可。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，注入序列已配置。 JEXTSEL 已选 TIM2_TRGO，JAUTO=0。",
+    "what": "改 CR2.JEXTTRIG，保持触发来源。",
+    "related": [
+      "ADC_CR2-JEXTTRIG",
+      "ADC_CR2-JEXTSEL",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ExternalTrigInjectedConvCmd(ADC1, ENABLE);"
+    },
+    "check": "触发后应读 JEOC=1。若没有，先查 JEXTTRIG、JEXTSEL 与实际 TRGO。"
+  },
+  {
+    "name": "ADC_SoftwareStartInjectedConvCmd",
+    "summary": "由软件启动一次注入组转换。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nNewState=ENABLE 请求启动，DISABLE 清启动和许可位。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，注入序列已配置。 JEXTSEL=111，JAUTO=0。",
+    "what": "置或清 CR2.JEXTTRIG 与 JSWSTART，保留 JEXTSEL。",
+    "related": [
+      "ADC_CR2-JSWSTART",
+      "ADC_CR2-JEXTTRIG",
+      "ADC_CR2-JEXTSEL",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);"
+    },
+    "check": "注入序列完成后读到 JEOC。无结果先查 JEXTSEL、ADON 与序列配置。",
+    "manual": {
+      "page": 173,
+      "label": "注入组软件启动"
+    }
+  },
+  {
+    "name": "ADC_GetSoftwareStartInjectedConvCmdStatus",
+    "summary": "查看软件注入触发请求位。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。",
+    "ret": "SET 表示启动位仍为 1。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，注入序列已配置。 已发软件注入触发。",
+    "what": "读取 CR2.JSWSTART。",
+    "related": [
+      "ADC_CR2-JSWSTART",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const FlagStatus pending = ADC_GetSoftwareStartInjectedConvCmdStatus(ADC1);"
+    },
+    "check": "硬件开始转换后会清位。判断完成时改查 JEOC。",
+    "manual": {
+      "page": 173,
+      "label": "注入组软件启动状态"
+    }
+  },
+  {
+    "name": "ADC_InjectedChannelConfig",
+    "summary": "指定注入序列的第几项采哪个输入。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_Channel=ADC_Channel_1 选 PA1。\nRank=1 选首项。\nADC_SampleTime=ADC_SampleTime_55Cycles5。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 PA1 配模拟输入。先设注入长度为 1。",
+    "what": "改通道的 SMPR1/2，再按 JL 与 Rank 计算 JSQR 槽。改长度后应重新排各项。",
+    "related": [
+      "ADC_JSQR-JL",
+      "ADC_JSQR-JSQ4",
+      "ADC_SMPR2-SMP1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_InjectedChannelConfig(ADC1, ADC_Channel_1, 1u, ADC_SampleTime_55Cycles5);"
+    },
+    "check": "JL=0 时 JSQ4 应为 1。采错通道先查长度是否先于 Rank 配置。",
+    "manual": {
+      "page": 178,
+      "label": "注入组顺序"
+    }
+  },
+  {
+    "name": "ADC_InjectedSequencerLengthConfig",
+    "summary": "设置注入序列包含多少项。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nLength=1，范围 1–4。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "把 Length−1 写入 JSQR.JL。随后按新长度配置各槽。",
+    "related": [
+      "ADC_JSQR-JL",
+      "ADC_JSQR-JSQ4"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_InjectedSequencerLengthConfig(ADC1, 1u);"
+    },
+    "check": "JL=0 时首项落在 JSQ4。若第一个通道不符，检查配置顺序。"
+  },
+  {
+    "name": "ADC_SetInjectedOffset",
+    "summary": "设置某一注入结果应扣除的偏移码。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_InjectedChannel=ADC_InjectedChannel_1 选结果 1。\nOffset=32，允许 0–4095。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。",
+    "what": "覆盖 JOFR1，ADC 在生成 JDR1 时减去偏移。",
+    "related": [
+      "ADC_JOFR1",
+      "ADC_JDR1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_SetInjectedOffset(ADC1, ADC_InjectedChannel_1, 32u);"
+    },
+    "check": "原始 100、右对齐时应读 68。结果不符先看 JOFR1 和读取的 JDR 序号。",
+    "manual": {
+      "page": 176,
+      "label": "注入组数据偏移"
+    }
+  },
+  {
+    "name": "ADC_GetInjectedConversionValue",
+    "summary": "读取一个注入序列结果。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_InjectedChannel=ADC_InjectedChannel_1 选择第一个结果。",
+    "ret": "返回寄存器低半字，右对齐时可按 int16_t 解读。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。 已校准，注入序列已配置。 JEOC 已置位，右对齐。",
+    "what": "读 JDR1。偏移相减后的结果按有符号值解释。",
+    "related": [
+      "ADC_JDR1",
+      "ADC_SR-JEOC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const int16_t sample = (int16_t)ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);"
+    },
+    "check": "结果未变化先查 JEOC、注入序列和 JDR 序号。"
+  },
+  {
+    "name": "ADC_AnalogWatchdogCmd",
+    "summary": "指定模拟看门狗监视哪一组及多少通道。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_AnalogWatchdog=ADC_AnalogWatchdog_SingleRegEnable，监视规则组的一个通道。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 先配置上下阈值和 AWDCH。",
+    "what": "改 CR1.AWDEN/JAWDEN/AWDSGL。若需 IRQ，另开 AWDIE。",
+    "related": [
+      "ADC_CR1-AWDEN",
+      "ADC_CR1-JAWDEN",
+      "ADC_CR1-AWDSGL",
+      "ADC_SR-AWD"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_AnalogWatchdogCmd(ADC1, ADC_AnalogWatchdog_SingleRegEnable);"
+    },
+    "check": "跨过阈值应置 AWD。未置先查规则组实际转换的通道是否等于 AWDCH。"
+  },
+  {
+    "name": "ADC_AnalogWatchdogThresholdsConfig",
+    "summary": "给模拟看门狗设定允许区间。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nHighThreshold=3000、LowThreshold=1000，均为 12 位转换码，低值不得高于高值。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 模拟看门狗暂关闭。",
+    "what": "覆盖 HTR 和 LTR。",
+    "related": [
+      "ADC_HTR-HT",
+      "ADC_LTR-LT",
+      "ADC_SR-AWD"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_AnalogWatchdogThresholdsConfig(ADC1, 3000u, 1000u);"
+    },
+    "check": "读回上下限。输入转换码小于 1000 或大于 3000 时 AWD 应置位。无变化先查看门狗是否监视对应组。",
+    "manual": {
+      "page": 176,
+      "label": "模拟看门狗阈值"
+    }
+  },
+  {
+    "name": "ADC_AnalogWatchdogSingleChannelConfig",
+    "summary": "选择模拟看门狗的单个监视通道。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_Channel=ADC_Channel_0 选 PA0。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 停止转换后修改。 按需设 AWDSGL=1。",
+    "what": "覆盖 CR1.AWDCH。",
+    "related": [
+      "ADC_CR1-AWDCH",
+      "ADC_CR1-AWDSGL"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_AnalogWatchdogSingleChannelConfig(ADC1, ADC_Channel_0);"
+    },
+    "check": "AWDCH=0。若其他通道也触发，先查 AWDSGL。",
+    "manual": {
+      "page": 172,
+      "label": "模拟看门狗通道"
+    }
+  },
+  {
+    "name": "ADC_TempSensorVrefintCmd",
+    "summary": "打开 ADC1 的温度传感器和内部参考电压通道。",
+    "params": "NewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 使用 ADC1 通道 16 或 17。",
+    "what": "写 ADC1.CR2.TSVREFE，打开 IN16 温度和 IN17 VREFINT。ADC2 的 16/17 接 VSS。温度测量先等 10 µs，12 MHz 下可用 239.5 周期采样。",
+    "related": [
+      "ADC_CR2-TSVREFE",
+      "ADC_SMPR1-SMP16",
+      "ADC_SMPR1-SMP17"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_TempSensorVrefintCmd(ENABLE);"
+    },
+    "check": "读 TSVREFE=1。通道 17 应返回稳定的内部参考读数。先排除选了 ADC2 或采样时间过短。",
+    "manual": {
+      "page": 173,
+      "label": "ADC1 内部通道开关"
+    }
+  },
+  {
+    "name": "ADC_GetFlagStatus",
+    "summary": "轮询指定 ADC 状态标志。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_FLAG=ADC_FLAG_EOC 查询转换结束。",
+    "ret": "SET 表示指定状态位置位。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 ADC1 已上电稳定。",
+    "what": "读取 SR 对应位。",
+    "related": [
+      "ADC_SR-EOC",
+      "ADC_DR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const FlagStatus complete = ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC);"
+    },
+    "check": "SET 后读 DR。始终 RESET 时先检查触发，及 DMA 或调试器是否先读了 DR。"
+  },
+  {
+    "name": "ADC_ClearFlag",
+    "summary": "应答指定 ADC 状态。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_FLAG=ADC_FLAG_AWD 清模拟看门狗标志。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 已处理标志记录的事件。",
+    "what": "对 SR 写掩码反码，选中位写 0，其他有效状态位写 1。",
+    "related": [
+      "ADC_SR-AWD"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ClearFlag(ADC1, ADC_FLAG_AWD);"
+    },
+    "check": "AWD 应清零。若立即重置，先看输入是否仍超限且 ADC 继续转换。"
+  },
+  {
+    "name": "ADC_GetITStatus",
+    "summary": "在共享 ADC 中断中识别已使能的事件。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_IT=ADC_IT_EOC 查询 EOC。注入组完成另查 ADC_IT_JEOC。",
+    "ret": "SET 表示该事件已置位且对应中断已使能。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。",
+    "what": "同时读 SR.EOC 与 CR1.EOCIE。",
+    "related": [
+      "ADC_SR-EOC",
+      "ADC_CR1-EOCIE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "const ITStatus pending = ADC_GetITStatus(ADC1, ADC_IT_EOC);"
+    },
+    "check": "两位同时为 1 才返回 SET。若 SR 已置位，先查 CR1，再查是否是另一 ADC 请求。"
+  },
+  {
+    "name": "ADC_ClearITPendingBit",
+    "summary": "在 ADC ISR 内应答已处理的中断来源。",
+    "params": "ADCx 选 ADC1 或 ADC2，本例 ADC1。\nADC_IT=ADC_IT_AWD 选择模拟看门狗。",
+    "ret": "无。",
+    "pre": "已开启 ADC1 的 APB2 时钟，ADCCLK 不超过 14 MHz。 已确认来源。",
+    "what": "解码 ADC_IT 后向 SR 对应位写 0。保留 CR1 中断许可。",
+    "related": [
+      "ADC_SR-AWD",
+      "ADC_CR1-AWDIE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 ADC1 或对应结构体为例。",
+      "code": "ADC_ClearITPendingBit(ADC1, ADC_IT_AWD);"
+    },
+    "check": "AWD 清零，AWDIE 保留。重复中断先查另一 ADC 和持续超限。"
+  },
+  {
+    "name": "DMA_DeInit",
+    "summary": "重新配置前清空单个 DMA 通道及其状态。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。",
+    "ret": "无。",
+    "pre": "先关外设的 DMA 请求并停通道，确认 EN=0。本函数会丢弃该通道配置和未处理标志。",
+    "what": "先清 EN，再清 CCR/CNDTR/CPAR/CMAR，最后以包含 CGIF 的通道掩码清 IFCR。配置寄存器按对齐的 32 位访问。",
+    "related": [
+      "DMA_CCR1",
+      "DMA_CNDTR1",
+      "DMA_CPAR1",
+      "DMA_CMAR1",
+      "DMA_IFCR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_DeInit(DMA1_Channel1);"
+    },
+    "check": "CCR、CNDTR 应为零。异常先查 DMA1EN 或是否操作了另一通道。"
+  },
+  {
+    "name": "DMA_Init",
+    "summary": "给 DMA 通道指定来源、目的地和搬运规则。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。\nDMA_InitStruct 指向配置。\nDMA_PeripheralBaseAddr=&ADC1->DR，DMA_MemoryBaseAddr=samples。\nDMA_DIR=DMA_DIR_PeripheralSRC：从 DR 读到内存。\nDMA_BufferSize=16：搬 16 项。\nDMA_PeripheralInc=Disable：DR 地址固定。DMA_MemoryInc=Enable：依次写数组元素。\nDMA_PeripheralDataSize 和 DMA_MemoryDataSize 都用 HalfWord：每项 16 位。\nDMA_Mode=Normal：完成后结束。DMA_Priority=Low：低优先级。\nDMA_M2M=Disable：由 ADC 请求驱动。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开，通道 1 已停止且 EN=0。 ADC1 独立、右对齐，采样缓冲区保留到传输完成。",
+    "what": "改 CCR 的方向、递增、宽度、模式和优先级，并写 CNDTR、CPAR、CMAR。保留中断位，需另开通道和 ADC DMA。",
+    "related": [
+      "DMA_CCR1",
+      "DMA_CNDTR1",
+      "DMA_CPAR1",
+      "DMA_CMAR1",
+      "ADC_CR2-DMA"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "通道 1 禁用时配置 16 项 ADC1 半字搬运。缓冲区在传输结束前保持有效。",
+      "code": "static uint16_t samples[16];\nDMA_InitTypeDef cfg;\nDMA_StructInit(&cfg);\ncfg.DMA_PeripheralBaseAddr = (uint32_t)&ADC1->DR;\ncfg.DMA_MemoryBaseAddr = (uint32_t)samples;\ncfg.DMA_BufferSize = 16u;\ncfg.DMA_MemoryInc = DMA_MemoryInc_Enable;\ncfg.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;\ncfg.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;\nDMA_Init(DMA1_Channel1, &cfg);"
+    },
+    "check": "核对 CPAR、CMAR、CNDTR=16 和两个宽度字段。启用后等 16 个 ADC 请求，TCIF1 应置位。没搬运先查 ADC_CR2.DMA 与通道 EN。"
+  },
+  {
+    "name": "DMA_StructInit",
+    "summary": "初始化 DMA 配置结构体，随后填写地址、数量和宽度。",
+    "params": "DMA_InitStruct 指向可写结构体。",
+    "ret": "无。",
+    "pre": "配置结构体位于可写内存。",
+    "what": "地址和数量为 0，外设到内存，两个地址均不递增，8 位，普通模式，低优先级，关闭 MEM2MEM。",
+    "related": [],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_InitTypeDef cfg;\nDMA_StructInit(&cfg);"
+    },
+    "check": "在调试器确认默认值。调用 DMA_Init 前须填写非零项数和有效地址。"
+  },
+  {
+    "name": "DMA_Cmd",
+    "summary": "启动或停止一个 DMA 通道。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开。启动前已配好地址、计数和方向。",
+    "what": "改 CCR.EN。外设模式等请求，MEM2MEM 可自行开始。",
+    "related": [
+      "DMA_CCR1-EN",
+      "DMA_CNDTR1-NDT"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_Cmd(DMA1_Channel1, ENABLE);"
+    },
+    "check": "看 EN 与 CNDTR。若 EN 置位后无变化，先核对实际请求和项数。"
+  },
+  {
+    "name": "DMA_ITConfig",
+    "summary": "选择 DMA 通道何时发中断。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。\nDMA_IT=DMA_IT_TC 选完成。可按位或 DMA_IT_HT 和 DMA_IT_TE。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开，通道 1 已停止且 EN=0。 已准备通道 IRQ，先清旧标志。",
+    "what": "修改 CCR.TCIE/HTIE/TEIE。保留 ISR 状态。",
+    "related": [
+      "DMA_CCR1-TCIE",
+      "DMA_ISR-TCIF1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_ITConfig(DMA1_Channel1, DMA_IT_TC, ENABLE);"
+    },
+    "check": "读 TCIE=1。完成后 TCIF1=1 而无 ISR 时查 DMA1_Channel1_IRQn。"
+  },
+  {
+    "name": "DMA_SetCurrDataCounter",
+    "summary": "在重新启动 DMA 前设置新的传输项数。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。\nDataNumber=16，单位是传输项，范围 0–65535。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开，通道 1 已停止且 EN=0。",
+    "what": "直接写 CNDTR。随后清旧标志并重新使能。",
+    "related": [
+      "DMA_CNDTR1-NDT",
+      "DMA_CCR1-EN"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_SetCurrDataCounter(DMA1_Channel1, 16u);"
+    },
+    "check": "读 NDT=16。若保持旧值先查 EN 是否已经清零。",
+    "manual": {
+      "page": 152,
+      "label": "传输项数"
+    }
+  },
+  {
+    "name": "DMA_GetCurrDataCounter",
+    "summary": "读取 DMA 通道还有多少项未传输。",
+    "params": "DMAy_Channelx 选 DMA1 通道 1–7，本例通道 1。",
+    "ret": "返回当次读取的剩余项数。",
+    "pre": "DMA1 时钟已开。",
+    "what": "读 CNDTR 的低 16 位。",
+    "related": [
+      "DMA_CNDTR1-NDT",
+      "DMA_ISR-HTIF1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "const uint16_t remaining = DMA_GetCurrDataCounter(DMA1_Channel1);"
+    },
+    "check": "16 项普通模式下收到 8 个请求后应约为 8。循环模式会重装，需结合 HT/TC 解释。",
+    "manual": {
+      "page": 152,
+      "label": "剩余传输项数"
+    }
+  },
+  {
+    "name": "DMA_GetFlagStatus",
+    "summary": "轮询 DMA 通道是否达到指定传输状态。",
+    "params": "DMAy_FLAG=DMA1_FLAG_TC1 选 DMA1 通道 1 的完成位。",
+    "ret": "SET 表示指定标志已置位。",
+    "pre": "DMA1 时钟已开。",
+    "what": "读 DMA1.ISR 并测试对应位。",
+    "related": [
+      "DMA_ISR-TCIF1",
+      "DMA_ISR-TEIF1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "const FlagStatus complete = DMA_GetFlagStatus(DMA1_FLAG_TC1);"
+    },
+    "check": "完成后返回 SET。若长时间为 RESET 先查 TEIF1 和 CNDTR。"
+  },
+  {
+    "name": "DMA_ClearFlag",
+    "summary": "应答已处理的 DMA 状态标志。",
+    "params": "DMAy_FLAG=DMA1_FLAG_TC1，清通道 1 的 TCIF。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开，已处理通道 1 完成事件。",
+    "what": "向 IFCR 直接写掩码。",
+    "related": [
+      "DMA_IFCR-CTCIF1",
+      "DMA_ISR-TCIF1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_ClearFlag(DMA1_FLAG_TC1);"
+    },
+    "check": "ISR.TCIF1 清零，HTIF1 和 TEIF1 保持。若要独立处理各来源，避免使用通道全局清除掩码。活动通道避免用 DMA1_FLAG_GLx，逐项应答 TC、HT、TE。ES096 §2.4.1 说明清全局位可能丢失 TEIF。"
+  },
+  {
+    "name": "DMA_GetITStatus",
+    "summary": "读取 DMA 中断来源对应的状态位。",
+    "params": "DMAy_IT=DMA1_IT_TC1，查询通道 1 完成标志。",
+    "ret": "SET 表示状态位已置位。",
+    "pre": "DMA1 时钟已开。",
+    "what": "读 ISR 的状态位。SPL 此函数不读 CCR 使能，排查 IRQ 时另查 TCIE。",
+    "related": [
+      "DMA_ISR-TCIF1",
+      "DMA_CCR1-TCIE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "const ITStatus pending = DMA_GetITStatus(DMA1_IT_TC1);"
+    },
+    "check": "TCIF1=1 即返回 SET。若 ISR 未进，先查 TCIE 和 NVIC。"
+  },
+  {
+    "name": "DMA_ClearITPendingBit",
+    "summary": "在 DMA ISR 中应答一个已处理事件。",
+    "params": "DMAy_IT=DMA1_IT_TC1，选通道 1 完成。",
+    "ret": "无。",
+    "pre": "DMA1 时钟已开，已处理本次数据。",
+    "what": "向 IFCR 写完成掩码，保留通道配置。",
+    "related": [
+      "DMA_IFCR-CTCIF1",
+      "DMA_ISR-TCIF1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "explanation": "以下以 DMA1 或对应结构体为例。",
+      "code": "DMA_ClearITPendingBit(DMA1_IT_TC1);"
+    },
+    "check": "ISR.TCIF1 清零。重复进中断时先检查未应答的 HTIF1 或 TEIF1。"
+  }
+]

@@ -1,0 +1,2482 @@
+[
+  {
+    "name": "CAN_DeInit",
+    "summary": "把 CAN1 恢复到复位状态。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 停止业务并处理待收发报文。",
+    "what": "经 RCC 置位并释放 CAN1 的 APB1 复位位。邮箱、过滤器和控制配置均要重建。",
+    "related": [
+      "CAN_MCR",
+      "/reference/clock-exti/#rcc_apb1rstr"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_DeInit(CAN1);",
+      "explanation": "把 CAN1 恢复到复位状态。"
+    },
+    "check": "看 MCR、IER 的复位状态。无变化先核对 CAN 门控。",
+    "manual": {
+      "page": 72,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_Init",
+    "summary": "设置 CAN 的运行策略和位时序，再退出初始化。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_InitStruct 指向配置结构体。\nCAN_TTCM=DISABLE 关闭时间戳发送模式。CAN_ABOM=DISABLE 由软件管理离线恢复。CAN_AWUM=DISABLE 不自动唤醒。\nCAN_NART=DISABLE 允许自动重发。CAN_RFLM=DISABLE 允许 FIFO 满后覆盖末项。CAN_TXFP=DISABLE 按标识符优先级选邮箱。\nCAN_Mode=CAN_Mode_Silent_LoopBack 静默回环。\nCAN_SJW=CAN_SJW_1tq，CAN_BS1=CAN_BS1_13tq，CAN_BS2=CAN_BS2_2tq，CAN_Prescaler=4。",
+    "ret": "CAN_InitStatus_Success 表示已经完成初始化模式握手，Failed 表示超时。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 PCLK1=32 MHz，回环无需收发器。正常模式另配 RX/TX、收发器及终端。",
+    "what": "清 MCR.SLEEP，置 INRQ 并等待 INAK，写 MCR 的策略位和 BTR，退出并等待 INAK 清零。接收过滤器另配。",
+    "related": [
+      "CAN_MCR",
+      "CAN_MSR-INAK",
+      "CAN_BTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_InitTypeDef cfg;\nCAN_StructInit(&cfg);\ncfg.CAN_Mode = CAN_Mode_Silent_LoopBack;\ncfg.CAN_BS1 = CAN_BS1_13tq;\ncfg.CAN_BS2 = CAN_BS2_2tq;\ncfg.CAN_Prescaler = 4u;\nconst uint8_t status = CAN_Init(CAN1, &cfg);",
+      "explanation": "设置 CAN 的运行策略和位时序，再退出初始化。"
+    },
+    "check": "成功后检查 BTR 与 500 kbit/s 计算。失败先查 INAK、CAN 时钟与正常模式的 RX 隐性电平。",
+    "manual": {
+      "page": 73,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_FilterInit",
+    "summary": "决定哪些帧进入接收队列。",
+    "params": "CAN_FilterInitStruct 指向过滤器配置。\nCAN_FilterNumber=0，范围 0–13。CAN_FilterScale=32bit，CAN_FilterMode=IdMask。\nCAN_FilterIdHigh=(0x123 << 5)，CAN_FilterIdLow=0，匹配标准数据帧。\nCAN_FilterMaskIdHigh=(0x7FF << 5)，CAN_FilterMaskIdLow=6，比较完整标准 ID 和 IDE/RTR。\nCAN_FilterFIFOAssignment=CAN_Filter_FIFO0。CAN_FilterActivation=ENABLE。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 重配期间控制业务流量。",
+    "what": "通过 CAN1.FMR 进入配置，停目标组，写位宽、FR1/FR2、模式与 FIFO，激活后退出。16 位模式中四个高低半字的排列由源码决定。",
+    "related": [
+      "CAN_FMR-FINIT",
+      "CAN_FM1R",
+      "CAN_FS1R",
+      "CAN_FFA1R",
+      "CAN_FA1R",
+      "CAN_F0R1",
+      "CAN_F0R2"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_FilterInitTypeDef cfg = {0};\ncfg.CAN_FilterIdHigh = 0x123u << 5;\ncfg.CAN_FilterMaskIdHigh = 0x7FFu << 5;\ncfg.CAN_FilterMaskIdLow = 6u;\ncfg.CAN_FilterScale = CAN_FilterScale_32bit;\ncfg.CAN_FilterMode = CAN_FilterMode_IdMask;\ncfg.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;\ncfg.CAN_FilterActivation = ENABLE;\nCAN_FilterInit(&cfg);",
+      "explanation": "决定哪些帧进入接收队列。"
+    },
+    "check": "确认组 0 激活且 FINIT=0。发 0x123 应进 FIFO0，发 0x124 不应入队。",
+    "manual": {
+      "page": 75,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_StructInit",
+    "summary": "填充 CAN 初始化结构体的默认值。",
+    "params": "CAN_InitStruct 指向可写结构体。",
+    "ret": "无。",
+    "pre": "只需可写结构体，调用不读取外设时钟。",
+    "what": "默认正常模式、SJW=1 tq、BS1=4 tq、BS2=3 tq、分频=1，六个策略开关为 DISABLE。随后显式设置目标位时序。",
+    "related": [],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_InitTypeDef cfg;\nCAN_StructInit(&cfg);",
+      "explanation": "填充 CAN 初始化结构体的默认值。"
+    },
+    "check": "在调试器查看成员。接外部总线前按实际 PCLK1 算波特率。",
+    "manual": {
+      "page": 76,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_SlaveStartBank",
+    "summary": "为双 CAN 型号划分 CAN2 的起始滤波器组。",
+    "params": "CAN_BankNumber 在适用互联型产品上取 1–27。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 STM32F103C8T6 只有 CAN1，CAN2SB 为保留位。",
+    "what": "适用型号写 FMR.CAN2SB 并切换 FINIT。本站芯片按 14 个组管理。",
+    "related": [
+      "CAN_FMR-CAN2SB"
+    ],
+    "check": "此芯片上的筛选组用 CAN_FilterInit 配置。",
+    "manual": {
+      "page": 451,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_DBGFreeze",
+    "summary": "控制断点暂停时 CAN 是否继续收发。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 配置断点前调用。",
+    "what": "设置或清除 MCR.DBF。FIFO 仍可访问。",
+    "related": [
+      "CAN_MCR-DBF"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_DBGFreeze(CAN1, ENABLE);",
+      "explanation": "控制断点暂停时 CAN 是否继续收发。"
+    },
+    "check": "看 DBF=1，断点期间总线上不应出现该节点新发帧。",
+    "manual": {
+      "page": 439,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_TTComModeCmd",
+    "summary": "控制带时间触发通信能力的型号的时间戳模式。",
+    "params": "CANx=CAN1。NewState=DISABLE，关闭 TTCM。STM32F103C8T6 不支持启用。",
+    "ret": "无。",
+    "pre": "CAN1 门控已打开，三个发送邮箱均为空。",
+    "what": "该函数同时改 MCR.TTCM 与三个邮箱的 TGT。按 ES096 §2.11.1，在本型号上保持 TTCM=0，不使用 TIME 或 TGT。",
+    "related": [
+      "CAN_MCR-TTCM",
+      "CAN_TDT0R-TGT",
+      "CAN_TDT1R-TGT",
+      "CAN_TDT2R-TGT"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_TTComModeCmd(CAN1, DISABLE);",
+      "explanation": "确保禁用本型号不可用的时间戳功能。"
+    },
+    "check": "确认 MCR.TTCM=0。应用时间戳可在发送请求或接收中断时用独立定时器记录。",
+    "manual": {
+      "page": 430,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_Transmit",
+    "summary": "把一条帧装入空邮箱，交由硬件发送。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nTxMessage 指向 CanTxMsg。StdId=0x123，ExtId 在本例未用，IDE=CAN_Id_Standard，RTR=CAN_RTR_Data，DLC=2，Data[0:1] 为 0x55、0xA5。 应初始化整组 Data，因为库会读八个数组成员。",
+    "ret": "0–2 表示取得邮箱号，CAN_TxStatus_NoMailBox 表示无空邮箱。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 已配置正常模式或回环，并保证邮箱不被多个调用者争抢。",
+    "what": "选择首个 TME 空邮箱，写 TIR/TDTR/TDLR/TDHR，最后置 TXRQ。 同时把传入结构体的 DLC 与 0x0F 做掩码。",
+    "related": [
+      "CAN_TSR",
+      "CAN_TI0R-TXRQ",
+      "CAN_TDT0R-DLC",
+      "CAN_TDL0R",
+      "CAN_TDH0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CanTxMsg frame = {0};\nframe.StdId = 0x123u;\nframe.IDE = CAN_Id_Standard;\nframe.RTR = CAN_RTR_Data;\nframe.DLC = 2u;\nframe.Data[0] = 0x55u;\nframe.Data[1] = 0xA5u;\nconst uint8_t mailbox = CAN_Transmit(CAN1, &frame);",
+      "explanation": "把一条帧装入空邮箱，交由硬件发送。"
+    },
+    "check": "再用 CAN_TransmitStatus 看结果。邮箱满时优先检查是否缺 ACK、持续重发。",
+    "manual": {
+      "page": 78,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_TransmitStatus",
+    "summary": "轮询指定邮箱的发送请求结果。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nTransmitMailbox=0，使用 CAN_Transmit 返回的有效邮箱号。",
+    "ret": "CAN_TxStatus_Ok、CAN_TxStatus_Failed 或 CAN_TxStatus_Pending。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 读取前保留该邮箱的完成标志，避免 ISR 先清。",
+    "what": "读 TSR.RQCP/TXOK/TME，按组合返回状态。",
+    "related": [
+      "CAN_TSR-RQCP0",
+      "CAN_TSR-TXOK0",
+      "CAN_TSR-TME0"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t status = CAN_TransmitStatus(CAN1, 0u);",
+      "explanation": "轮询指定邮箱的发送请求结果。"
+    },
+    "check": "静默回环应最终返回 Ok。超时查 INAK、BOFF、总线 ACK 或是否过早应答 RQCP。",
+    "manual": {
+      "page": 79,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_CancelTransmit",
+    "summary": "请求中止一个仍在等待的发送邮箱。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nMailbox=0，允许 0–2。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 确认该邮箱所属操作可以中止。",
+    "what": "对 TSR.ABRQ0 做读改写。SPL 的读改写可能把当时已置位的其他 W1C 完成状态一并应答。需要保留其他完成状态时，用寄存器直接写 ABRQ0 掩码。",
+    "related": [
+      "CAN_TSR-ABRQ0",
+      "CAN_TSR-RQCP0"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_CancelTransmit(CAN1, 0u);",
+      "explanation": "请求中止一个仍在等待的发送邮箱。"
+    },
+    "check": "稍后检查 RQCP 与 TME。中止前已发送完成的帧仍可能到达对端。",
+    "manual": {
+      "page": 79,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_Receive",
+    "summary": "取出并释放 FIFO 中最早到达的一帧。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nFIFONumber=CAN_FIFO0，选择 FIFO0，也可选 CAN_FIFO1。\nRxMessage 指向可写 CanRxMsg。读取 IDE 后选 StdId 或 ExtId，RTR 区分远程帧，DLC 限制 Data 有效范围，FMI 是匹配序号。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 FMP 非零，并由当前调用方独占消费。",
+    "what": "从接收邮箱的 RIR/RDTR/RDLR/RDHR 复制字段，读改写 RFOM 释放。读改写也可能应答已置位的 FIFO 满或溢出标志。",
+    "related": [
+      "CAN_RI0R",
+      "CAN_RDT0R",
+      "CAN_RDL0R",
+      "CAN_RDH0R",
+      "CAN_RF0R-RFOM0"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CanRxMsg frame;\nif (CAN_MessagePending(CAN1, CAN_FIFO0) != 0u) {\n    CAN_Receive(CAN1, CAN_FIFO0, &frame);\n}",
+      "explanation": "取出并释放 FIFO 中最早到达的一帧。"
+    },
+    "check": "回环检查 ID=0x123、DLC=2、数据 55 A5。FMP 未减先查是否又有新帧。",
+    "manual": {
+      "page": 81,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_FIFORelease",
+    "summary": "丢弃或释放 FIFO 的当前输出帧。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nFIFONumber=CAN_FIFO0，选择 FIFO0，也可选 CAN_FIFO1。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 确认队列非空，且当前帧已消费或允许丢弃。",
+    "what": "对对应 RFOM 做读改写。需要保留 FULL/FOVR 时直接写 RFOM 掩码。CAN_Receive 已释放一次。",
+    "related": [
+      "CAN_RF0R-RFOM0",
+      "CAN_RF1R-RFOM1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_FIFORelease(CAN1, CAN_FIFO0);",
+      "explanation": "丢弃或释放 FIFO 的当前输出帧。"
+    },
+    "check": "无新帧时 FMP0 减一，重复释放会跳过下一帧。",
+    "manual": {
+      "page": 80,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_MessagePending",
+    "summary": "查看接收 FIFO 已排队的帧数。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nFIFONumber=CAN_FIFO0，选择 FIFO0，也可选 CAN_FIFO1。",
+    "ret": "0–3，读取瞬间的队列长度。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 确认过滤器的 FIFO 关联。",
+    "what": "读 RF0R 或 RF1R 的 FMP，不改变队列。",
+    "related": [
+      "CAN_RF0R-FMP0",
+      "CAN_RF1R-FMP1"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t frames = CAN_MessagePending(CAN1, CAN_FIFO0);",
+      "explanation": "查看接收 FIFO 已排队的帧数。"
+    },
+    "check": "回环收一帧后应返回 1。仍为 0 时查过滤器激活和帧匹配。",
+    "manual": {
+      "page": 80,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_OperatingModeRequest",
+    "summary": "请求初始化、正常或睡眠模式，并有界等待硬件响应。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_OperatingMode=CAN_OperatingMode_Initialization。另有 Normal 与 Sleep。",
+    "ret": "CAN_ModeStatus_Success 或 CAN_ModeStatus_Failed。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 切换前停业务。正常模式需总线同步。",
+    "what": "修改 MCR.INRQ/SLEEP，再检查 MSR.INAK/SLAK 的组合。",
+    "related": [
+      "CAN_MCR-INRQ",
+      "CAN_MCR-SLEEP",
+      "CAN_MSR-INAK",
+      "CAN_MSR-SLAK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t status = CAN_OperatingModeRequest(CAN1, CAN_OperatingMode_Initialization);",
+      "explanation": "请求初始化、正常或睡眠模式，并有界等待硬件响应。"
+    },
+    "check": "初始化成功时 INAK=1。若超时查时钟及模式请求。",
+    "manual": {
+      "page": 426,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_Sleep",
+    "summary": "向 CAN 请求进入睡眠。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "CAN_Sleep_Ok 表示当次已确认，否则为 CAN_Sleep_Failed。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 停止发送并考虑总线是否空闲。",
+    "what": "清 INRQ、置 SLEEP，立即读取 MSR 确认位。",
+    "related": [
+      "CAN_MCR-SLEEP",
+      "CAN_MSR-SLAK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t status = CAN_Sleep(CAN1);",
+      "explanation": "向 CAN 请求进入睡眠。"
+    },
+    "check": "当次未确认时后续观察 SLAK，避免把瞬时返回当作模式永远未切换。",
+    "manual": {
+      "page": 82,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_WakeUp",
+    "summary": "让 CAN 退出睡眠，并等待硬件确认。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "CAN_WakeUp_Ok 表示 SLAK 已清，否则为 CAN_WakeUp_Failed。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 CAN 已处于睡眠。",
+    "what": "清 MCR.SLEEP，再轮询 MSR.SLAK 到超时。",
+    "related": [
+      "CAN_MCR-SLEEP",
+      "CAN_MSR-SLAK"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t status = CAN_WakeUp(CAN1);",
+      "explanation": "让 CAN 退出睡眠，并等待硬件确认。"
+    },
+    "check": "退出失败时先查收发器是否恢复及 RX 隐性电平。",
+    "manual": {
+      "page": 82,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_GetLastErrorCode",
+    "summary": "读取最近一次错误编码。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "返回保留在原位的 LEC 位掩码，右移 4 才得到 0–7。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 在错误发生后及时读取。",
+    "what": "读取 CAN_ESR 的 LEC 字段，无清除动作。",
+    "related": [
+      "CAN_ESR-LEC",
+      "CAN_ESR-BOFF"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t value = CAN_GetLastErrorCode(CAN1);",
+      "explanation": "读取最近一次错误编码。"
+    },
+    "check": "结合 BOFF、EPVF 与总线波形判断。连续正常帧会改变计数及 LEC。",
+    "manual": {
+      "page": 445,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_GetReceiveErrorCounter",
+    "summary": "读取接收错误计数。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "返回 REC 的 8 位值。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 在错误发生后及时读取。",
+    "what": "读取 CAN_ESR 的 REC 字段，无清除动作。",
+    "related": [
+      "CAN_ESR-REC",
+      "CAN_ESR-BOFF"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t value = CAN_GetReceiveErrorCounter(CAN1);",
+      "explanation": "读取接收错误计数。"
+    },
+    "check": "结合 BOFF、EPVF 与总线波形判断。连续正常帧会改变计数及 LEC。",
+    "manual": {
+      "page": 445,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_GetLSBTransmitErrorCounter",
+    "summary": "读取发送错误计数的低八位。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。",
+    "ret": "返回发送错误计数的低八位，不能由此单独判断 Bus-Off。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 在错误发生后及时读取。",
+    "what": "读取 CAN_ESR 的 TEC 字段，无清除动作。",
+    "related": [
+      "CAN_ESR-TEC",
+      "CAN_ESR-BOFF"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t value = CAN_GetLSBTransmitErrorCounter(CAN1);",
+      "explanation": "读取发送错误计数的低八位。"
+    },
+    "check": "结合 BOFF、EPVF 与总线波形判断。连续正常帧会改变计数及 LEC。",
+    "manual": {
+      "page": 445,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "CAN_ITConfig",
+    "summary": "选择 CAN 事件能否请求中断。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_IT=CAN_IT_FMP0，选择 FIFO0 有帧。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 已配置 NVIC 向量并处理旧挂起。",
+    "what": "设置或清除 IER 对应位。状态类错误还需选择 ERR 和具体子来源。",
+    "related": [
+      "CAN_IER-FMPIE0",
+      "CAN_RF0R-FMP0"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);",
+      "explanation": "选择 CAN 事件能否请求中断。"
+    },
+    "check": "FIFO0 有帧时检查 IRQ20。无中断先查 IER 和 NVIC。",
+    "manual": {
+      "page": 77,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_GetFlagStatus",
+    "summary": "轮询一个硬件状态标志。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_FLAG=CAN_FLAG_BOF 选择总线离线。",
+    "ret": "SET 表示所查状态非零，否则 RESET。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 CAN1 门控已开。",
+    "what": "按标志选择 ESR、MSR、TSR 或对应 RFxR，再测试其状态位。",
+    "related": [
+      "CAN_ESR-BOFF"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const FlagStatus offline = CAN_GetFlagStatus(CAN1, CAN_FLAG_BOF);",
+      "explanation": "轮询一个硬件状态标志。"
+    },
+    "check": "SET 时保存 LEC 和错误计数，再检查对端与总线恢复条件。",
+    "manual": {
+      "page": 83,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_ClearFlag",
+    "summary": "只应答选中的软件可清状态。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_FLAG=CAN_FLAG_FF0，清 FIFO0 满。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 先记录或处理状态。",
+    "what": "向所选寄存器写清除掩码。LEC 通过写 ESR 清零，BOFF 等硬件状态不能直接清。",
+    "related": [
+      "CAN_RF0R-FULL0",
+      "CAN_ESR-LEC"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_ClearFlag(CAN1, CAN_FLAG_FF0);",
+      "explanation": "只应答选中的软件可清状态。"
+    },
+    "check": "FULL0 应清零。仍为 1 时检查是否又收满。FMP 要通过释放队列降低。",
+    "manual": {
+      "page": 83,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_GetITStatus",
+    "summary": "判断一个已使能的 CAN 中断来源是否处于请求状态。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_IT=CAN_IT_FMP0，查询 FIFO0 待接收。",
+    "ret": "SET 表示对应中断已使能且来源有效。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 在对应 IRQ 中查询来源。",
+    "what": "检查 IER 许可和对应状态位。",
+    "related": [
+      "CAN_IER-FMPIE0",
+      "CAN_RF0R-FMP0"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const ITStatus pending = CAN_GetITStatus(CAN1, CAN_IT_FMP0);",
+      "explanation": "判断一个已使能的 CAN 中断来源是否处于请求状态。"
+    },
+    "check": "若有帧而返回 RESET，先看 FMPIE0。",
+    "manual": {
+      "page": 84,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "CAN_ClearITPendingBit",
+    "summary": "应答可软件清除的 CAN 中断来源。",
+    "params": "CANx=CAN1，选择本型号的 CAN 控制器。\nCAN_IT=CAN_IT_FF0，清 FIFO0 满。",
+    "ret": "无。",
+    "pre": "CAN1 已启用 APB1 时钟，USB 保持禁用。 已经处理相应来源。",
+    "what": "向 RF0R 写 FULL0 掩码。选择 CAN_IT_TME 会一次清三个 RQCP。FIFO 待处理由读帧并释放解决。",
+    "related": [
+      "CAN_RF0R-FULL0",
+      "CAN_TSR-RQCP0",
+      "CAN_TSR-RQCP1",
+      "CAN_TSR-RQCP2"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CAN_ClearITPendingBit(CAN1, CAN_IT_FF0);",
+      "explanation": "应答可软件清除的 CAN 中断来源。"
+    },
+    "check": "IRQ 仍在时查 FIFO 是否还有报文、其他状态是否仍挂起。",
+    "manual": {
+      "page": 85,
+      "label": "函数条目",
+      "kind": "spl"
+    }
+  },
+  {
+    "name": "USB_Init",
+    "summary": "建立 USB 核心状态并进入设备类的初始化回调。",
+    "params": "无。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 提供 Device_Property、User_Standard_Requests 和描述符，以及板级时钟、上拉和 NVIC。",
+    "what": "初始化核心指针与控制传输状态，再调用 Device_Property.Init。实际时钟、寄存器和端点初始化由应用回调负责。",
+    "related": [
+      "USB_CNTR",
+      "USB_ISTR",
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "USB_Init();",
+      "explanation": "建立 USB 核心状态并进入设备类的初始化回调。"
+    },
+    "check": "重连主机并看复位 ISR，确认 EP0 能处理 GET_DESCRIPTOR。若无复位先查 48 MHz、D+ 上拉和向量。",
+    "manual": {
+      "page": 406,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "USB_SIL_Init",
+    "summary": "设置该库的 USB 中断掩码并清旧事件。",
+    "params": "无。",
+    "ret": "本实现固定返回 0。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 设备类初始化已安排 USB 核心复位，usb_conf.h 配置 IMR_MSK。",
+    "what": "写 ISTR=0，清可写零清除的全局事件，再按 IMR_MSK 写 CNTR。EP0 配置通常由复位回调完成。",
+    "related": [
+      "USB_ISTR",
+      "USB_CNTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint32_t status = USB_SIL_Init();",
+      "explanation": "设置该库的 USB 中断掩码并清旧事件。"
+    },
+    "check": "读回 CNTR，检查 RESETM、CTRM 与应用期望一致。",
+    "manual": {
+      "page": 412,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "USB_SIL_Write",
+    "summary": "把非控制 IN 端点的下一包数据写入 PMA。",
+    "params": "bEpAddr=0x81 选 IN1。pBufferPointer 指向包缓冲。wBufferSize=2 表示两字节。",
+    "ret": "本实现固定返回 0，不表示主机已收包。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 EP1 的 IN 缓冲已配置，状态为 NAK，提供向上取偶数长度的源缓冲。",
+    "what": "按端点地址找 PMA，复制数据并改 COUNT_TX。提交发送还需 SetEPTxValid。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_COUNTn_TX",
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "uint8_t bytes[2] = {0x55u, 0xA5u};\n(void)USB_SIL_Write(0x81u, bytes, 2u);\nSetEPTxValid(1u);",
+      "explanation": "把非控制 IN 端点的下一包数据写入 PMA。"
+    },
+    "check": "主机发 IN 后读取数据，成功后可见 CTR_TX。没发包先查 STAT_TX 与计数。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "USB_SIL_Read",
+    "summary": "取出非控制 OUT 端点收到的一包数据。",
+    "params": "bEpAddr=0x01 选 OUT1。pBufferPointer 指向足够容纳端点最大包及偶数补齐的可写缓冲。",
+    "ret": "收到的字节数。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 OUT1 已收包，缓冲仍归应用所有。目标按半字对齐。",
+    "what": "读取 COUNT_RX，按 PMA 地址复制。不会重新放行端点。",
+    "related": [
+      "USB_ADDRn_RX",
+      "USB_COUNTn_RX",
+      "USB_EP1R-CTR_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "uint16_t words[32];\nconst uint32_t count = USB_SIL_Read(0x01u, (uint8_t *)words);",
+      "explanation": "取出非控制 OUT 端点收到的一包数据。"
+    },
+    "check": "与主机包长度、字节值对照。处理完成后按端点协议应答并重新放行。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetDeviceAddress",
+    "summary": "提交主机通过 SET_ADDRESS 分配的新地址。",
+    "params": "参数为设备地址，例 5，范围 0–127。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 SET_ADDRESS 的 IN 状态包已成功完成，由控制传输状态机调用。",
+    "what": "按 Device_Table.Total_Endpoint 设置端点地址映射，再写 DADDR.ADD 并置 EF。会更新端点逻辑地址映射。",
+    "related": [
+      "USB_DADDR",
+      "USB_EP0R-EA"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetDeviceAddress(5u);",
+      "explanation": "提交主机通过 SET_ADDRESS 分配的新地址。"
+    },
+    "check": "DADDR=0x85。若设地址后主机丢设备，检查是否过早切换。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetCNTR",
+    "summary": "写 USB CNTR 寄存器。",
+    "params": "wRegValue=CNTR_RESETM，传预先编码的寄存器值。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 收发器已经启动。只需 RESET 事件。",
+    "what": "直接写 USB_CNTR。调用者须遵守该寄存器访问规则。",
+    "related": [
+      "USB_CNTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetCNTR(CNTR_RESETM);",
+      "explanation": "写 USB CNTR 寄存器。"
+    },
+    "check": "RESETM=1，其他控制位以写入值为准。",
+    "manual": {
+      "page": 412,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetISTR",
+    "summary": "写 USB ISTR 寄存器。",
+    "params": "wRegValue=(uint16_t)(0x7F00u & ~ISTR_RESET)，传预先编码的寄存器值。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 已处理 RESET 事件。",
+    "what": "直接写 USB_ISTR。调用者须遵守该寄存器访问规则。",
+    "related": [
+      "USB_ISTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetISTR((uint16_t)(0x7F00u & ~ISTR_RESET));",
+      "explanation": "写 USB ISTR 寄存器。"
+    },
+    "check": "RESET 清零，其他 W0C 位应保留。",
+    "manual": {
+      "page": 413,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetDADDR",
+    "summary": "写 USB DADDR 寄存器。",
+    "params": "wRegValue=0x80u，传预先编码的寄存器值。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 已准备 EP0，正在恢复默认地址。",
+    "what": "直接写 USB_DADDR。调用者须遵守该寄存器访问规则。",
+    "related": [
+      "USB_DADDR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetDADDR(0x80u);",
+      "explanation": "写 USB DADDR 寄存器。"
+    },
+    "check": "EF=1、ADD=0。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetBTABLE",
+    "summary": "写 USB BTABLE 寄存器。",
+    "params": "wRegValue=0u，传预先编码的寄存器值。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点停用，描述表放在 PMA 起点。",
+    "what": "直接写 USB_BTABLE。调用者须遵守该寄存器访问规则。",
+    "related": [
+      "USB_BTABLE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetBTABLE(0u);",
+      "explanation": "写 USB BTABLE 寄存器。"
+    },
+    "check": "确认 PMA 布局及 8 字节对齐。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetCNTR",
+    "summary": "读控制与掩码。",
+    "params": "无。",
+    "ret": "返回该寄存器的 16 位读值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 需要相应 USB 模块寄存器有效。",
+    "what": "只读 USB_CNTR，不应答事件。",
+    "related": [
+      "USB_CNTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetCNTR();",
+      "explanation": "读控制与掩码。"
+    },
+    "check": "按字段掩码提取所需值。出错先查门控与当前 USB 状态。",
+    "manual": {
+      "page": 412,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetISTR",
+    "summary": "读事件与端点索引。",
+    "params": "无。",
+    "ret": "返回该寄存器的 16 位读值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 需要相应 USB 模块寄存器有效。",
+    "what": "只读 USB_ISTR，不应答事件。",
+    "related": [
+      "USB_ISTR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetISTR();",
+      "explanation": "读事件与端点索引。"
+    },
+    "check": "按字段掩码提取所需值。出错先查门控与当前 USB 状态。",
+    "manual": {
+      "page": 413,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetFNR",
+    "summary": "读帧编号和总线状态。",
+    "params": "无。",
+    "ret": "返回该寄存器的 16 位读值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 需要相应 USB 模块寄存器有效。",
+    "what": "只读 USB_FNR，不应答事件。",
+    "related": [
+      "USB_FNR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetFNR();",
+      "explanation": "读帧编号和总线状态。"
+    },
+    "check": "按字段掩码提取所需值。出错先查门控与当前 USB 状态。",
+    "manual": {
+      "page": 415,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetDADDR",
+    "summary": "读当前设备地址和使能状态。",
+    "params": "无。",
+    "ret": "返回该寄存器的 16 位读值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 需要相应 USB 模块寄存器有效。",
+    "what": "只读 USB_DADDR，不应答事件。",
+    "related": [
+      "USB_DADDR"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetDADDR();",
+      "explanation": "读当前设备地址和使能状态。"
+    },
+    "check": "按字段掩码提取所需值。出错先查门控与当前 USB 状态。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetBTABLE",
+    "summary": "读描述表本地地址。",
+    "params": "无。",
+    "ret": "返回该寄存器的 16 位读值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 需要相应 USB 模块寄存器有效。",
+    "what": "只读 USB_BTABLE，不应答事件。",
+    "related": [
+      "USB_BTABLE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetBTABLE();",
+      "explanation": "读描述表本地地址。"
+    },
+    "check": "按字段掩码提取所需值。出错先查门控与当前 USB 状态。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetENDPOINT",
+    "summary": "直接写指定的端点寄存器，供需要手工组合写入值时使用。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwRegValue=0x8280 保留两方向 CTR、设控制类型且其他翻转位写 0。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "直接写 EPnR。CTR 写 0 清除，STAT/DTOG 写 1 翻转。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetENDPOINT(0u, 0x8280u);",
+      "explanation": "直接写指定的端点寄存器，供需要手工组合写入值时使用。"
+    },
+    "check": "读回类型应为控制。日常用专用函数改状态，避免无意翻转或清标志。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetENDPOINT",
+    "summary": "读取端点寄存器的原始状态。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "返回 EPnR 当前的 16 位值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于可访问状态。",
+    "what": "读 EPnR，无清除动作。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = GetENDPOINT(0u);",
+      "explanation": "读取端点寄存器的原始状态。"
+    },
+    "check": "按 CTR、STAT、DTOG 各自掩码解码。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPType",
+    "summary": "设置端点的传输类型。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwType=EP_CONTROL，另有 EP_BULK、EP_ISOCHRONOUS、EP_INTERRUPT。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "保留端点其余配置，改 EP_TYPE。",
+    "related": [
+      "USB_EP0R-EP_TYPE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPType(0u, EP_CONTROL);",
+      "explanation": "设置端点的传输类型。"
+    },
+    "check": "EP_TYPE=01。若枚举卡住，核对 EP0 与描述符声明。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPType",
+    "summary": "读回端点传输类型。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "类型字段原位置掩码。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已初始化。",
+    "what": "读取 EPnR 的类型位。",
+    "related": [
+      "USB_EP0R-EP_TYPE"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t type = GetEPType(0u);",
+      "explanation": "读回端点传输类型。"
+    },
+    "check": "与 EP_CONTROL 等带位移的库常量比较。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPTxStatus",
+    "summary": "设置端点的发送握手状态。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nwState=EP_TX_NAK，可选 DIS、STALL、NAK、VALID。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "读旧 STAT，计算需要翻转的位，保留 CTR。",
+    "related": [
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPTxStatus(1u, EP_TX_NAK);",
+      "explanation": "设置端点的发送握手状态。"
+    },
+    "check": "读回 NAK。直接写目标编码可能翻转错误。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPTxStatus",
+    "summary": "读取端点的发送握手状态。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "返回状态字段的原位置掩码。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已配置。",
+    "what": "读取 EPnR 中 STAT 字段。",
+    "related": [
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t state = GetEPTxStatus(1u);",
+      "explanation": "读取端点的发送握手状态。"
+    },
+    "check": "直接与 EP_TX_NAK 等常量对照。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPTxValid",
+    "summary": "放行端点的发送事务。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 包缓冲地址与发送长度已准备。",
+    "what": "把对应 STAT 设置为 VALID。",
+    "related": [
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPTxValid(1u);",
+      "explanation": "放行端点的发送事务。"
+    },
+    "check": "主机下一次相应事务可成功，回看 CTR。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetTxStallStatus",
+    "summary": "检查端点发送方向是否处于 STALL。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "返回 1 表示 STALL，0 表示其他状态。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已配置。",
+    "what": "读取并比较 STAT 字段。",
+    "related": [
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t stalled = GetTxStallStatus(1u);",
+      "explanation": "检查端点发送方向是否处于 STALL。"
+    },
+    "check": "非零时回看端点请求或异常处理为何设置 STALL。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearEP_CTR_TX",
+    "summary": "应答端点发送完成事件。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 已处理指定方向的事件。",
+    "what": "目标 CTR 写 0，另一方向写 1 保留。避免直接对 EPnR 读改写。",
+    "related": [
+      "USB_EP1R-CTR_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearEP_CTR_TX(1u);",
+      "explanation": "应答端点发送完成事件。"
+    },
+    "check": "目标 CTR 清零。总 ISTR.CTR 仍在时检查其他方向或端点。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ToggleDTOG_TX",
+    "summary": "翻转端点发送方向的 DTOG。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 调用者拥有该端点且知道 PID 或双缓冲所有权状态。",
+    "what": "在目标 DTOG 写 1，保留其他字段。",
+    "related": [
+      "USB_EP1R-DTOG_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ToggleDTOG_TX(1u);",
+      "explanation": "翻转端点发送方向的 DTOG。"
+    },
+    "check": "DTOG 应与前一次相反。错误重翻会导致 PID 或双缓冲失步。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearDTOG_TX",
+    "summary": "把端点发送方向的 DTOG 恢复为 0。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "仅当前 DTOG=1 时调用翻转宏。",
+    "related": [
+      "USB_EP1R-DTOG_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearDTOG_TX(1u);",
+      "explanation": "把端点发送方向的 DTOG 恢复为 0。"
+    },
+    "check": "检查 DTOG=0。运行中的控制传输由核心状态机管理。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPTxAddr",
+    "summary": "设置端点发送缓冲在 PMA 中的地址。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwAddr=0x40，为 PMA 本地偶数偏移。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 BTABLE=0，分配的缓冲互不重叠。",
+    "what": "写描述表对应地址字。",
+    "related": [
+      "USB_ADDRn_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPTxAddr(0u, 0x40u);",
+      "explanation": "设置端点发送缓冲在 PMA 中的地址。"
+    },
+    "check": "用对应 Get 函数读回本地偏移。CPU 访问需乘二。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPTxAddr",
+    "summary": "读取端点发送缓冲的 PMA 地址。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "返回本地偏移。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 描述表已配置。",
+    "what": "读描述表中对应地址字。",
+    "related": [
+      "USB_ADDRn_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t offset = GetEPTxAddr(0u);",
+      "explanation": "读取端点发送缓冲的 PMA 地址。"
+    },
+    "check": "与设计的 PMA 布局一致。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPTxCount",
+    "summary": "设置下一包 IN 数据的实际字节数。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwCount=8，八字节待发送。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "写 USB_COUNTn_TX。写完计数再设置发送 VALID。",
+    "related": [
+      "USB_COUNTn_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPTxCount(0u, 8u);",
+      "explanation": "设置下一包 IN 数据的实际字节数。"
+    },
+    "check": "读回 COUNT_TX=8。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPTxCount",
+    "summary": "查看 IN 描述项的发送字节数。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "返回描述项低 10 位长度。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 描述表已配置。",
+    "what": "读取描述项低 10 位。",
+    "related": [
+      "USB_COUNTn_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t count = GetEPTxCount(0u);",
+      "explanation": "查看 IN 描述项的发送字节数。"
+    },
+    "check": "与应用刚写入的发送长度对照。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPRxStatus",
+    "summary": "设置端点的接收握手状态。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nwState=EP_RX_NAK，可选 DIS、STALL、NAK、VALID。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "读旧 STAT，计算需要翻转的位，保留 CTR。",
+    "related": [
+      "USB_EP1R-STAT_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPRxStatus(1u, EP_RX_NAK);",
+      "explanation": "设置端点的接收握手状态。"
+    },
+    "check": "读回 NAK。直接写目标编码可能翻转错误。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPRxStatus",
+    "summary": "读取端点的接收握手状态。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "返回状态字段的原位置掩码。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已配置。",
+    "what": "读取 EPnR 中 STAT 字段。",
+    "related": [
+      "USB_EP1R-STAT_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t state = GetEPRxStatus(1u);",
+      "explanation": "读取端点的接收握手状态。"
+    },
+    "check": "直接与 EP_RX_NAK 等常量对照。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPRxValid",
+    "summary": "放行端点的接收事务。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 包缓冲地址与接收容量已准备。",
+    "what": "把对应 STAT 设置为 VALID。",
+    "related": [
+      "USB_EP1R-STAT_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPRxValid(1u);",
+      "explanation": "放行端点的接收事务。"
+    },
+    "check": "主机下一次相应事务可成功，回看 CTR。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetRxStallStatus",
+    "summary": "检查端点接收方向是否处于 STALL。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "返回 1 表示 STALL，0 表示其他状态。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已配置。",
+    "what": "读取并比较 STAT 字段。",
+    "related": [
+      "USB_EP1R-STAT_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t stalled = GetRxStallStatus(1u);",
+      "explanation": "检查端点接收方向是否处于 STALL。"
+    },
+    "check": "非零时回看端点请求或异常处理为何设置 STALL。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearEP_CTR_RX",
+    "summary": "应答端点接收完成事件。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 已处理指定方向的事件。",
+    "what": "目标 CTR 写 0，另一方向写 1 保留。避免直接对 EPnR 读改写。",
+    "related": [
+      "USB_EP1R-CTR_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearEP_CTR_RX(1u);",
+      "explanation": "应答端点接收完成事件。"
+    },
+    "check": "目标 CTR 清零。总 ISTR.CTR 仍在时检查其他方向或端点。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ToggleDTOG_RX",
+    "summary": "翻转端点接收方向的 DTOG。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 调用者拥有该端点且知道 PID 或双缓冲所有权状态。",
+    "what": "在目标 DTOG 写 1，保留其他字段。",
+    "related": [
+      "USB_EP1R-DTOG_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ToggleDTOG_RX(1u);",
+      "explanation": "翻转端点接收方向的 DTOG。"
+    },
+    "check": "DTOG 应与前一次相反。错误重翻会导致 PID 或双缓冲失步。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearDTOG_RX",
+    "summary": "把端点接收方向的 DTOG 恢复为 0。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "仅当前 DTOG=1 时调用翻转宏。",
+    "related": [
+      "USB_EP1R-DTOG_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearDTOG_RX(1u);",
+      "explanation": "把端点接收方向的 DTOG 恢复为 0。"
+    },
+    "check": "检查 DTOG=0。运行中的控制传输由核心状态机管理。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPRxAddr",
+    "summary": "设置端点接收缓冲在 PMA 中的地址。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwAddr=0x80，为 PMA 本地偶数偏移。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 BTABLE=0，分配的缓冲互不重叠。",
+    "what": "写描述表对应地址字。",
+    "related": [
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPRxAddr(0u, 0x80u);",
+      "explanation": "设置端点接收缓冲在 PMA 中的地址。"
+    },
+    "check": "用对应 Get 函数读回本地偏移。CPU 访问需乘二。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPRxAddr",
+    "summary": "读取端点接收缓冲的 PMA 地址。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "返回本地偏移。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 描述表已配置。",
+    "what": "读描述表中对应地址字。",
+    "related": [
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t offset = GetEPRxAddr(0u);",
+      "explanation": "读取端点接收缓冲的 PMA 地址。"
+    },
+    "check": "与设计的 PMA 布局一致。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPRxCount",
+    "summary": "分配 OUT 或 SETUP 可接收的缓冲容量。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。\nwCount=64，允许收最多 64 字节。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "写 USB_COUNTn_RX。64 B 编成 BL_SIZE=1、NUM_BLOCK=1。",
+    "related": [
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPRxCount(0u, 64u);",
+      "explanation": "分配 OUT 或 SETUP 可接收的缓冲容量。"
+    },
+    "check": "读描述字高位应为 0x8400。收到包后低位由硬件更新。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPRxCount",
+    "summary": "查看最近一包实际收到的字节数。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "返回描述项低 10 位长度。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 描述表已配置。",
+    "what": "读取描述项低 10 位。",
+    "related": [
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t count = GetEPRxCount(0u);",
+      "explanation": "查看最近一包实际收到的字节数。"
+    },
+    "check": "SETUP 正常应为 8 字节。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPCountRxReg",
+    "summary": "直接对指定 PMA 描述项设置接收容量。",
+    "params": "pdwReg 指向 CPU 视角描述项地址，wCount=64 字节。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 BTABLE=0，指向 EP0 COUNT_RX 的 0x4000600C，端点未放行。",
+    "what": "按容量选两字节块或 32 字节块并编码写入。",
+    "related": [
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPCountRxReg((uint32_t *)0x4000600Cu, 64u);",
+      "explanation": "直接对指定 PMA 描述项设置接收容量。"
+    },
+    "check": "读高六位 0x8400。选择同一描述项的一般场景可用 SetEPRxCount。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEP_KIND",
+    "summary": "置端点的模式附加位。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 1。位含义取决于类型。",
+    "related": [
+      "USB_EP1R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEP_KIND(1u);",
+      "explanation": "置端点的模式附加位。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearEP_KIND",
+    "summary": "清端点的模式附加位。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 0。位含义取决于类型。",
+    "related": [
+      "USB_EP1R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearEP_KIND(1u);",
+      "explanation": "清端点的模式附加位。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Set_Status_Out",
+    "summary": "开启控制端点的状态阶段 OUT 约束。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 1。位含义取决于类型。",
+    "related": [
+      "USB_EP0R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "Set_Status_Out(0u);",
+      "explanation": "开启控制端点的状态阶段 OUT 约束。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Clear_Status_Out",
+    "summary": "取消控制端点的状态阶段 OUT 约束。",
+    "params": "bEpNum=0，端点寄存器索引 0，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 0。位含义取决于类型。",
+    "related": [
+      "USB_EP0R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "Clear_Status_Out(0u);",
+      "explanation": "取消控制端点的状态阶段 OUT 约束。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDoubleBuff",
+    "summary": "把批量端点标为双缓冲。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 1。位含义取决于类型。",
+    "related": [
+      "USB_EP1R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDoubleBuff(1u);",
+      "explanation": "把批量端点标为双缓冲。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ClearEPDoubleBuff",
+    "summary": "把批量端点恢复为单缓冲。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 先核对 EP_TYPE。",
+    "what": "将 EP_KIND 写 0。位含义取决于类型。",
+    "related": [
+      "USB_EP1R-EP_KIND"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "ClearEPDoubleBuff(1u);",
+      "explanation": "把批量端点恢复为单缓冲。"
+    },
+    "check": "读回 EP_KIND。切换双缓冲前还要按方向配置两段 PMA 和数据翻转。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetDouBleBuffEPStall",
+    "summary": "对双缓冲端点的指定方向设置 STALL。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbDir=EP_DBUF_OUT，另可选 EP_DBUF_IN。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 已配置批量双缓冲。",
+    "what": "按方向调整 STAT 字段。",
+    "related": [
+      "USB_EP1R-STAT_RX",
+      "USB_EP1R-STAT_TX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetDouBleBuffEPStall(1u, EP_DBUF_OUT);",
+      "explanation": "对双缓冲端点的指定方向设置 STALL。"
+    },
+    "check": "主机对该方向请求应收到 STALL。",
+    "manual": {
+      "page": 417,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPAddress",
+    "summary": "设置端点寄存器中的逻辑端点地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbAddr=1，填 USB 令牌中的端点号。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。",
+    "what": "更新 EPnR.EA，保留类型与待处理标志。",
+    "related": [
+      "USB_EP1R-EA"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPAddress(1u, 1u);",
+      "explanation": "设置端点寄存器中的逻辑端点地址。"
+    },
+    "check": "EA=1。重复使用逻辑编号会让端点匹配不明确。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPAddress",
+    "summary": "查看已配置的逻辑端点地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "返回 0–15 的逻辑端点编号。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点已配置。",
+    "what": "读取 EPnR.EA。",
+    "related": [
+      "USB_EP1R-EA"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint8_t addr = GetEPAddress(1u);",
+      "explanation": "查看已配置的逻辑端点地址。"
+    },
+    "check": "与设备描述符中端点编号对照。",
+    "manual": {
+      "page": 416,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuffAddr",
+    "summary": "设置双缓冲端点的两个缓冲地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nwBuf0Addr=0xC0、wBuf1Addr=0x100。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 两段缓冲分别预留 64 B。",
+    "what": "缓冲 0、1 分别使用端点原 TX、RX 的地址描述槽。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuffAddr(1u, 0xC0u, 0x100u);",
+      "explanation": "设置双缓冲端点的两个缓冲地址。"
+    },
+    "check": "用对应 Get 函数核对，确认两段与其他 PMA 分配无重叠。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuffCount",
+    "summary": "为双缓冲端点的两个缓冲设置长度或容量。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbDir=EP_DBUF_OUT。wCount=64 B。EP_DBUF_IN 时参数为发送长度。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 确认软件对缓冲区有所有权。",
+    "what": "双缓冲使用 TX/RX 两个描述槽，按方向决定是直接填发送长度还是编码接收容量。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuffCount(1u, EP_DBUF_OUT, 64u);",
+      "explanation": "为双缓冲端点的两个缓冲设置长度或容量。"
+    },
+    "check": "OUT 64 B 的容量编码应为 0x8400。主机完成包后再检查实际长度。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuf0Addr",
+    "summary": "设置双缓冲端点的缓冲 0地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nwBuf0Addr=0xC0。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 两段缓冲分别预留 64 B。",
+    "what": "缓冲 0、1 分别使用端点原 TX、RX 的地址描述槽。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuf0Addr(1u, 0xC0u);",
+      "explanation": "设置双缓冲端点的缓冲 0地址。"
+    },
+    "check": "用对应 Get 函数核对，确认两段与其他 PMA 分配无重叠。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuf0Count",
+    "summary": "为双缓冲端点的缓冲 0设置长度或容量。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbDir=EP_DBUF_OUT。wCount=64 B。EP_DBUF_IN 时参数为发送长度。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 确认软件对缓冲区有所有权。",
+    "what": "双缓冲使用 TX/RX 两个描述槽，按方向决定是直接填发送长度还是编码接收容量。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuf0Count(1u, EP_DBUF_OUT, 64u);",
+      "explanation": "为双缓冲端点的缓冲 0设置长度或容量。"
+    },
+    "check": "OUT 64 B 的容量编码应为 0x8400。主机完成包后再检查实际长度。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPDblBuf0Addr",
+    "summary": "读取双缓冲端点的缓冲 0地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "PMA 本地偏移。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 双缓冲地址已配置。",
+    "what": "读对应地址描述项。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t offset = GetEPDblBuf0Addr(1u);",
+      "explanation": "读取双缓冲端点的缓冲 0地址。"
+    },
+    "check": "用本地偏移与 PMA 布局表对照。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPDblBuf0Count",
+    "summary": "读取双缓冲端点的缓冲 0长度。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "描述项当前的长度值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 对应缓冲当前由应用管理。",
+    "what": "读描述项低 10 位。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t count = GetEPDblBuf0Count(1u);",
+      "explanation": "读取双缓冲端点的缓冲 0长度。"
+    },
+    "check": "OUT 端点用主机实际包长度核对。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuf1Addr",
+    "summary": "设置双缓冲端点的缓冲 1地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nwBuf1Addr=0x100。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 两段缓冲分别预留 64 B。",
+    "what": "缓冲 0、1 分别使用端点原 TX、RX 的地址描述槽。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuf1Addr(1u, 0x100u);",
+      "explanation": "设置双缓冲端点的缓冲 1地址。"
+    },
+    "check": "用对应 Get 函数核对，确认两段与其他 PMA 分配无重叠。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "SetEPDblBuf1Count",
+    "summary": "为双缓冲端点的缓冲 1设置长度或容量。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbDir=EP_DBUF_OUT。wCount=64 B。EP_DBUF_IN 时参数为发送长度。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 端点处于空闲或 NAK，ISR 与主线统一管理该端点。 确认软件对缓冲区有所有权。",
+    "what": "双缓冲使用 TX/RX 两个描述槽，按方向决定是直接填发送长度还是编码接收容量。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "SetEPDblBuf1Count(1u, EP_DBUF_OUT, 64u);",
+      "explanation": "为双缓冲端点的缓冲 1设置长度或容量。"
+    },
+    "check": "OUT 64 B 的容量编码应为 0x8400。主机完成包后再检查实际长度。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPDblBuf1Addr",
+    "summary": "读取双缓冲端点的缓冲 1地址。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "PMA 本地偏移。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 双缓冲地址已配置。",
+    "what": "读对应地址描述项。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t offset = GetEPDblBuf1Addr(1u);",
+      "explanation": "读取双缓冲端点的缓冲 1地址。"
+    },
+    "check": "用本地偏移与 PMA 布局表对照。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPDblBuf1Count",
+    "summary": "读取双缓冲端点的缓冲 1长度。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "描述项当前的长度值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 对应缓冲当前由应用管理。",
+    "what": "读描述项低 10 位。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t count = GetEPDblBuf1Count(1u);",
+      "explanation": "读取双缓冲端点的缓冲 1长度。"
+    },
+    "check": "OUT 端点用主机实际包长度核对。",
+    "manual": {
+      "page": 420,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "GetEPDblBufDir",
+    "summary": "按描述项编码推断端点的双缓冲方向。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。",
+    "ret": "EP_DBUF_OUT、EP_DBUF_IN 或 EP_DBUF_ERR。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 双缓冲描述已配置。",
+    "what": "先检查 RX 描述槽是否存在接收容量位，再检查 TX 槽低 10 位是否非零。",
+    "related": [
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "const EP_DBUF_DIR direction = GetEPDblBufDir(1u);",
+      "explanation": "按描述项编码推断端点的双缓冲方向。"
+    },
+    "check": "空的 IN 缓冲可返回 ERR，应保留应用已知的方向。",
+    "manual": {
+      "page": 409,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "FreeUserBuffer",
+    "summary": "把已处理的双缓冲槽交还给 USB 硬件。",
+    "params": "bEpNum=1，端点寄存器索引 1，可取 0–7。\nbDir=EP_DBUF_OUT 归还接收槽，EP_DBUF_IN 归还发送槽。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 应用已读完或填完当前槽，核对所有权。",
+    "what": "OUT 时翻转 DTOG_TX，IN 时翻转 DTOG_RX，对应 SW_BUF。",
+    "related": [
+      "USB_EP1R-DTOG_TX",
+      "USB_EP1R-DTOG_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "FreeUserBuffer(1u, EP_DBUF_OUT);",
+      "explanation": "把已处理的双缓冲槽交还给 USB 硬件。"
+    },
+    "check": "观察所有权翻转以及后续包。重复归还会把仍待处理的缓冲交给硬件。",
+    "manual": {
+      "page": 410,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "UserToPMABufferCopy",
+    "summary": "把一包应用数据写进 PMA。",
+    "params": "pbUsrBuf 指向源数组，wPMABufAddr=0x40，wNBytes=2。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 应用拥有该缓冲槽，地址在已分配的 512 B PMA 内。",
+    "what": "本地地址乘二映射到 CPU，按每 4 字节一个半字访问。此版本对奇数长度仍复制最后完整半字。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "uint8_t bytes[2] = {0x55u, 0xA5u};\nUserToPMABufferCopy(bytes, 0x40u, 2u);",
+      "explanation": "把一包应用数据写进 PMA。"
+    },
+    "check": "CPU 地址 0x40006080 读到 0xA555。奇数字节长度仍需要多一个可读填充字节。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "PMAToUserBufferCopy",
+    "summary": "把收到的包从 PMA 读进 RAM。",
+    "params": "pbUsrBuf 指向按半字对齐的目标缓冲，wPMABufAddr=0x80，wNBytes=2。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 应用拥有该缓冲槽，地址在已分配的 512 B PMA 内。",
+    "what": "本地地址乘二映射到 CPU，按每 4 字节一个半字访问。此版本对奇数长度仍复制最后完整半字。",
+    "related": [
+      "USB_ADDRn_TX",
+      "USB_ADDRn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "uint16_t storage[1];\nPMAToUserBufferCopy((uint8_t *)storage, 0x80u, 2u);",
+      "explanation": "把收到的包从 PMA 读进 RAM。"
+    },
+    "check": "与主机数据对照。奇数字节长度的目标仍需向上留足偶数容量。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "CTR_LP",
+    "summary": "分发 USB 低优先级端点的正确传输事件。",
+    "params": "无。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 IRQ20 判明 USB CTR 来源。",
+    "what": "读 ISTR 和 EPnR，根据端点及方向应答 CTR 并调用类回调，EP0 交给控制状态机。",
+    "related": [
+      "USB_ISTR-CTR",
+      "USB_ISTR-EP_ID",
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CTR_LP();",
+      "explanation": "分发 USB 低优先级端点的正确传输事件。"
+    },
+    "check": "低优先级处理结束后观察是否还剩挂起端点。",
+    "manual": {
+      "page": 414,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "CTR_HP",
+    "summary": "分发双缓冲批量或同步端点的高优先级事件。",
+    "params": "无。",
+    "ret": "无。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 IRQ19 判明 USB 高优先级端点来源。",
+    "what": "读 ISTR 和 EPnR，按方向应答 CTR 后调用回调。",
+    "related": [
+      "USB_ISTR-CTR",
+      "USB_ISTR-EP_ID",
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "CTR_HP();",
+      "explanation": "分发双缓冲批量或同步端点的高优先级事件。"
+    },
+    "check": "核对方向、双缓冲切换和回调是否正确。",
+    "manual": {
+      "page": 414,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Setup0_Process",
+    "summary": "解析 EP0 的 SETUP 并安排数据阶段。",
+    "params": "无。",
+    "ret": "返回核心状态处理结果，需结合控制传输状态解释。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 低优先级 EP0 处理已识别 SETUP。",
+    "what": "使用核心 pInformation 与请求回调推进控制传输，可能改 EP0 握手和计数。应用通常由 CTR_LP 间接调用。",
+    "related": [
+      "USB_EP0R",
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "(void)Setup0_Process();",
+      "explanation": "解析 EP0 的 SETUP 并安排数据阶段。"
+    },
+    "check": "用协议分析观察 SETUP、数据和状态阶段是否按序完成。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "In0_Process",
+    "summary": "处理 EP0 的 IN 完成。",
+    "params": "无。",
+    "ret": "返回核心状态处理结果，需结合控制传输状态解释。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 低优先级 EP0 处理已应答 CTR_TX。",
+    "what": "使用核心 pInformation 与请求回调推进控制传输，可能改 EP0 握手和计数。应用通常由 CTR_LP 间接调用。",
+    "related": [
+      "USB_EP0R",
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "(void)In0_Process();",
+      "explanation": "处理 EP0 的 IN 完成。"
+    },
+    "check": "用协议分析观察 SETUP、数据和状态阶段是否按序完成。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Out0_Process",
+    "summary": "处理 EP0 的 OUT 完成。",
+    "params": "无。",
+    "ret": "返回核心状态处理结果，需结合控制传输状态解释。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 低优先级 EP0 处理已应答 CTR_RX。",
+    "what": "使用核心 pInformation 与请求回调推进控制传输，可能改 EP0 握手和计数。应用通常由 CTR_LP 间接调用。",
+    "related": [
+      "USB_EP0R",
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "(void)Out0_Process();",
+      "explanation": "处理 EP0 的 OUT 完成。"
+    },
+    "check": "用协议分析观察 SETUP、数据和状态阶段是否按序完成。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Post0_Process",
+    "summary": "根据当前控制状态提交 EP0 的下一步。",
+    "params": "无。",
+    "ret": "返回核心状态处理结果，需结合控制传输状态解释。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 正在 USB 核心的 EP0 状态机内部。",
+    "what": "使用核心 pInformation 与请求回调推进控制传输，可能改 EP0 握手和计数。应用通常由 CTR_LP 间接调用。",
+    "related": [
+      "USB_EP0R",
+      "USB_COUNTn_TX",
+      "USB_COUNTn_RX"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "(void)Post0_Process();",
+      "explanation": "根据当前控制状态提交 EP0 的下一步。"
+    },
+    "check": "用协议分析观察 SETUP、数据和状态阶段是否按序完成。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Standard_GetDescriptorData",
+    "summary": "在控制 IN 请求中返回描述符的下一段数据。",
+    "params": "Length=0 询问总长度；非零为本次长度。pDesc 指向含数据指针和长度的 ONE_DESCRIPTOR。",
+    "ret": "描述符内位置或空指针。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 核心的 ControlState 与偏移已准备，在描述符回调使用。",
+    "what": "Length=0 时把长度填入控制状态并返回空指针；否则按 Usb_wOffset 返回描述符位置。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "最小调用",
+      "code": "uint8_t bytes[4] = {4u, 3u, 9u, 4u};\nONE_DESCRIPTOR desc = {bytes, sizeof bytes};\n(void)Standard_GetDescriptorData(0u, &desc);",
+      "explanation": "在控制 IN 请求中返回描述符的下一段数据。"
+    },
+    "check": "在回调内核对长度，主机 GET_DESCRIPTOR 应拿到符合请求的字节。",
+    "manual": {
+      "page": 408,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ToWord",
+    "summary": "把两个字节拼为 16 位值。",
+    "params": "bh=0x12 是高字节，bl=0x34 是低字节。",
+    "ret": "16 位组合值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 纯数据计算。",
+    "what": "移位与组合，不访问寄存器。",
+    "related": [],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = ToWord(0x12u, 0x34u);",
+      "explanation": "把两个字节拼为 16 位值。"
+    },
+    "check": "应得到 0x1234。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "ByteSwap",
+    "summary": "交换 16 位值的高低字节。",
+    "params": "wSwW=0x1234。",
+    "ret": "交换后的 16 位值。",
+    "pre": "USB 时钟为 48 MHz，PCLK1 至少 13 MHz，APB1 门控已开，CAN1 保持禁用。 纯数据计算。",
+    "what": "交换两个字节，不访问寄存器。",
+    "related": [],
+    "example": {
+      "title": "最小调用",
+      "code": "const uint16_t value = ByteSwap(0x1234u);",
+      "explanation": "交换 16 位值的高低字节。"
+    },
+    "check": "应得到 0x3412。",
+    "manual": {
+      "page": 419,
+      "label": "对应硬件定义",
+      "kind": "rcc"
+    },
+    "source": "ST USB-FS-Device Library V3.2.1"
+  },
+  {
+    "name": "Standard_GetConfiguration",
+    "summary": "响应主机的 GET_CONFIGURATION 请求。",
+    "params": "Length=0 时探测长度，Length=1 取实际数据。",
+    "ret": "长度探测返回空，数据阶段返回当前字段地址。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "记录返回长度，或调用应用回调并读取 Current_Configuration。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "响应主机的 GET_CONFIGURATION 请求。",
+      "code": "const uint8_t *bytes = Standard_GetConfiguration(1u);"
+    },
+    "check": "主机读到一个字节，与当前控制状态字段对照。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_GetInterface",
+    "summary": "响应主机的 GET_INTERFACE 请求。",
+    "params": "Length=0 时探测长度，Length=1 取实际数据。",
+    "ret": "长度探测返回空，数据阶段返回当前字段地址。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "记录返回长度，或调用应用回调并读取 Current_AlternateSetting。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "响应主机的 GET_INTERFACE 请求。",
+      "code": "const uint8_t *bytes = Standard_GetInterface(1u);"
+    },
+    "check": "主机读到一个字节，与当前控制状态字段对照。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_GetStatus",
+    "summary": "返回设备、接口或端点的 GET_STATUS 数据。",
+    "params": "Length=0 探测长度，Length=2 获取两字节状态。",
+    "ret": "探测时返回空，合法接收方返回状态缓冲指针。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "设备状态取当前特性，接口状态为零，端点状态按 wIndex 的方向检查 STALL。",
+    "related": [
+      "USB_EP0R",
+      "USB_EP1R-STAT_TX",
+      "USB_EP1R-STAT_RX"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "返回设备、接口或端点的 GET_STATUS 数据。",
+      "code": "const uint8_t *bytes = Standard_GetStatus(2u);"
+    },
+    "check": "给端点发送 SET_FEATURE 后，GET_STATUS 应反映 HALT。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_SetConfiguration",
+    "summary": "接受一个有效配置编号并通知设备类。",
+    "params": "无，当前 SETUP 的字段由核心状态提供。",
+    "ret": "USB_SUCCESS 表示接受，涉及请求合法性检查的路径可返回 USB_UNSUPPORT。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "检查 wValue、wIndex 与设备声明的配置数，写 Current_Configuration 并调用 User_SetConfiguration。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "接受一个有效配置编号并通知设备类。",
+      "code": "const RESULT result = Standard_SetConfiguration();"
+    },
+    "check": "主机读回配置号，应用回调完成所需端点准备。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_SetInterface",
+    "summary": "在设备已配置时更改接口的备用设置。",
+    "params": "无，当前 SETUP 的字段由核心状态提供。",
+    "ret": "USB_SUCCESS 表示接受，涉及请求合法性检查的路径可返回 USB_UNSUPPORT。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "调用 Class_Get_Interface_Setting 验证接口和备用设置，再更新核心字段并通知应用。",
+    "related": [
+      "USB_EP0R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "在设备已配置时更改接口的备用设置。",
+      "code": "const RESULT result = Standard_SetInterface();"
+    },
+    "check": "主机 GET_INTERFACE 应读回刚接受的设置。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_SetEndPointFeature",
+    "summary": "把合法的已配置端点置为 HALT。",
+    "params": "无，当前 SETUP 的字段由核心状态提供。",
+    "ret": "USB_SUCCESS 表示接受，涉及请求合法性检查的路径可返回 USB_UNSUPPORT。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "从请求解析端点方向。有效时把对应 STAT 改为 STALL，并调用用户回调。",
+    "related": [
+      "USB_EP0R",
+      "USB_EP1R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "把合法的已配置端点置为 HALT。",
+      "code": "const RESULT result = Standard_SetEndPointFeature();"
+    },
+    "check": "GET_STATUS 应返回 HALT；端点事务应得到 STALL。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_SetDeviceFeature",
+    "summary": "记录主机启用设备远程唤醒的请求。",
+    "params": "无，当前 SETUP 的字段由核心状态提供。",
+    "ret": "USB_SUCCESS 表示接受，涉及请求合法性检查的路径可返回 USB_UNSUPPORT。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "置 Current_Feature 的远程唤醒标志，调用用户回调。",
+    "related": [
+      "USB_EP0R",
+      "USB_EP1R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "记录主机启用设备远程唤醒的请求。",
+      "code": "const RESULT result = Standard_SetDeviceFeature();"
+    },
+    "check": "GET_STATUS 应反映启用状态。发 RESUME 还需满足总线已挂起等条件。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "Standard_ClearFeature",
+    "summary": "关闭远程唤醒许可或清除端点 HALT。",
+    "params": "无，当前 SETUP 的字段由核心状态提供。",
+    "ret": "USB_SUCCESS 表示接受，涉及请求合法性检查的路径可返回 USB_UNSUPPORT。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "按接收方清设备特性位，或处理端点 STALL，恢复握手并按方向初始化 DTOG。",
+    "related": [
+      "USB_EP0R",
+      "USB_EP1R"
+    ],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "关闭远程唤醒许可或清除端点 HALT。",
+      "code": "const RESULT result = Standard_ClearFeature();"
+    },
+    "check": "端点恢复后观察 DATA PID 和首次事务。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  },
+  {
+    "name": "NOP_Process",
+    "summary": "提供一个无需附加动作的空回调。",
+    "params": "无。",
+    "ret": "无。",
+    "pre": "USB 核心已初始化，由 EP0 控制传输流程调用。CAN1 保持禁用。",
+    "what": "不修改控制状态或寄存器。",
+    "related": [],
+    "example": {
+      "title": "控制请求回调中的调用",
+      "explanation": "提供一个无需附加动作的空回调。",
+      "code": "NOP_Process();"
+    },
+    "check": "调用前后应用状态保持不变。",
+    "source": "ST USB-FS-Device Library V3.2.1",
+    "manual": {
+      "page": 408,
+      "label": "控制传输编程",
+      "kind": "rcc"
+    }
+  }
+]

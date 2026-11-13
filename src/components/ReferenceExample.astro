@@ -1,0 +1,38 @@
+---
+interface Props {
+  title: string;
+  explanation: string;
+  code: string;
+  check?: string;
+}
+
+const { title, explanation, code, check } = Astro.props;
+---
+
+<div class="reference-example">
+  <p><strong>示例</strong> · {title}</p>
+  <p>{explanation}</p>
+  <pre tabindex="0"><code class="language-c">{code}</code></pre>
+  {check && check !== explanation && <p class="reference-check"><strong>验证与排故</strong> · {check}</p>}
+</div>
+
+<style>
+  .reference-example {
+    padding: .8rem 1rem;
+    border: 1px solid var(--lab-border);
+    border-radius: .45rem;
+    background: var(--lab-surface);
+  }
+  .reference-example p { margin: 0; }
+  .reference-example p + p { margin-top: .35rem; }
+  .reference-example .reference-check { margin-top: .65rem; }
+  .reference-example pre {
+    max-width: 100%;
+    margin-top: .65rem;
+    padding: .65rem .75rem;
+    overflow-x: auto;
+    border-radius: .3rem;
+    background: var(--sl-color-bg);
+    line-height: 1.5;
+  }
+</style>

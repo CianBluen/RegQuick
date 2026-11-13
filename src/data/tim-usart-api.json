@@ -1,0 +1,2153 @@
+[
+  {
+    "name": "TIM_DeInit",
+    "params": "TIMx 选 TIM1–4。",
+    "ret": "无。",
+    "pre": "允许丢弃该实例的全部配置。",
+    "what": "通过 RCC 对 TIM1 的 APB2 或 TIM2–4 的 APB1 复位位置位再释放。已有计数、通道与中断配置会丢失。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "/reference/clock-exti/#rcc_apb2rstr"
+    ],
+    "example": {
+      "title": "调用 TIM_DeInit",
+      "explanation": "复位 TIM2，ARR 回到 0xFFFF。",
+      "code": "TIM_DeInit(TIM2);"
+    },
+    "summary": "初始化前将选定定时器恢复到复位状态。",
+    "check": "之后读 CR1.CEN=0、PSC=0。读值不符先确认实例和外设总线时钟。"
+  },
+  {
+    "name": "TIM_TimeBaseInit",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_TimeBaseInitStruct 指向时基配置。\nTIM_Prescaler=7：8 MHz 输入除以 8，得到 1 MHz。\nTIM_Period=999：向上计数走 0–999，每 1000 格更新一次。\nTIM_CounterMode=TIM_CounterMode_Up：边沿对齐向上计数。\nTIM_ClockDivision=TIM_CKD_DIV1：滤波/死区采样时钟不分频，计数分频仍由 PSC 决定。\nTIM_RepetitionCounter：仅本型号的 TIM1 使用，填 0 表示每个计数周期都可更新。",
+    "ret": "无。",
+    "pre": "停表配置，先开 TIM2 时钟并选内部时钟；输入 8 MHz、UDIS=0。需要更新中断时，先保持 UIE 关闭。",
+    "what": "读改写 CR1.DIR/CMS/CKD，覆盖 ARR、PSC（TIM1 还写 RCR），然后写 EGR.UG 装载新分频并重新初始化计数器。保留 CEN，不会主动启动；URS=0 时本次更新可能置 UIF。",
+    "related": [
+      "TIM_CR1-DIR",
+      "TIM_CR1-CMS",
+      "TIM_CR1-CKD",
+      "TIM_ARR",
+      "TIM_PSC",
+      "TIM_RCR",
+      "TIM_EGR-UG",
+      "TIM_SR-UIF"
+    ],
+    "example": {
+      "title": "调用 TIM_TimeBaseInit",
+      "explanation": "8 MHz 下写入后，计数频率为 1 MHz，每 1000 格更新。若随后开启更新 IRQ，先清 UIF。",
+      "code": "TIM_TimeBaseInitTypeDef cfg;\nTIM_TimeBaseStructInit(&cfg);\ncfg.TIM_Prescaler = 7u;\ncfg.TIM_Period = 999u;\nTIM_TimeBaseInit(TIM2, &cfg);"
+    },
+    "summary": "初始化定时器的节拍和计数范围，适合第一次启用或停表重配。",
+    "check": "读回 PSC=7、ARR=999；开中断前先检查并清掉 UIF，否则可能刚使能就进 ISR。用 TIM_Cmd 启动，量相邻更新约 1 ms。若读回正确而周期不符，先查实际 TIM2 输入频率与更新装载。"
+  },
+  {
+    "name": "TIM_OC1Init",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCInitStruct 指向输出配置。\nTIM_OCMode=TIM_OCMode_PWM1：向上计数时 CNT 小于 CCR 为有效。\nTIM_OutputState=TIM_OutputState_Enable：打开主通道。\nTIM_Pulse=250：写入 CCR1。\nTIM_OCPolarity=TIM_OCPolarity_High：有效时输出高。\nTIM_OCIdleState 供 TIM1 选择空闲电平，本例用默认低。\nTIM_OutputNState、TIM_OCNPolarity、TIM_OCNIdleState 分别控制 TIM1 的互补使能、极性和空闲电平，本例保留默认关闭、高有效、空闲低。",
+    "ret": "无。",
+    "pre": "开启 TIM2 外设时钟，配好时基。量波形前配置对应 GPIO 为复用推挽，并启动计数。重新配置运行中的通道可能出现短暂输出变化。",
+    "what": "先暂时关闭 CC1E，再将 CC1S 清零、写 OC1M、CCR1、CC1P 和 CC1E。TIM1 还写 CR2 的空闲电平与 CCER 的互补控制。按需另开 CCR 预装载、CEN，以及 TIM1 的 MOE。",
+    "related": [
+      "TIM_CCMR1-CC1S",
+      "TIM_CCMR1-OC1M",
+      "TIM_CCMR1-OC1PE",
+      "TIM_CCER-CC1E",
+      "TIM_CCER-CC1P",
+      "TIM_CCR1",
+      "TIM_CR2-OIS1",
+      "TIM_CCER-CC1NE",
+      "TIM_CCER-CC1NP",
+      "TIM_CR2-OIS1N"
+    ],
+    "example": {
+      "title": "调用 TIM_OC1Init",
+      "explanation": "以 TIM2_CH1、ARR=999、向上计数为例，比较值 250 对应 25%。",
+      "code": "TIM_OCInitTypeDef cfg;\nTIM_OCStructInit(&cfg);\ncfg.TIM_OCMode = TIM_OCMode_PWM1;\ncfg.TIM_OutputState = TIM_OutputState_Enable;\ncfg.TIM_Pulse = 250u;\nTIM_OC1Init(TIM2, &cfg);"
+    },
+    "summary": "初始化通道 1 的比较输出，用计数值产生 PWM 或翻转信号。",
+    "check": "TIM2 不重映射时在 PA0 测量。计数 1 MHz、ARR=999 时应见 1 kHz、25% 高电平。无输出先看 CC1E 和引脚复用，随后看 CNT 是否在走。"
+  },
+  {
+    "name": "TIM_OC2Init",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCInitStruct 指向输出配置。\nTIM_OCMode=TIM_OCMode_PWM1：向上计数时 CNT 小于 CCR 为有效。\nTIM_OutputState=TIM_OutputState_Enable：打开主通道。\nTIM_Pulse=250：写入 CCR2。\nTIM_OCPolarity=TIM_OCPolarity_High：有效时输出高。\nTIM_OCIdleState 供 TIM1 选择空闲电平，本例用默认低。\nTIM_OutputNState、TIM_OCNPolarity、TIM_OCNIdleState 分别控制 TIM1 的互补使能、极性和空闲电平，本例保留默认关闭、高有效、空闲低。",
+    "ret": "无。",
+    "pre": "开启 TIM2 外设时钟，配好时基。量波形前配置对应 GPIO 为复用推挽，并启动计数。重新配置运行中的通道可能出现短暂输出变化。",
+    "what": "先暂时关闭 CC2E，再将 CC2S 清零、写 OC2M、CCR2、CC2P 和 CC2E。TIM1 还写 CR2 的空闲电平与 CCER 的互补控制。按需另开 CCR 预装载、CEN，以及 TIM1 的 MOE。",
+    "related": [
+      "TIM_CCMR1-CC2S",
+      "TIM_CCMR1-OC2M",
+      "TIM_CCMR1-OC2PE",
+      "TIM_CCER-CC2E",
+      "TIM_CCER-CC2P",
+      "TIM_CCR2",
+      "TIM_CR2-OIS2",
+      "TIM_CCER-CC2NE",
+      "TIM_CCER-CC2NP",
+      "TIM_CR2-OIS2N"
+    ],
+    "example": {
+      "title": "调用 TIM_OC2Init",
+      "explanation": "以 TIM2_CH2、ARR=999、向上计数为例，比较值 250 对应 25%。",
+      "code": "TIM_OCInitTypeDef cfg;\nTIM_OCStructInit(&cfg);\ncfg.TIM_OCMode = TIM_OCMode_PWM1;\ncfg.TIM_OutputState = TIM_OutputState_Enable;\ncfg.TIM_Pulse = 250u;\nTIM_OC2Init(TIM2, &cfg);"
+    },
+    "summary": "初始化通道 2 的比较输出，用计数值产生 PWM 或翻转信号。",
+    "check": "TIM2 不重映射时在 PA1 测量。计数 1 MHz、ARR=999 时应见 1 kHz、25% 高电平。无输出先看 CC2E 和引脚复用，随后看 CNT 是否在走。"
+  },
+  {
+    "name": "TIM_OC3Init",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCInitStruct 指向输出配置。\nTIM_OCMode=TIM_OCMode_PWM1：向上计数时 CNT 小于 CCR 为有效。\nTIM_OutputState=TIM_OutputState_Enable：打开主通道。\nTIM_Pulse=250：写入 CCR3。\nTIM_OCPolarity=TIM_OCPolarity_High：有效时输出高。\nTIM_OCIdleState 供 TIM1 选择空闲电平，本例用默认低。\nTIM_OutputNState、TIM_OCNPolarity、TIM_OCNIdleState 分别控制 TIM1 的互补使能、极性和空闲电平，本例保留默认关闭、高有效、空闲低。",
+    "ret": "无。",
+    "pre": "开启 TIM2 外设时钟，配好时基。量波形前配置对应 GPIO 为复用推挽，并启动计数。重新配置运行中的通道可能出现短暂输出变化。",
+    "what": "先暂时关闭 CC3E，再将 CC3S 清零、写 OC3M、CCR3、CC3P 和 CC3E。TIM1 还写 CR2 的空闲电平与 CCER 的互补控制。按需另开 CCR 预装载、CEN，以及 TIM1 的 MOE。",
+    "related": [
+      "TIM_CCMR2-CC3S",
+      "TIM_CCMR2-OC3M",
+      "TIM_CCMR2-OC3PE",
+      "TIM_CCER-CC3E",
+      "TIM_CCER-CC3P",
+      "TIM_CCR3",
+      "TIM_CR2-OIS3",
+      "TIM_CCER-CC3NE",
+      "TIM_CCER-CC3NP",
+      "TIM_CR2-OIS3N"
+    ],
+    "example": {
+      "title": "调用 TIM_OC3Init",
+      "explanation": "以 TIM2_CH3、ARR=999、向上计数为例，比较值 250 对应 25%。",
+      "code": "TIM_OCInitTypeDef cfg;\nTIM_OCStructInit(&cfg);\ncfg.TIM_OCMode = TIM_OCMode_PWM1;\ncfg.TIM_OutputState = TIM_OutputState_Enable;\ncfg.TIM_Pulse = 250u;\nTIM_OC3Init(TIM2, &cfg);"
+    },
+    "summary": "初始化通道 3 的比较输出，用计数值产生 PWM 或翻转信号。",
+    "check": "TIM2 不重映射时在 PA2 测量。计数 1 MHz、ARR=999 时应见 1 kHz、25% 高电平。无输出先看 CC3E 和引脚复用，随后看 CNT 是否在走。"
+  },
+  {
+    "name": "TIM_OC4Init",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCInitStruct 指向输出配置。\nTIM_OCMode=TIM_OCMode_PWM1：向上计数时 CNT 小于 CCR 为有效。\nTIM_OutputState=TIM_OutputState_Enable：打开主通道。\nTIM_Pulse=250：写入 CCR4。\nTIM_OCPolarity=TIM_OCPolarity_High：有效时输出高。\nTIM_OCIdleState 供 TIM1 选择空闲电平，本例用默认低。",
+    "ret": "无。",
+    "pre": "开启 TIM2 外设时钟，配好时基。量波形前配置对应 GPIO 为复用推挽，并启动计数。重新配置运行中的通道可能出现短暂输出变化。",
+    "what": "先暂时关闭 CC4E，再将 CC4S 清零、写 OC4M、CCR4、CC4P 和 CC4E。TIM1 还写 CR2 的空闲电平。按需另开 CCR 预装载、CEN，以及 TIM1 的 MOE。",
+    "related": [
+      "TIM_CCMR2-CC4S",
+      "TIM_CCMR2-OC4M",
+      "TIM_CCMR2-OC4PE",
+      "TIM_CCER-CC4E",
+      "TIM_CCER-CC4P",
+      "TIM_CCR4",
+      "TIM_CR2-OIS4"
+    ],
+    "example": {
+      "title": "调用 TIM_OC4Init",
+      "explanation": "以 TIM2_CH4、ARR=999、向上计数为例，比较值 250 对应 25%。",
+      "code": "TIM_OCInitTypeDef cfg;\nTIM_OCStructInit(&cfg);\ncfg.TIM_OCMode = TIM_OCMode_PWM1;\ncfg.TIM_OutputState = TIM_OutputState_Enable;\ncfg.TIM_Pulse = 250u;\nTIM_OC4Init(TIM2, &cfg);"
+    },
+    "summary": "初始化通道 4 的比较输出，用计数值产生 PWM 或翻转信号。",
+    "check": "TIM2 不重映射时在 PA3 测量。计数 1 MHz、ARR=999 时应见 1 kHz、25% 高电平。无输出先看 CC4E 和引脚复用，随后看 CNT 是否在走。"
+  },
+  {
+    "name": "TIM_ICInit",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_ICInitStruct 指向输入配置。\nTIM_Channel=TIM_Channel_1：选 CCR1。\nTIM_ICSelection=TIM_ICSelection_DirectTI：将 TI1 直接连到 CH1。\nTIM_ICPolarity=TIM_ICPolarity_Rising：捕获上升沿。\nTIM_ICPrescaler=TIM_ICPSC_DIV1：每个有效边沿都捕获。\nTIM_ICFilter=0：不要求连续采样确认。信号抖动时按输入滤波编码提高门槛。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。配置对应 GPIO 为输入。",
+    "what": "先关选定通道，再设置 CCxS、ICxF、CCxP 并重新使能 CCxE，另写 ICxPSC。CEN 与中断需要另开。",
+    "related": [
+      "TIM_CCMR1-CC1S",
+      "TIM_CCMR1-IC1F",
+      "TIM_CCMR1-IC1PSC",
+      "TIM_CCER-CC1P",
+      "TIM_CCER-CC1E",
+      "TIM_CCR1"
+    ],
+    "example": {
+      "title": "调用 TIM_ICInit",
+      "explanation": "TIM3_CH1 取 PA6 上升沿，运行后观察 CCR1。",
+      "code": "TIM_ICInitTypeDef cfg;\nTIM_ICStructInit(&cfg);\ncfg.TIM_Channel = TIM_Channel_1;\ncfg.TIM_ICSelection = TIM_ICSelection_DirectTI;\ncfg.TIM_ICPolarity = TIM_ICPolarity_Rising;\nTIM_ICInit(TIM3, &cfg);"
+    },
+    "summary": "初始化单通道输入捕获，把输入边沿到达时的 CNT 保存到 CCR。",
+    "check": "默认映射 TIM3_CH1 在 PA6。给已知周期方波，CCR1 连续两次的差值应等于边沿间隔除以计数周期。无变化先查 CNT 和 CC1IF。"
+  },
+  {
+    "name": "TIM_PWMIConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_ICInitStruct 指向输入配置。\nTIM_Channel=TIM_Channel_1：选 CH1 为周期捕获，CH2 留给脉宽。也可用 CH2 作为主通道。\nTIM_ICSelection=TIM_ICSelection_DirectTI：将 TI1 直接连到 CH1。\nTIM_ICPolarity=TIM_ICPolarity_Rising：捕获上升沿。\nTIM_ICPrescaler=TIM_ICPSC_DIV1：每个有效边沿都捕获。\nTIM_ICFilter=0：不要求连续采样确认。信号抖动时按输入滤波编码提高门槛。",
+    "ret": "无。",
+    "pre": "开启 TIM3 和 GPIOA 时钟，默认映射 PA6 配输入。停表配置，验证示例时让 TIM3 计数时钟为 1 MHz，信号源与板共地。",
+    "what": "覆盖两路 CCMR1 的选择、滤波与捕获分频，并在 CCER 配成相反极性、打开两路。函数结束后将 TI1FP1 选为触发源并开从模式复位，再启动计数。",
+    "related": [
+      "TIM_CCMR1-CC1S",
+      "TIM_CCMR1-CC2S",
+      "TIM_CCER-CC1P",
+      "TIM_CCER-CC2P",
+      "TIM_CCR1",
+      "TIM_CCR2",
+      "TIM_SMCR-TS",
+      "TIM_SMCR-SMS"
+    ],
+    "example": {
+      "title": "调用 TIM_PWMIConfig",
+      "explanation": "PA6 上升沿锁存周期、下降沿锁存高电平。配置后再启动 TIM3。",
+      "code": "TIM_ICInitTypeDef cfg;\nTIM_ICStructInit(&cfg);\ncfg.TIM_Channel = TIM_Channel_1;\ncfg.TIM_ICSelection = TIM_ICSelection_DirectTI;\ncfg.TIM_ICPolarity = TIM_ICPolarity_Rising;\nTIM_PWMIConfig(TIM3, &cfg);\nTIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1);\nTIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset);"
+    },
+    "summary": "用两条捕获通道同时测一个 PWM 输入的周期和高电平宽度。",
+    "check": "PA6 输入 1 kHz、25% PWM，计数 1 MHz 时，从第二个上升沿起 CCR1 约为 1000，CCR2 约为 250。只有一项正确时先查 TI1FP1、SMS 和两路极性。"
+  },
+  {
+    "name": "TIM_BDTRConfig",
+    "params": "TIMx 为 TIM1；TIM_BDTRInitStruct 指向配置。\nTIM_DeadTime=80：CKD=00、8 MHz 时为 10 µs。\nTIM_Break=TIM_Break_Enable；TIM_BreakPolarity=TIM_BreakPolarity_High：PB12 高有效刹车。\nTIM_AutomaticOutput 控制刹车解除后的自动恢复；本例关闭。\nTIM_OSSRState/TIM_OSSIState 决定运行/空闲时关闭状态，TIM_LOCKLevel 决定锁定级别；本例保留默认禁用。",
+    "ret": "无。",
+    "pre": "先停 TIM1 输出，确认 LOCK 尚可配置，BKIN 输入与极性匹配。",
+    "what": "整字写 BDTR（包括 MOE 被清）；之后需要用 TIM_CtrlPWMOutputs 开 MOE。",
+    "related": [
+      "TIM_BDTR-DTG",
+      "TIM_BDTR-BKE",
+      "TIM_BDTR-BKP",
+      "TIM_BDTR-AOE",
+      "TIM_BDTR-OSSR",
+      "TIM_BDTR-OSSI",
+      "TIM_BDTR-LOCK",
+      "TIM_BDTR-MOE"
+    ],
+    "example": {
+      "title": "调用 TIM_BDTRConfig",
+      "explanation": "CKD=00、8 MHz 时死区 10 µs，PB12 高电平触发刹车。",
+      "code": "TIM_BDTRInitTypeDef cfg;\nTIM_BDTRStructInit(&cfg);\ncfg.TIM_DeadTime = 80u;\ncfg.TIM_Break = TIM_Break_Enable;\ncfg.TIM_BreakPolarity = TIM_BreakPolarity_High;\nTIM_BDTRConfig(TIM1, &cfg);"
+    },
+    "summary": "初始化 TIM1 互补输出的死区、刹车和空闲策略。",
+    "check": "DTG 读回 80；两路已使能时测换向间隔约 10 µs。无波形先查 MOE、BKIN 和 CCxNE。"
+  },
+  {
+    "name": "TIM_TimeBaseStructInit",
+    "params": "TIM_TimeBaseInitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。PSC=0、ARR=65535、向上计数、CKD 不分频、重复计数=0。",
+    "related": [],
+    "example": {
+      "title": "调用 TIM_TimeBaseStructInit",
+      "explanation": "PSC=0，周期字段为 0xFFFF。",
+      "code": "TIM_TimeBaseInitTypeDef cfg;\nTIM_TimeBaseStructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "TIM_OCStructInit",
+    "params": "TIM_OCInitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。比较模式为 Timing，主输出与互补输出均关闭，比较值=0，极性高有效，空闲状态低。",
+    "related": [],
+    "example": {
+      "title": "调用 TIM_OCStructInit",
+      "explanation": "默认禁用输出，比较值为 0。",
+      "code": "TIM_OCInitTypeDef cfg;\nTIM_OCStructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "TIM_ICStructInit",
+    "params": "TIM_ICInitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。CH1、上升沿、直接输入、每个有效边沿都捕获、滤波=0。",
+    "related": [],
+    "example": {
+      "title": "调用 TIM_ICStructInit",
+      "explanation": "默认 CH1、上升沿、直接输入。",
+      "code": "TIM_ICInitTypeDef cfg;\nTIM_ICStructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "TIM_BDTRStructInit",
+    "params": "TIM_BDTRInitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。运行和空闲关闭状态均禁用，锁定关闭，死区=0，刹车关闭且低有效，自动恢复关闭。",
+    "related": [],
+    "example": {
+      "title": "调用 TIM_BDTRStructInit",
+      "explanation": "默认禁用刹车和自动输出，死区为 0。",
+      "code": "TIM_BDTRInitTypeDef cfg;\nTIM_BDTRStructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "USART_StructInit",
+    "params": "USART_InitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。9600 波特、8 位字长、1 个停止位、无校验、收发都开、无硬件流控。",
+    "related": [],
+    "example": {
+      "title": "调用 USART_StructInit",
+      "explanation": "默认 9600、8N1，收发均使能，无流控。",
+      "code": "USART_InitTypeDef cfg;\nUSART_StructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "USART_ClockStructInit",
+    "params": "USART_ClockInitStruct 指向可写的配置结构体。",
+    "ret": "无。",
+    "pre": "已分配结构体。",
+    "what": "只写 RAM 中的结构体。关闭 CK，时钟空闲低，第一个边沿采样，最后一位不输出时钟脉冲。",
+    "related": [],
+    "example": {
+      "title": "调用 USART_ClockStructInit",
+      "explanation": "默认不输出 CK。",
+      "code": "USART_ClockInitTypeDef cfg;\nUSART_ClockStructInit(&cfg);"
+    },
+    "summary": "先给初始化结构体填默认值，再按需要改成员。",
+    "check": "在 Keil 看局部变量是否已初始化。要改硬件时还需将该结构体传给对应的 Init 或 Config 函数。"
+  },
+  {
+    "name": "TIM_Cmd",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已装载时基。",
+    "what": "修改 CR1.CEN。停止后可读当前 CNT，重新使能会从保留的计数值继续。",
+    "related": [
+      "TIM_CR1-CEN"
+    ],
+    "example": {
+      "title": "调用 TIM_Cmd",
+      "explanation": "CNT 开始计数。",
+      "code": "TIM_Cmd(TIM2, ENABLE);"
+    },
+    "summary": "启停定时器计数。",
+    "check": "TIM2 使用内部时钟时，两次读 CNT 应有变化。静止先看 CEN、总线门控和当前从模式；单脉冲模式下硬件可能已经清 CEN。"
+  },
+  {
+    "name": "TIM_CtrlPWMOutputs",
+    "params": "TIMx 取 TIM1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已配 TIM1 通道、GPIO 与刹车，BKIN 未触发。",
+    "what": "修改 BDTR.MOE，保留通道配置；有效刹车能由硬件清 MOE。",
+    "related": [
+      "TIM_BDTR-MOE",
+      "TIM_BDTR-BKE",
+      "TIM_CCER"
+    ],
+    "example": {
+      "title": "调用 TIM_CtrlPWMOutputs",
+      "explanation": "允许互补端输出。",
+      "code": "TIM_CtrlPWMOutputs(TIM1, ENABLE);"
+    },
+    "summary": "打开或关闭 TIM1 主输出门控，常在 PWM 初始化最后调用。",
+    "check": "MOE 应读 1，主端或互补端才可能有波形。若 MOE 被拉回 0，先查刹车状态及输入极性，再看 CCxE/CCxNE。"
+  },
+  {
+    "name": "TIM_ITConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_IT=TIM_IT_Update 选更新，可按位或选多个实例支持的中断源。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已清 UIF，另配置 NVIC。",
+    "what": "按掩码更新 DIER 的中断使能位，保留状态标志。",
+    "related": [
+      "TIM_DIER-UIE",
+      "TIM_SR-UIF",
+      "/reference/clock-exti/#nvic_iser"
+    ],
+    "example": {
+      "title": "调用 TIM_ITConfig",
+      "explanation": "下一次更新可请求 IRQ。",
+      "code": "TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);"
+    },
+    "summary": "选择定时器哪些事件能向 NVIC 发中断请求。",
+    "check": "TIM4 更新后读 DIER.UIE=1、SR.UIF=1。ISR 未运行先查 NVIC 使能和向量，调用前清旧 UIF。"
+  },
+  {
+    "name": "TIM_GenerateEvent",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_EventSource=TIM_EventSource_Update 对应 UG。使用实例支持的事件掩码。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。UDIS=0。",
+    "what": "直接写 EGR 掩码。UG 可能置 UIF，视 UDIS、URS 而定。",
+    "related": [
+      "TIM_EGR-UG",
+      "TIM_SR-UIF",
+      "TIM_PSC",
+      "TIM_ARR"
+    ],
+    "example": {
+      "title": "调用 TIM_GenerateEvent",
+      "explanation": "PSC、ARR 更新，CNT 回到起点。",
+      "code": "TIM_GenerateEvent(TIM2, TIM_EventSource_Update);"
+    },
+    "summary": "由软件触发定时器事件，例如立即提交新的时基配置。",
+    "check": "UDIS=0 时，UG 使计数器回到起点并装载 PSC 和已开启预装载的 ARR。周期没变先查 UDIS，开 IRQ 前再检查 UIF。"
+  },
+  {
+    "name": "TIM_DMAConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_DMABase=TIM_DMABase_CCR1 选择首个寄存器。\nTIM_DMABurstLength=TIM_DMABurstLength_2Transfers 设置每个 burst 两项。",
+    "ret": "无。",
+    "pre": "停止 DMA 请求。",
+    "what": "改写 DCR.DBA 和 DBL。示例从 CCR1 开始覆盖 CCR1 和 CCR2。",
+    "related": [
+      "TIM_DCR",
+      "TIM_DMAR"
+    ],
+    "example": {
+      "title": "调用 TIM_DMAConfig",
+      "explanation": "一次 burst 从 CCR1 起传两项。",
+      "code": "TIM_DMAConfig(TIM2, TIM_DMABase_CCR1, TIM_DMABurstLength_2Transfers);"
+    },
+    "summary": "指定一次定时器 DMA burst 从哪个寄存器开始、连续传几项。",
+    "check": "DCR 应读 DBA=13、DBL=1。更新触发的实际传输需另配请求与 DMA 通道，DMA 外设地址用 DMAR。"
+  },
+  {
+    "name": "TIM_DMACmd",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_DMASource=TIM_DMA_Update 选择更新事件。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已配置 DMA1 通道 7。",
+    "what": "更新 DIER 的 DMA 请求使能，DMA 的通道、方向与缓冲区另配。",
+    "related": [
+      "TIM_DIER-UDE"
+    ],
+    "example": {
+      "title": "调用 TIM_DMACmd",
+      "explanation": "更新时发 DMA 请求。",
+      "code": "TIM_DMACmd(TIM4, TIM_DMA_Update, ENABLE);"
+    },
+    "summary": "允许选定定时器事件发出 DMA 请求。",
+    "check": "读 TIM4.DIER.UDE=1，产生更新后看 DMA 剩余数是否递减。无变化先核对请求对应的 DMA 通道和 EN。"
+  },
+  {
+    "name": "TIM_ITRxExternalClockConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_InputTriggerSource=TIM_TS_ITR1 选 TIM3 的 TIM2 内部连线。",
+    "ret": "无。",
+    "pre": "打开 TIM2 和 TIM3 时钟。先保持 TIM3 的 SMS=000，再改 TS，避免切换触发源时产生假边沿。",
+    "what": "将 SMCR.TS 选为指定 ITR，SMS 设为外部时钟模式 1。",
+    "related": [
+      "TIM_SMCR-TS",
+      "TIM_SMCR-SMS"
+    ],
+    "example": {
+      "title": "调用 TIM_ITRxExternalClockConfig",
+      "explanation": "TIM2 每次更新让已使能的 TIM3 加一。",
+      "code": "TIM_ITRxExternalClockConfig(TIM3, TIM_TS_ITR1);"
+    },
+    "summary": "让一个定时器按另一个定时器的触发脉冲计数。",
+    "check": "TIM2 已将更新选作 TRGO，TIM3 PSC=0 且 CEN=1 时，TIM2 每次更新使 TIM3 加一。先核对 ITR 路由和主定时器 MMS。"
+  },
+  {
+    "name": "TIM_TIxExternalClockConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_TIxExternalCLKSource=TIM_TIxExternalCLK1Source_TI1 选 TI1FP1。\nTIM_ICPolarity=TIM_ICPolarity_Rising 选上升沿。\nICFilter=0 关闭数字滤波。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。PA6 为输入。",
+    "what": "设置 TI 输入的滤波及极性，SMCR 选择该触发源和外部时钟模式 1。",
+    "related": [
+      "TIM_CCMR1",
+      "TIM_CCER",
+      "TIM_SMCR"
+    ],
+    "example": {
+      "title": "调用 TIM_TIxExternalClockConfig",
+      "explanation": "使能后在 TI1 上升沿计数。",
+      "code": "TIM_TIxExternalClockConfig(TIM3, TIM_TIxExternalCLK1Source_TI1, TIM_ICPolarity_Rising, 0u);"
+    },
+    "summary": "把引脚上的有效边沿当作计数时钟。",
+    "check": "TIM3 默认映射 PA6，PSC=0 时给一个合格上升沿，CNT 加一。没有变化先看 CC1S、极性、TS、SMS 和 CEN。"
+  },
+  {
+    "name": "TIM_ETRClockMode1Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ExtTRGPrescaler=TIM_ExtTRGPSC_OFF：ETR 不分频。\nTIM_ExtTRGPolarity=TIM_ExtTRGPolarity_NonInverted：不反相。\nExtTRGFilter=0：关闭数字滤波。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。PA0 接外部脉冲。",
+    "what": "写 SMCR 的 ETR 极性、滤波、分频，将 TS 设为 ETRF、SMS 设为外部时钟模式 1。",
+    "related": [
+      "TIM_SMCR"
+    ],
+    "example": {
+      "title": "调用 TIM_ETRClockMode1Config",
+      "explanation": "使能后每个有效边沿计数。",
+      "code": "TIM_ETRClockMode1Config(TIM2, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0u);"
+    },
+    "summary": "从 ETR 取计数时钟，让外部边沿驱动计数。",
+    "check": "默认 TIM2_ETR 位于 PA0，PSC=0 且 CEN=1 时，每个有效边沿使 CNT 加一。无变化先查 ETR 路由、TS=111 和 SMS=111。"
+  },
+  {
+    "name": "TIM_ETRClockMode2Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ExtTRGPrescaler=TIM_ExtTRGPSC_OFF：ETR 不分频。\nTIM_ExtTRGPolarity=TIM_ExtTRGPolarity_NonInverted：不反相。\nExtTRGFilter=0：关闭数字滤波。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。PA0 接外部脉冲。",
+    "what": "设置 ETR 极性、滤波、分频，再置 SMCR.ECE，保留 SMS 和 TS。",
+    "related": [
+      "TIM_SMCR-ECE"
+    ],
+    "example": {
+      "title": "调用 TIM_ETRClockMode2Config",
+      "explanation": "使能后从 ETR 计数。",
+      "code": "TIM_ETRClockMode2Config(TIM2, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0u);"
+    },
+    "summary": "直接从 ETR 取计数时钟，并保留从模式选择供触发等功能使用。",
+    "check": "检查 SMCR.ECE=1。TIM2 PSC=0 且已运行时，给默认 PA0 合格边沿应能使 CNT 前进。失败先查 ETR 电平与极性。"
+  },
+  {
+    "name": "TIM_ETRConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ExtTRGPrescaler=TIM_ExtTRGPSC_DIV2：每两个合格边沿产生一个后级边沿。\nTIM_ExtTRGPolarity=TIM_ExtTRGPolarity_NonInverted：不反相。\nExtTRGFilter=0：关闭数字滤波。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。配置好 PA0 输入。",
+    "what": "修改 SMCR.ETPS、ETP、ETF。按用途另外配置时钟或清除路径。",
+    "related": [
+      "TIM_SMCR-ETPS",
+      "TIM_SMCR-ETP",
+      "TIM_SMCR-ETF"
+    ],
+    "example": {
+      "title": "调用 TIM_ETRConfig",
+      "explanation": "ETR 每两次合格边沿产生一个分频后边沿。",
+      "code": "TIM_ETRConfig(TIM2, TIM_ExtTRGPSC_DIV2, TIM_ExtTRGPolarity_NonInverted, 0u);"
+    },
+    "summary": "配置 ETR 的边沿整形，供外部时钟或比较清除使用。",
+    "check": "当 ETR 已选作计数源且 PSC=0 时，每两个有效边沿计数一次。数量不符先查 ETPS、极性和 ETR 输入选择。"
+  },
+  {
+    "name": "TIM_PrescalerConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nPrescaler=7：输入时钟除以 8。\nTIM_PSCReloadMode=TIM_PSCReloadMode_Update：等待下一次更新。Immediate 写 UG 以立即请求更新。",
+    "ret": "无。",
+    "pre": "已开启 TIM2 时钟。",
+    "what": "写 PSC 和 EGR。Immediate 可重置当前周期并置 UIF（取决于 UDIS/URS）。Update 保持当前周期，待下个更新装载。",
+    "related": [
+      "TIM_PSC",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_PrescalerConfig",
+      "explanation": "下一个更新时 ÷8 生效。",
+      "code": "TIM_PrescalerConfig(TIM2, 7u, TIM_PSCReloadMode_Update);"
+    },
+    "summary": "在初始化或运行中改变计数节拍。",
+    "check": "8 MHz 输入时，新节拍应为 1 µs。读到 PSC=7 但周期仍旧，先确认是否产生更新且 UDIS=0。"
+  },
+  {
+    "name": "TIM_CounterModeConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_CounterMode=TIM_CounterMode_Up 选向上计数。Down 选向下，CenterAligned1/2/3 选往返并改变输出比较标志出现的方向。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。",
+    "what": "改写 CR1.DIR 和 CMS，宜在停表时选择对齐模式。",
+    "related": [
+      "TIM_CR1-DIR",
+      "TIM_CR1-CMS"
+    ],
+    "example": {
+      "title": "调用 TIM_CounterModeConfig",
+      "explanation": "设置向上边沿对齐。",
+      "code": "TIM_CounterModeConfig(TIM2, TIM_CounterMode_Up);"
+    },
+    "summary": "选择计数向上、向下，或往返计数。",
+    "check": "开启 TIM2 后读 CNT，应从 0 递增，到 ARR 后回到 0。方向不对先查 CR1.CMS、DIR 和编码器模式。"
+  },
+  {
+    "name": "TIM_SelectInputTrigger",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_InputTriggerSource=TIM_TS_TI1FP1 选滤波后的 TI1 输入。",
+    "ret": "无。",
+    "pre": "先禁用从模式。",
+    "what": "只修改 SMCR.TS。另用 SMS 选择触发之后的动作。",
+    "related": [
+      "TIM_SMCR-TS",
+      "TIM_SMCR-SMS"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectInputTrigger",
+      "explanation": "选 TI1FP1 给从模式。",
+      "code": "TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1);"
+    },
+    "summary": "选择哪一路信号进入定时器从模式控制器。",
+    "check": "读 TS=101；选择复位从模式后，TI1 的合格上升沿应清 CNT。无响应先查 SMS、输入滤波和引脚。"
+  },
+  {
+    "name": "TIM_EncoderInterfaceConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_EncoderMode=TIM_EncoderMode_TI12：两路边沿参与计数，另一相判断方向。\nTIM_IC1Polarity 与 TIM_IC2Polarity 均用 TIM_ICPolarity_Rising，使各路输入保持非反相。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。将 PA6/PA7 接编码器两相。",
+    "what": "写 SMS、CC1S/CC2S、CC1P/CC2P。滤波、ARR 和 CEN 仍需另配。",
+    "related": [
+      "TIM_SMCR-SMS",
+      "TIM_CCMR1",
+      "TIM_CCER"
+    ],
+    "example": {
+      "title": "调用 TIM_EncoderInterfaceConfig",
+      "explanation": "启动后手转一圈，记录两路边沿累计计数和方向。",
+      "code": "TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);"
+    },
+    "summary": "让定时器解码两路正交信号并累计位置和方向。",
+    "check": "TIM3 默认 PA6/PA7 输入。以低速来回转动，CNT 应一向增加、一向减少。只有一个方向时先量两路相位和共地。"
+  },
+  {
+    "name": "TIM_ARRPreloadConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "使用 ARR 周期，更新未被禁止。",
+    "what": "修改 CR1.ARPE。启用后 ARR 的写入进入预装载，更新事件才提交。",
+    "related": [
+      "TIM_CR1-ARPE",
+      "TIM_ARR"
+    ],
+    "example": {
+      "title": "调用 TIM_ARRPreloadConfig",
+      "explanation": "下次更新装载新 ARR。",
+      "code": "TIM_ARRPreloadConfig(TIM2, ENABLE);"
+    },
+    "summary": "让新的周期上限在更新边界统一生效。",
+    "check": "写新 ARR 后读回会立即变化，用更新中断或 PWM 测周期确认何时切换。未切换先看 UDIS 和更新来源。"
+  },
+  {
+    "name": "TIM_SelectCOM",
+    "params": "TIMx 取 TIM1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "TIM1 需要 TRGI 换相，且开启 CCPC。",
+    "what": "改 CR2.CCUS。启用后 TRGI 上升沿或 COMG 都可触发 COM。关闭时通过 COMG 产生 COM。",
+    "related": [
+      "TIM_CR2-CCUS",
+      "TIM_CR2-CCPC",
+      "TIM_EGR-COMG",
+      "TIM_SMCR-TS"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectCOM",
+      "explanation": "TRGI 上升沿可提交换相配置。",
+      "code": "TIM_SelectCOM(TIM1, ENABLE);"
+    },
+    "summary": "选择 TIM1 是否接受 TRGI 上升沿来提交换相配置。",
+    "check": "开启 CCPC，写预装载控制位，送一次 TRGI 后观察输出是否切换。无变化先查 CCUS、CCPC 和 TS。"
+  },
+  {
+    "name": "TIM_SelectCCDMA",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已经决定比较 DMA 的请求时刻。",
+    "what": "设置 CR2.CCDS。启用时改用更新事件，关闭时用捕获比较事件。",
+    "related": [
+      "TIM_CR2-CCDS",
+      "TIM_DIER-CC1DE"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectCCDMA",
+      "explanation": "开启对应 CCxDE 时，改在更新事件发请求。",
+      "code": "TIM_SelectCCDMA(TIM2, ENABLE);"
+    },
+    "summary": "选择捕获比较 DMA 请求由匹配事件或由更新事件发出。",
+    "check": "启用 CC1DE 后观察 DMA 剩余数是否随更新事件下降。仍随比较变化时先查 CCDS 和已使能的 DMA 请求源。"
+  },
+  {
+    "name": "TIM_CCPreloadControl",
+    "params": "TIMx 取 TIM1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "使用有互补端的 TIM1 通道。",
+    "what": "改 CR2.CCPC。使能后带互补输出通道的 CCxE、CCxNE、OCxM 由 COM 提交。",
+    "related": [
+      "TIM_CR2-CCPC",
+      "TIM_EGR-COMG",
+      "TIM_CCER"
+    ],
+    "example": {
+      "title": "调用 TIM_CCPreloadControl",
+      "explanation": "CCxE、CCxNE、OCxM 等待换相生效。",
+      "code": "TIM_CCPreloadControl(TIM1, ENABLE);"
+    },
+    "summary": "让 TIM1 带互补输出的通道在换相事件统一提交控制位。",
+    "check": "改 CC1E、CC1NE 或 OC1M 后，在下一次 COM 看波形切换。无变化先检查 COMG、CCUS 和 MOE。"
+  },
+  {
+    "name": "TIM_CCxCmd",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_Channel=TIM_Channel_2 选 CH2。\nTIM_CCx=TIM_CCx_Enable 打开，TIM_CCx_Disable 关闭。",
+    "ret": "无。",
+    "pre": "已配 CH2 模式。",
+    "what": "改 CCER 对应 CCxE。输入模式控制捕获，输出模式控制主输出。",
+    "related": [
+      "TIM_CCER-CC2E"
+    ],
+    "example": {
+      "title": "调用 TIM_CCxCmd",
+      "explanation": "允许 CH2 输出。",
+      "code": "TIM_CCxCmd(TIM2, TIM_Channel_2, TIM_CCx_Enable);"
+    },
+    "summary": "运行中开关指定主通道的捕获或比较输出。",
+    "check": "TIM2 CH2 配为 PWM 时在默认 PA1 测波形。CC2E=1 仍无波形，先查 CC2S、CEN 和 GPIO 复用。"
+  },
+  {
+    "name": "TIM_CCxNCmd",
+    "params": "TIMx 取 TIM1。\nTIM_Channel=TIM_Channel_1 选 CH1N。互补端支持 CH1–3。\nTIM_CCxN=TIM_CCxN_Enable 打开，TIM_CCxN_Disable 关闭。",
+    "ret": "无。",
+    "pre": "已配 CH1 互补端与死区。",
+    "what": "改 CCER 对应 CCxNE。若开启 CCPC，等 COM 提交。",
+    "related": [
+      "TIM_CCER-CC1NE",
+      "TIM_BDTR-MOE",
+      "TIM_CR2-CCPC"
+    ],
+    "example": {
+      "title": "调用 TIM_CCxNCmd",
+      "explanation": "允许 CH1N，仍受 MOE 控制。",
+      "code": "TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);"
+    },
+    "summary": "单独开关 TIM1 的互补输出。",
+    "check": "CC1NE=1 后测 CH1N。无信号先查 MOE、刹车与互补引脚配置。"
+  },
+  {
+    "name": "TIM_SelectOCxM",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_Channel=TIM_Channel_2 选 CH2。\nTIM_OCMode=TIM_OCMode_PWM1 选向上计数时 CNT<CCR 有效的模式。",
+    "ret": "无。",
+    "pre": "先停止 CH2 输出。",
+    "what": "先关闭所选 CCxE，改 OCxM，函数结束时仍需按需要重开通道。通道原先应已设为输出。",
+    "related": [
+      "TIM_CCMR1-OC2M",
+      "TIM_CCER-CC2E"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectOCxM",
+      "explanation": "读回模式 110，再按需要使能通道。",
+      "code": "TIM_SelectOCxM(TIM2, TIM_Channel_2, TIM_OCMode_PWM1);"
+    },
+    "summary": "改变某个输出通道的比较模式。",
+    "check": "TIM2 应读 OC2M=110，随后重开 CC2E 测 PWM。引脚无波形时先确认函数关闭的 CC2E 已重开。"
+  },
+  {
+    "name": "TIM_UpdateDisableConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nNewState=DISABLE 清 UDIS，恢复更新。ENABLE 屏蔽更新。",
+    "ret": "无。",
+    "pre": "确认允许预装载传输。",
+    "what": "改 CR1.UDIS。UDIS=1 屏蔽更新事件，已有预装载值保持待提交。",
+    "related": [
+      "TIM_CR1-UDIS"
+    ],
+    "example": {
+      "title": "调用 TIM_UpdateDisableConfig",
+      "explanation": "恢复更新事件。",
+      "code": "TIM_UpdateDisableConfig(TIM2, DISABLE);"
+    },
+    "summary": "临时屏蔽更新事件，或恢复更新事件以提交预装载配置。",
+    "check": "DISABLE 之后 TIM2 应在下个更新边界应用预装载。一直不变先看 UDIS 是否清零及计数是否运行。"
+  },
+  {
+    "name": "TIM_UpdateRequestConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_UpdateSource=TIM_UpdateSource_Regular 只允许正常计数边界产生更新请求。",
+    "ret": "无。",
+    "pre": "只希望溢出或下溢请求更新 IRQ/DMA。",
+    "what": "设置 CR1.URS。Regular 只让溢出或下溢产生请求；Global 也允许软件或从模式更新来源。",
+    "related": [
+      "TIM_CR1-URS",
+      "TIM_EGR-UG",
+      "TIM_SR-UIF"
+    ],
+    "example": {
+      "title": "调用 TIM_UpdateRequestConfig",
+      "explanation": "软件 UG 仍装载，但不产生更新 IRQ/DMA 请求。",
+      "code": "TIM_UpdateRequestConfig(TIM2, TIM_UpdateSource_Regular);"
+    },
+    "summary": "选择哪些更新来源能发更新中断或 DMA 请求。",
+    "check": "先清 UIF，再写 UG，URS=1 时 PSC 会装载而 UIF 应保持清除。若 UIF=1，先排除计数溢出恰好发生。"
+  },
+  {
+    "name": "TIM_SelectHallSensor",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "CH1–3 接三路传感器，配置对应输入。",
+    "what": "设置 CR2.TI1S，选择 CH1/CH2/CH3 异或。滤波、捕获和触发另配。",
+    "related": [
+      "TIM_CR2-TI1S"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectHallSensor",
+      "explanation": "TI1 收到三路异或。",
+      "code": "TIM_SelectHallSensor(TIM3, ENABLE);"
+    },
+    "summary": "把三个霍尔输入合成一路信号送到 TI1，方便检测任一路变化。",
+    "check": "输入三路慢速信号，用 TI1 边沿捕获观察变化。缺一路先查对应 GPIO 与 TI1S。"
+  },
+  {
+    "name": "TIM_SelectOnePulseMode",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OPMode=TIM_OPMode_Single 运行至一次更新。Repetitive 保持重复计数。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。已配触发和输出。",
+    "what": "改 CR1.OPM。触发源和输出比较仍需另配。",
+    "related": [
+      "TIM_CR1-OPM",
+      "TIM_CR1-CEN"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectOnePulseMode",
+      "explanation": "下一次更新停止计数。",
+      "code": "TIM_SelectOnePulseMode(TIM2, TIM_OPMode_Single);"
+    },
+    "summary": "让定时器完成一次更新后自行停止。",
+    "check": "启动后看 CNT 和 CEN。一次更新后 CEN 应清零。若持续计数，先查 OPM、UDIS 和时钟源。"
+  },
+  {
+    "name": "TIM_SelectOutputTrigger",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_TRGOSource=TIM_TRGOSource_Update 选更新事件作为主触发输出。",
+    "ret": "无。",
+    "pre": "已配定时器时基。",
+    "what": "改 CR2.MMS。Update 用更新事件产生 TRGO。",
+    "related": [
+      "TIM_CR2-MMS"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectOutputTrigger",
+      "explanation": "更新时输出 TRGO。",
+      "code": "TIM_SelectOutputTrigger(TIM2, TIM_TRGOSource_Update);"
+    },
+    "summary": "选择定时器发给其他外设的同步信号。",
+    "check": "用已配置 ITR 的从定时器观察更新计数。无同步先查主定时器 MMS、更新事件和从端的 ITR 路由。"
+  },
+  {
+    "name": "TIM_SelectSlaveMode",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_SlaveMode=TIM_SlaveMode_Reset 选触发上升沿复位计数器。",
+    "ret": "无。",
+    "pre": "已选好 TS。",
+    "what": "修改 SMCR.SMS，触发来源 TS 保持原值。",
+    "related": [
+      "TIM_SMCR-SMS",
+      "TIM_SMCR-TS",
+      "TIM_CNT"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectSlaveMode",
+      "explanation": "TRGI 上升沿复位计数。",
+      "code": "TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset);"
+    },
+    "summary": "选择接到触发时定时器是复位、门控、启动还是外部计数。",
+    "check": "TIM3 用 TI1FP1 时，有效上升沿应复位 CNT。先查 TS 和输入极性，再看 SMS 是否为复位模式。"
+  },
+  {
+    "name": "TIM_SelectMasterSlaveMode",
+    "params": "TIMx 选 TIM1–4，本例 TIM3。\nTIM_MasterSlaveMode=TIM_MasterSlaveMode_Enable 启用同步。Disable 关闭。",
+    "ret": "无。",
+    "pre": "需要同步后级触发。",
+    "what": "改 SMCR.MSM，使 TRGI 的作用按手册延迟，以便与 TRGO 同步。",
+    "related": [
+      "TIM_SMCR-MSM",
+      "TIM_SMCR-TS",
+      "TIM_CR2-MMS"
+    ],
+    "example": {
+      "title": "调用 TIM_SelectMasterSlaveMode",
+      "explanation": "协调 TRGI 与后级 TRGO 的启动时序。",
+      "code": "TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);"
+    },
+    "summary": "让处在触发链中间的定时器同步上游触发与向下游发出的触发。",
+    "check": "读 MSM=1，用 GPIO 标记各级响应，查看计数器启动是否同步。不同步先核对两级 TRGO/ITR 映射。"
+  },
+  {
+    "name": "TIM_SetCounter",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nCounter=0 将当前计数位置设为 0。",
+    "ret": "无。",
+    "pre": "已启用时钟。",
+    "what": "覆盖 CNT，PSC/ARR 配置保持。",
+    "related": [
+      "TIM_CNT-CNT",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_SetCounter",
+      "explanation": "计数从 0 重新开始。",
+      "code": "TIM_SetCounter(TIM2, 0u);"
+    },
+    "summary": "在初始化或运行中直接调整当前计数位置。",
+    "check": "停表时应读 CNT=0，运行时很快离开 0。若需要同时重置预分频器和重装影子值，检查是否应使用 UG。"
+  },
+  {
+    "name": "TIM_SetAutoreload",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nAutoreload=999，使向上计数经过 0–999 共 1000 格。",
+    "ret": "无。",
+    "pre": "计数频率 1 MHz，向上计数。",
+    "what": "写 ARR。ARPE=1 时待更新装载，ARPE=0 时直接作用于计数。",
+    "related": [
+      "TIM_ARR-ARR",
+      "TIM_CR1-ARPE",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_SetAutoreload",
+      "explanation": "装载后周期为 1 ms。",
+      "code": "TIM_SetAutoreload(TIM2, 999u);"
+    },
+    "summary": "设置计数上限，从而改变更新周期。",
+    "check": "向上计数且计数时钟 1 MHz 时，生效后每 1 ms 更新一次。读回 999 但周期未变，先查 ARPE 和更新事件。"
+  },
+  {
+    "name": "TIM_SetClockDivision",
+    "params": "TIMx 选 TIM1–4，本例 TIM1。\nTIM_CKD=TIM_CKD_DIV2 让 tDTS 周期加倍。DIV1/DIV4 对应一倍或四倍。",
+    "ret": "无。",
+    "pre": "先停计数，确认滤波和死区参数。",
+    "what": "改 CR1.CKD。会影响用 tDTS 的滤波和死区，CNT 分频继续由 PSC 决定。",
+    "related": [
+      "TIM_CR1-CKD",
+      "TIM_BDTR-DTG"
+    ],
+    "example": {
+      "title": "调用 TIM_SetClockDivision",
+      "explanation": "tDTS 变为 CK_INT 周期的两倍。",
+      "code": "TIM_SetClockDivision(TIM1, TIM_CKD_DIV2);"
+    },
+    "summary": "调整数字滤波和死区逻辑的采样时基。",
+    "check": "读 CKD=01，tDTS 为 CK_INT 周期的两倍。若目标是改变 CNT 的计数速度，检查 PSC。"
+  },
+  {
+    "name": "TIM_ClearFlag",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_FLAG=TIM_FLAG_Update 清 UIF，可按位或选择多个适用标志。",
+    "ret": "无。",
+    "pre": "已记录更新事件。",
+    "what": "向 SR 写入掩码的反码，选中位写 0 清除。避免读改写把同时新来的其他标志一并清掉。",
+    "related": [
+      "TIM_SR-UIF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearFlag",
+      "explanation": "只清 UIF。",
+      "code": "TIM_ClearFlag(TIM4, TIM_FLAG_Update);"
+    },
+    "summary": "应答定时器状态标志，常在轮询处理完成后调用。",
+    "check": "读 UIF=0，其他待处理标志仍在。若又读到 1，先确认是否已发生下次更新。"
+  },
+  {
+    "name": "TIM_ClearITPendingBit",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_IT=TIM_IT_Update 选更新来源，可按位或选择多个适用来源。",
+    "ret": "无。",
+    "pre": "已处理更新中断。",
+    "what": "对 SR 的选定位写 0。保留中断使能与 NVIC 配置。",
+    "related": [
+      "TIM_SR-UIF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearITPendingBit",
+      "explanation": "清除外设的 UIF。",
+      "code": "TIM_ClearITPendingBit(TIM4, TIM_IT_Update);"
+    },
+    "summary": "在 ISR 中应答定时器外设侧的中断来源。",
+    "check": "SR.UIF 应清零，DIER.UIE 保持。再次进 ISR 先查其他标志或是否来不及处理下一次更新。"
+  },
+  {
+    "name": "TIM_InternalClockConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "无。",
+    "pre": "开启定时器时钟，停表配置。",
+    "what": "清 SMCR.SMS。若之前启用了外部时钟模式 2，还需另清 ECE。",
+    "related": [
+      "TIM_SMCR-SMS",
+      "TIM_SMCR-ECE"
+    ],
+    "example": {
+      "title": "调用 TIM_InternalClockConfig",
+      "explanation": "复位条件下，TIM2 由 CK_INT 经 PSC 计数。",
+      "code": "TIM_InternalClockConfig(TIM2);"
+    },
+    "summary": "将从模式切回关闭，让定时器使用内部计数路径。",
+    "check": "复位条件下启动 TIM2，应无需外部输入就能看到 CNT 变化。没变化先查 ECE、CEN 和 APB1 门控。"
+  },
+  {
+    "name": "TIM_ForcedOC1Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ForcedAction=TIM_ForcedAction_InActive：强制无效。Active 强制有效。",
+    "ret": "无。",
+    "pre": "通道已经配置为输出。",
+    "what": "只改 OC1M。计数继续，若 TIM1 已开启控制位预装载则按 COM 事件提交。",
+    "related": [
+      "TIM_CCMR1-OC1M"
+    ],
+    "example": {
+      "title": "调用 TIM_ForcedOC1Config",
+      "explanation": "CH1 输出与比较匹配脱钩。",
+      "code": "TIM_ForcedOC1Config(TIM2, TIM_ForcedAction_InActive);"
+    },
+    "summary": "运行中可把通道 1 的比较参考信号固定为有效或无效。",
+    "check": "通道已使能且高有效时，PA0 应保持低。仍翻转先读 OC1M，再查 GPIO 复用和极性。"
+  },
+  {
+    "name": "TIM_OC1PreloadConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPreload=TIM_OCPreload_Enable：启用缓冲。Disable 让写入直接作用于活动比较值。",
+    "ret": "无。",
+    "pre": "已配输出比较并允许更新。",
+    "what": "改 OC1PE。启用后写 CCR1，待下次更新事件装载。",
+    "related": [
+      "TIM_CCMR1-OC1PE",
+      "TIM_CCR1",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_OC1PreloadConfig",
+      "explanation": "下次更新采用新阈值。",
+      "code": "TIM_OC1PreloadConfig(TIM2, TIM_OCPreload_Enable);"
+    },
+    "summary": "让通道 1 在更新边界接收新的比较值，避免中途改变当前 PWM 周期。",
+    "check": "运行时改 CCR1 后，占空比应从下个更新边界变化。迟迟未变先查 UDIS 和更新事件。"
+  },
+  {
+    "name": "TIM_OC1FastConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCFast=TIM_OCFast_Enable：启用快速路径。Disable 恢复通常的比较路径。",
+    "ret": "无。",
+    "pre": "使用触发启动的 PWM1 或 PWM2。",
+    "what": "改 OC1FE，快速响应适用于 PWM1 或 PWM2。",
+    "related": [
+      "TIM_CCMR1-OC1FE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC1FastConfig",
+      "explanation": "触发到有效输出的延迟缩短。",
+      "code": "TIM_OC1FastConfig(TIM2, TIM_OCFast_Enable);"
+    },
+    "summary": "缩短单脉冲 PWM 从触发到通道 1 输出响应的延迟。",
+    "check": "在示波器同时看触发与输出边沿。延迟无变化先查是否在 PWM 模式、触发是否进入从控制器。"
+  },
+  {
+    "name": "TIM_ClearOC1Ref",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCClear=TIM_OCClear_Enable：让 ETRF 清 OC1REF。Disable 关闭。",
+    "ret": "无。",
+    "pre": "ETR 滤波和极性已配置。",
+    "what": "改 OC1CE。有效 ETRF 将 OC1REF 拉低到下一次更新，ETR 滤波及极性另配。",
+    "related": [
+      "TIM_CCMR1-OC1CE",
+      "TIM_SMCR-ETP",
+      "TIM_SMCR-ETF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearOC1Ref",
+      "explanation": "触发可清当前参考输出，下一次更新恢复正常比较。",
+      "code": "TIM_ClearOC1Ref(TIM2, TIM_OCClear_Enable);"
+    },
+    "summary": "用 ETR 的有效电平压低通道 1 的 PWM 或比较参考信号。",
+    "check": "同时观测 ETR 和 PWM。ETR 有效时脉冲应被截断，失败先查 ETR 引脚映射、极性和滤波。"
+  },
+  {
+    "name": "TIM_OC1PolarityConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPolarity=TIM_OCPolarity_High：有效为高。Low 把引脚上的有效电平反相。",
+    "ret": "无。",
+    "pre": "先禁用输出。",
+    "what": "修改 CC1P。配置后可保持原 CCR 和模式。切换可能立刻改变正在输出的电平。",
+    "related": [
+      "TIM_CCER-CC1P"
+    ],
+    "example": {
+      "title": "调用 TIM_OC1PolarityConfig",
+      "explanation": "有效比较状态输出高。",
+      "code": "TIM_OC1PolarityConfig(TIM2, TIM_OCPolarity_High);"
+    },
+    "summary": "设置主输出通道 1 的有效电平。",
+    "check": "PWM1、25% 有效占空比时，高有效量到 25% 高电平。无变化先查 CC1E、引脚复用和 TIM1 锁定等级。"
+  },
+  {
+    "name": "TIM_SetCompare1",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nCompare1=250：CNT 与 250 比较，向上计数 PWM1 在 0–249 有效。",
+    "ret": "无。",
+    "pre": "高有效 PWM1，ARR=999。",
+    "what": "直接写 CCR1。OC1PE=1 时待更新事件提交，关闭预装载时直接生效。",
+    "related": [
+      "TIM_CCR1",
+      "TIM_CCMR1-OC1PE"
+    ],
+    "example": {
+      "title": "调用 TIM_SetCompare1",
+      "explanation": "生效后占空比 25%。",
+      "code": "TIM_SetCompare1(TIM2, 250u);"
+    },
+    "summary": "更新通道 1 的比较阈值，例如运行中调整 PWM 占空比。",
+    "check": "ARR=999 时应得到 25% 有效占空比。CCR 读回正确但波形没变，先查 OC1PE 与更新事件。"
+  },
+  {
+    "name": "TIM_SetIC1Prescaler",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ICPSC=TIM_ICPSC_DIV2：每两个有效边沿捕获一次。DIV1、DIV4、DIV8 分别对应 1、4、8 个。",
+    "ret": "无。",
+    "pre": "已配输入，先禁用该通道再改分频。",
+    "what": "改 IC1PSC。宜先关 CC1E，再改分频并重新开通道，以清除旧分频计数。",
+    "related": [
+      "TIM_CCMR1-IC1PSC",
+      "TIM_CCER-CC1E",
+      "TIM_CCR1"
+    ],
+    "example": {
+      "title": "调用 TIM_SetIC1Prescaler",
+      "explanation": "每两个合格边沿捕获一次。",
+      "code": "TIM_SetIC1Prescaler(TIM2, TIM_ICPSC_DIV2);"
+    },
+    "summary": "让通道 1 每隔若干个有效输入边沿才记录一次计数。",
+    "check": "用慢速方波确认每两个有效边沿更新一次 CCR1。次数不符先查边沿极性和输入路由。"
+  },
+  {
+    "name": "TIM_OC1NPolarityConfig",
+    "params": "TIMx 取 TIM1。\nTIM_OCNPolarity=TIM_OCNPolarity_High：互补参考信号有效时输出高。Low 选择低有效。",
+    "ret": "无。",
+    "pre": "TIM1 互补输出已停止。",
+    "what": "改 CC1NP。保留主输出极性和死区。切换可能改变输出电平，初始化时先保持 MOE=0。",
+    "related": [
+      "TIM_CCER-CC1NP",
+      "TIM_CCER-CC1NE",
+      "TIM_BDTR-MOE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC1NPolarityConfig",
+      "explanation": "可用双通道探头核对有效区间和死区。",
+      "code": "TIM_OC1NPolarityConfig(TIM1, TIM_OCNPolarity_High);"
+    },
+    "summary": "选择 TIM1 通道 1 互补输出的有效电平。",
+    "check": "开 CC1NE、MOE 后同时测主输出和互补输出。无互补信号先查互补引脚的复用和 BDTR.MOE。"
+  },
+  {
+    "name": "TIM_GetCapture1",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t 捕获值。",
+    "pre": "CH1 已配输入捕获，已有捕获标志。",
+    "what": "读取 CCR1。输入捕获模式下，读 CCR 会清 CC1IF。过捕获标志 CC1OF 要另清。",
+    "related": [
+      "TIM_CCR1",
+      "TIM_SR-CC1IF",
+      "TIM_SR-CC1OF"
+    ],
+    "example": {
+      "title": "调用 TIM_GetCapture1",
+      "explanation": "以 1 µs 计数时读到的是捕获时刻的微秒格数。",
+      "code": "const uint16_t capture = TIM_GetCapture1(TIM2);"
+    },
+    "summary": "读取通道 1 最近锁存的计数，用于计算边沿间隔。",
+    "check": "先看 CC1IF，再读取时间戳。连续读到旧值时先查 CC1S、CC1E、边沿和 CNT。"
+  },
+  {
+    "name": "TIM_ForcedOC2Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ForcedAction=TIM_ForcedAction_InActive：强制无效。Active 强制有效。",
+    "ret": "无。",
+    "pre": "通道已经配置为输出。",
+    "what": "只改 OC2M。计数继续，若 TIM1 已开启控制位预装载则按 COM 事件提交。",
+    "related": [
+      "TIM_CCMR1-OC2M"
+    ],
+    "example": {
+      "title": "调用 TIM_ForcedOC2Config",
+      "explanation": "CH2 输出与比较匹配脱钩。",
+      "code": "TIM_ForcedOC2Config(TIM2, TIM_ForcedAction_InActive);"
+    },
+    "summary": "运行中可把通道 2 的比较参考信号固定为有效或无效。",
+    "check": "通道已使能且高有效时，PA1 应保持低。仍翻转先读 OC2M，再查 GPIO 复用和极性。"
+  },
+  {
+    "name": "TIM_OC2PreloadConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPreload=TIM_OCPreload_Enable：启用缓冲。Disable 让写入直接作用于活动比较值。",
+    "ret": "无。",
+    "pre": "已配输出比较并允许更新。",
+    "what": "改 OC2PE。启用后写 CCR2，待下次更新事件装载。",
+    "related": [
+      "TIM_CCMR1-OC2PE",
+      "TIM_CCR2",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_OC2PreloadConfig",
+      "explanation": "下次更新采用新阈值。",
+      "code": "TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);"
+    },
+    "summary": "让通道 2 在更新边界接收新的比较值，避免中途改变当前 PWM 周期。",
+    "check": "运行时改 CCR2 后，占空比应从下个更新边界变化。迟迟未变先查 UDIS 和更新事件。"
+  },
+  {
+    "name": "TIM_OC2FastConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCFast=TIM_OCFast_Enable：启用快速路径。Disable 恢复通常的比较路径。",
+    "ret": "无。",
+    "pre": "使用触发启动的 PWM1 或 PWM2。",
+    "what": "改 OC2FE，快速响应适用于 PWM1 或 PWM2。",
+    "related": [
+      "TIM_CCMR1-OC2FE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC2FastConfig",
+      "explanation": "触发到有效输出的延迟缩短。",
+      "code": "TIM_OC2FastConfig(TIM2, TIM_OCFast_Enable);"
+    },
+    "summary": "缩短单脉冲 PWM 从触发到通道 2 输出响应的延迟。",
+    "check": "在示波器同时看触发与输出边沿。延迟无变化先查是否在 PWM 模式、触发是否进入从控制器。"
+  },
+  {
+    "name": "TIM_ClearOC2Ref",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCClear=TIM_OCClear_Enable：让 ETRF 清 OC2REF。Disable 关闭。",
+    "ret": "无。",
+    "pre": "ETR 滤波和极性已配置。",
+    "what": "改 OC2CE。有效 ETRF 将 OC2REF 拉低到下一次更新，ETR 滤波及极性另配。",
+    "related": [
+      "TIM_CCMR1-OC2CE",
+      "TIM_SMCR-ETP",
+      "TIM_SMCR-ETF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearOC2Ref",
+      "explanation": "触发可清当前参考输出，下一次更新恢复正常比较。",
+      "code": "TIM_ClearOC2Ref(TIM2, TIM_OCClear_Enable);"
+    },
+    "summary": "用 ETR 的有效电平压低通道 2 的 PWM 或比较参考信号。",
+    "check": "同时观测 ETR 和 PWM。ETR 有效时脉冲应被截断，失败先查 ETR 引脚映射、极性和滤波。"
+  },
+  {
+    "name": "TIM_OC2PolarityConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPolarity=TIM_OCPolarity_High：有效为高。Low 把引脚上的有效电平反相。",
+    "ret": "无。",
+    "pre": "先禁用输出。",
+    "what": "修改 CC2P。配置后可保持原 CCR 和模式。切换可能立刻改变正在输出的电平。",
+    "related": [
+      "TIM_CCER-CC2P"
+    ],
+    "example": {
+      "title": "调用 TIM_OC2PolarityConfig",
+      "explanation": "有效比较状态输出高。",
+      "code": "TIM_OC2PolarityConfig(TIM2, TIM_OCPolarity_High);"
+    },
+    "summary": "设置主输出通道 2 的有效电平。",
+    "check": "PWM1、25% 有效占空比时，高有效量到 25% 高电平。无变化先查 CC2E、引脚复用和 TIM1 锁定等级。"
+  },
+  {
+    "name": "TIM_SetCompare2",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nCompare2=250：CNT 与 250 比较，向上计数 PWM1 在 0–249 有效。",
+    "ret": "无。",
+    "pre": "高有效 PWM1，ARR=999。",
+    "what": "直接写 CCR2。OC2PE=1 时待更新事件提交，关闭预装载时直接生效。",
+    "related": [
+      "TIM_CCR2",
+      "TIM_CCMR1-OC2PE"
+    ],
+    "example": {
+      "title": "调用 TIM_SetCompare2",
+      "explanation": "生效后占空比 25%。",
+      "code": "TIM_SetCompare2(TIM2, 250u);"
+    },
+    "summary": "更新通道 2 的比较阈值，例如运行中调整 PWM 占空比。",
+    "check": "ARR=999 时应得到 25% 有效占空比。CCR 读回正确但波形没变，先查 OC2PE 与更新事件。"
+  },
+  {
+    "name": "TIM_SetIC2Prescaler",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ICPSC=TIM_ICPSC_DIV2：每两个有效边沿捕获一次。DIV1、DIV4、DIV8 分别对应 1、4、8 个。",
+    "ret": "无。",
+    "pre": "已配输入，先禁用该通道再改分频。",
+    "what": "改 IC2PSC。宜先关 CC2E，再改分频并重新开通道，以清除旧分频计数。",
+    "related": [
+      "TIM_CCMR1-IC2PSC",
+      "TIM_CCER-CC2E",
+      "TIM_CCR2"
+    ],
+    "example": {
+      "title": "调用 TIM_SetIC2Prescaler",
+      "explanation": "每两个合格边沿捕获一次。",
+      "code": "TIM_SetIC2Prescaler(TIM2, TIM_ICPSC_DIV2);"
+    },
+    "summary": "让通道 2 每隔若干个有效输入边沿才记录一次计数。",
+    "check": "用慢速方波确认每两个有效边沿更新一次 CCR2。次数不符先查边沿极性和输入路由。"
+  },
+  {
+    "name": "TIM_OC2NPolarityConfig",
+    "params": "TIMx 取 TIM1。\nTIM_OCNPolarity=TIM_OCNPolarity_High：互补参考信号有效时输出高。Low 选择低有效。",
+    "ret": "无。",
+    "pre": "TIM1 互补输出已停止。",
+    "what": "改 CC2NP。保留主输出极性和死区。切换可能改变输出电平，初始化时先保持 MOE=0。",
+    "related": [
+      "TIM_CCER-CC2NP",
+      "TIM_CCER-CC2NE",
+      "TIM_BDTR-MOE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC2NPolarityConfig",
+      "explanation": "可用双通道探头核对有效区间和死区。",
+      "code": "TIM_OC2NPolarityConfig(TIM1, TIM_OCNPolarity_High);"
+    },
+    "summary": "选择 TIM1 通道 2 互补输出的有效电平。",
+    "check": "开 CC2NE、MOE 后同时测主输出和互补输出。无互补信号先查互补引脚的复用和 BDTR.MOE。"
+  },
+  {
+    "name": "TIM_GetCapture2",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t 捕获值。",
+    "pre": "CH2 已配输入捕获，已有捕获标志。",
+    "what": "读取 CCR2。输入捕获模式下，读 CCR 会清 CC2IF。过捕获标志 CC2OF 要另清。",
+    "related": [
+      "TIM_CCR2",
+      "TIM_SR-CC2IF",
+      "TIM_SR-CC2OF"
+    ],
+    "example": {
+      "title": "调用 TIM_GetCapture2",
+      "explanation": "以 1 µs 计数时读到的是捕获时刻的微秒格数。",
+      "code": "const uint16_t capture = TIM_GetCapture2(TIM2);"
+    },
+    "summary": "读取通道 2 最近锁存的计数，用于计算边沿间隔。",
+    "check": "先看 CC2IF，再读取时间戳。连续读到旧值时先查 CC2S、CC2E、边沿和 CNT。"
+  },
+  {
+    "name": "TIM_ForcedOC3Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ForcedAction=TIM_ForcedAction_InActive：强制无效。Active 强制有效。",
+    "ret": "无。",
+    "pre": "通道已经配置为输出。",
+    "what": "只改 OC3M。计数继续，若 TIM1 已开启控制位预装载则按 COM 事件提交。",
+    "related": [
+      "TIM_CCMR2-OC3M"
+    ],
+    "example": {
+      "title": "调用 TIM_ForcedOC3Config",
+      "explanation": "CH3 输出与比较匹配脱钩。",
+      "code": "TIM_ForcedOC3Config(TIM2, TIM_ForcedAction_InActive);"
+    },
+    "summary": "运行中可把通道 3 的比较参考信号固定为有效或无效。",
+    "check": "通道已使能且高有效时，PA2 应保持低。仍翻转先读 OC3M，再查 GPIO 复用和极性。"
+  },
+  {
+    "name": "TIM_OC3PreloadConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPreload=TIM_OCPreload_Enable：启用缓冲。Disable 让写入直接作用于活动比较值。",
+    "ret": "无。",
+    "pre": "已配输出比较并允许更新。",
+    "what": "改 OC3PE。启用后写 CCR3，待下次更新事件装载。",
+    "related": [
+      "TIM_CCMR2-OC3PE",
+      "TIM_CCR3",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_OC3PreloadConfig",
+      "explanation": "下次更新采用新阈值。",
+      "code": "TIM_OC3PreloadConfig(TIM2, TIM_OCPreload_Enable);"
+    },
+    "summary": "让通道 3 在更新边界接收新的比较值，避免中途改变当前 PWM 周期。",
+    "check": "运行时改 CCR3 后，占空比应从下个更新边界变化。迟迟未变先查 UDIS 和更新事件。"
+  },
+  {
+    "name": "TIM_OC3FastConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCFast=TIM_OCFast_Enable：启用快速路径。Disable 恢复通常的比较路径。",
+    "ret": "无。",
+    "pre": "使用触发启动的 PWM1 或 PWM2。",
+    "what": "改 OC3FE，快速响应适用于 PWM1 或 PWM2。",
+    "related": [
+      "TIM_CCMR2-OC3FE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC3FastConfig",
+      "explanation": "触发到有效输出的延迟缩短。",
+      "code": "TIM_OC3FastConfig(TIM2, TIM_OCFast_Enable);"
+    },
+    "summary": "缩短单脉冲 PWM 从触发到通道 3 输出响应的延迟。",
+    "check": "在示波器同时看触发与输出边沿。延迟无变化先查是否在 PWM 模式、触发是否进入从控制器。"
+  },
+  {
+    "name": "TIM_ClearOC3Ref",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCClear=TIM_OCClear_Enable：让 ETRF 清 OC3REF。Disable 关闭。",
+    "ret": "无。",
+    "pre": "ETR 滤波和极性已配置。",
+    "what": "改 OC3CE。有效 ETRF 将 OC3REF 拉低到下一次更新，ETR 滤波及极性另配。",
+    "related": [
+      "TIM_CCMR2-OC3CE",
+      "TIM_SMCR-ETP",
+      "TIM_SMCR-ETF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearOC3Ref",
+      "explanation": "触发可清当前参考输出，下一次更新恢复正常比较。",
+      "code": "TIM_ClearOC3Ref(TIM2, TIM_OCClear_Enable);"
+    },
+    "summary": "用 ETR 的有效电平压低通道 3 的 PWM 或比较参考信号。",
+    "check": "同时观测 ETR 和 PWM。ETR 有效时脉冲应被截断，失败先查 ETR 引脚映射、极性和滤波。"
+  },
+  {
+    "name": "TIM_OC3PolarityConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPolarity=TIM_OCPolarity_High：有效为高。Low 把引脚上的有效电平反相。",
+    "ret": "无。",
+    "pre": "先禁用输出。",
+    "what": "修改 CC3P。配置后可保持原 CCR 和模式。切换可能立刻改变正在输出的电平。",
+    "related": [
+      "TIM_CCER-CC3P"
+    ],
+    "example": {
+      "title": "调用 TIM_OC3PolarityConfig",
+      "explanation": "有效比较状态输出高。",
+      "code": "TIM_OC3PolarityConfig(TIM2, TIM_OCPolarity_High);"
+    },
+    "summary": "设置主输出通道 3 的有效电平。",
+    "check": "PWM1、25% 有效占空比时，高有效量到 25% 高电平。无变化先查 CC3E、引脚复用和 TIM1 锁定等级。"
+  },
+  {
+    "name": "TIM_SetCompare3",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nCompare3=250：CNT 与 250 比较，向上计数 PWM1 在 0–249 有效。",
+    "ret": "无。",
+    "pre": "高有效 PWM1，ARR=999。",
+    "what": "直接写 CCR3。OC3PE=1 时待更新事件提交，关闭预装载时直接生效。",
+    "related": [
+      "TIM_CCR3",
+      "TIM_CCMR2-OC3PE"
+    ],
+    "example": {
+      "title": "调用 TIM_SetCompare3",
+      "explanation": "生效后占空比 25%。",
+      "code": "TIM_SetCompare3(TIM2, 250u);"
+    },
+    "summary": "更新通道 3 的比较阈值，例如运行中调整 PWM 占空比。",
+    "check": "ARR=999 时应得到 25% 有效占空比。CCR 读回正确但波形没变，先查 OC3PE 与更新事件。"
+  },
+  {
+    "name": "TIM_SetIC3Prescaler",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ICPSC=TIM_ICPSC_DIV2：每两个有效边沿捕获一次。DIV1、DIV4、DIV8 分别对应 1、4、8 个。",
+    "ret": "无。",
+    "pre": "已配输入，先禁用该通道再改分频。",
+    "what": "改 IC3PSC。宜先关 CC3E，再改分频并重新开通道，以清除旧分频计数。",
+    "related": [
+      "TIM_CCMR2-IC3PSC",
+      "TIM_CCER-CC3E",
+      "TIM_CCR3"
+    ],
+    "example": {
+      "title": "调用 TIM_SetIC3Prescaler",
+      "explanation": "每两个合格边沿捕获一次。",
+      "code": "TIM_SetIC3Prescaler(TIM2, TIM_ICPSC_DIV2);"
+    },
+    "summary": "让通道 3 每隔若干个有效输入边沿才记录一次计数。",
+    "check": "用慢速方波确认每两个有效边沿更新一次 CCR3。次数不符先查边沿极性和输入路由。"
+  },
+  {
+    "name": "TIM_OC3NPolarityConfig",
+    "params": "TIMx 取 TIM1。\nTIM_OCNPolarity=TIM_OCNPolarity_High：互补参考信号有效时输出高。Low 选择低有效。",
+    "ret": "无。",
+    "pre": "TIM1 互补输出已停止。",
+    "what": "改 CC3NP。保留主输出极性和死区。切换可能改变输出电平，初始化时先保持 MOE=0。",
+    "related": [
+      "TIM_CCER-CC3NP",
+      "TIM_CCER-CC3NE",
+      "TIM_BDTR-MOE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC3NPolarityConfig",
+      "explanation": "可用双通道探头核对有效区间和死区。",
+      "code": "TIM_OC3NPolarityConfig(TIM1, TIM_OCNPolarity_High);"
+    },
+    "summary": "选择 TIM1 通道 3 互补输出的有效电平。",
+    "check": "开 CC3NE、MOE 后同时测主输出和互补输出。无互补信号先查互补引脚的复用和 BDTR.MOE。"
+  },
+  {
+    "name": "TIM_GetCapture3",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t 捕获值。",
+    "pre": "CH3 已配输入捕获，已有捕获标志。",
+    "what": "读取 CCR3。输入捕获模式下，读 CCR 会清 CC3IF。过捕获标志 CC3OF 要另清。",
+    "related": [
+      "TIM_CCR3",
+      "TIM_SR-CC3IF",
+      "TIM_SR-CC3OF"
+    ],
+    "example": {
+      "title": "调用 TIM_GetCapture3",
+      "explanation": "以 1 µs 计数时读到的是捕获时刻的微秒格数。",
+      "code": "const uint16_t capture = TIM_GetCapture3(TIM2);"
+    },
+    "summary": "读取通道 3 最近锁存的计数，用于计算边沿间隔。",
+    "check": "先看 CC3IF，再读取时间戳。连续读到旧值时先查 CC3S、CC3E、边沿和 CNT。"
+  },
+  {
+    "name": "TIM_ForcedOC4Config",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ForcedAction=TIM_ForcedAction_InActive：强制无效。Active 强制有效。",
+    "ret": "无。",
+    "pre": "通道已经配置为输出。",
+    "what": "只改 OC4M。计数继续，若 TIM1 已开启控制位预装载则按 COM 事件提交。",
+    "related": [
+      "TIM_CCMR2-OC4M"
+    ],
+    "example": {
+      "title": "调用 TIM_ForcedOC4Config",
+      "explanation": "CH4 输出与比较匹配脱钩。",
+      "code": "TIM_ForcedOC4Config(TIM2, TIM_ForcedAction_InActive);"
+    },
+    "summary": "运行中可把通道 4 的比较参考信号固定为有效或无效。",
+    "check": "通道已使能且高有效时，PA3 应保持低。仍翻转先读 OC4M，再查 GPIO 复用和极性。"
+  },
+  {
+    "name": "TIM_OC4PreloadConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPreload=TIM_OCPreload_Enable：启用缓冲。Disable 让写入直接作用于活动比较值。",
+    "ret": "无。",
+    "pre": "已配输出比较并允许更新。",
+    "what": "改 OC4PE。启用后写 CCR4，待下次更新事件装载。",
+    "related": [
+      "TIM_CCMR2-OC4PE",
+      "TIM_CCR4",
+      "TIM_EGR-UG"
+    ],
+    "example": {
+      "title": "调用 TIM_OC4PreloadConfig",
+      "explanation": "下次更新采用新阈值。",
+      "code": "TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);"
+    },
+    "summary": "让通道 4 在更新边界接收新的比较值，避免中途改变当前 PWM 周期。",
+    "check": "运行时改 CCR4 后，占空比应从下个更新边界变化。迟迟未变先查 UDIS 和更新事件。"
+  },
+  {
+    "name": "TIM_OC4FastConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCFast=TIM_OCFast_Enable：启用快速路径。Disable 恢复通常的比较路径。",
+    "ret": "无。",
+    "pre": "使用触发启动的 PWM1 或 PWM2。",
+    "what": "改 OC4FE，快速响应适用于 PWM1 或 PWM2。",
+    "related": [
+      "TIM_CCMR2-OC4FE"
+    ],
+    "example": {
+      "title": "调用 TIM_OC4FastConfig",
+      "explanation": "触发到有效输出的延迟缩短。",
+      "code": "TIM_OC4FastConfig(TIM2, TIM_OCFast_Enable);"
+    },
+    "summary": "缩短单脉冲 PWM 从触发到通道 4 输出响应的延迟。",
+    "check": "在示波器同时看触发与输出边沿。延迟无变化先查是否在 PWM 模式、触发是否进入从控制器。"
+  },
+  {
+    "name": "TIM_ClearOC4Ref",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCClear=TIM_OCClear_Enable：让 ETRF 清 OC4REF。Disable 关闭。",
+    "ret": "无。",
+    "pre": "ETR 滤波和极性已配置。",
+    "what": "改 OC4CE。有效 ETRF 将 OC4REF 拉低到下一次更新，ETR 滤波及极性另配。",
+    "related": [
+      "TIM_CCMR2-OC4CE",
+      "TIM_SMCR-ETP",
+      "TIM_SMCR-ETF"
+    ],
+    "example": {
+      "title": "调用 TIM_ClearOC4Ref",
+      "explanation": "触发可清当前参考输出，下一次更新恢复正常比较。",
+      "code": "TIM_ClearOC4Ref(TIM2, TIM_OCClear_Enable);"
+    },
+    "summary": "用 ETR 的有效电平压低通道 4 的 PWM 或比较参考信号。",
+    "check": "同时观测 ETR 和 PWM。ETR 有效时脉冲应被截断，失败先查 ETR 引脚映射、极性和滤波。"
+  },
+  {
+    "name": "TIM_OC4PolarityConfig",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_OCPolarity=TIM_OCPolarity_High：有效为高。Low 把引脚上的有效电平反相。",
+    "ret": "无。",
+    "pre": "先禁用输出。",
+    "what": "修改 CC4P。配置后可保持原 CCR 和模式。切换可能立刻改变正在输出的电平。",
+    "related": [
+      "TIM_CCER-CC4P"
+    ],
+    "example": {
+      "title": "调用 TIM_OC4PolarityConfig",
+      "explanation": "有效比较状态输出高。",
+      "code": "TIM_OC4PolarityConfig(TIM2, TIM_OCPolarity_High);"
+    },
+    "summary": "设置主输出通道 4 的有效电平。",
+    "check": "PWM1、25% 有效占空比时，高有效量到 25% 高电平。无变化先查 CC4E、引脚复用和 TIM1 锁定等级。"
+  },
+  {
+    "name": "TIM_SetCompare4",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nCompare4=250：CNT 与 250 比较，向上计数 PWM1 在 0–249 有效。",
+    "ret": "无。",
+    "pre": "高有效 PWM1，ARR=999。",
+    "what": "直接写 CCR4。OC4PE=1 时待更新事件提交，关闭预装载时直接生效。",
+    "related": [
+      "TIM_CCR4",
+      "TIM_CCMR2-OC4PE"
+    ],
+    "example": {
+      "title": "调用 TIM_SetCompare4",
+      "explanation": "生效后占空比 25%。",
+      "code": "TIM_SetCompare4(TIM2, 250u);"
+    },
+    "summary": "更新通道 4 的比较阈值，例如运行中调整 PWM 占空比。",
+    "check": "ARR=999 时应得到 25% 有效占空比。CCR 读回正确但波形没变，先查 OC4PE 与更新事件。"
+  },
+  {
+    "name": "TIM_SetIC4Prescaler",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。\nTIM_ICPSC=TIM_ICPSC_DIV2：每两个有效边沿捕获一次。DIV1、DIV4、DIV8 分别对应 1、4、8 个。",
+    "ret": "无。",
+    "pre": "已配输入，先禁用该通道再改分频。",
+    "what": "改 IC4PSC。宜先关 CC4E，再改分频并重新开通道，以清除旧分频计数。",
+    "related": [
+      "TIM_CCMR2-IC4PSC",
+      "TIM_CCER-CC4E",
+      "TIM_CCR4"
+    ],
+    "example": {
+      "title": "调用 TIM_SetIC4Prescaler",
+      "explanation": "每两个合格边沿捕获一次。",
+      "code": "TIM_SetIC4Prescaler(TIM2, TIM_ICPSC_DIV2);"
+    },
+    "summary": "让通道 4 每隔若干个有效输入边沿才记录一次计数。",
+    "check": "用慢速方波确认每两个有效边沿更新一次 CCR4。次数不符先查边沿极性和输入路由。"
+  },
+  {
+    "name": "TIM_GetCapture4",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t 捕获值。",
+    "pre": "CH4 已配输入捕获，已有捕获标志。",
+    "what": "读取 CCR4。输入捕获模式下，读 CCR 会清 CC4IF。过捕获标志 CC4OF 要另清。",
+    "related": [
+      "TIM_CCR4",
+      "TIM_SR-CC4IF",
+      "TIM_SR-CC4OF"
+    ],
+    "example": {
+      "title": "调用 TIM_GetCapture4",
+      "explanation": "以 1 µs 计数时读到的是捕获时刻的微秒格数。",
+      "code": "const uint16_t capture = TIM_GetCapture4(TIM2);"
+    },
+    "summary": "读取通道 4 最近锁存的计数，用于计算边沿间隔。",
+    "check": "先看 CC4IF，再读取时间戳。连续读到旧值时先查 CC4S、CC4E、边沿和 CNT。"
+  },
+  {
+    "name": "TIM_GetCounter",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t。",
+    "pre": "已开启时钟。",
+    "what": "读 CNT，不清更新标志。",
+    "related": [
+      "TIM_CNT"
+    ],
+    "example": {
+      "title": "调用 TIM_GetCounter",
+      "explanation": "用读数核对计数范围或分频配置。",
+      "code": "const uint16_t value = TIM_GetCounter(TIM2);"
+    },
+    "summary": "读取此刻的计数位置，供时基或方向调试。",
+    "check": "间隔已知时间读两次。若值不变，先查 CEN、时钟门控和从模式。"
+  },
+  {
+    "name": "TIM_GetPrescaler",
+    "params": "TIMx 选 TIM1–4，本例 TIM2。",
+    "ret": "uint16_t。",
+    "pre": "已开启时钟。",
+    "what": "读 PSC 缓冲值，实际生效时机由更新事件决定。",
+    "related": [
+      "TIM_PSC"
+    ],
+    "example": {
+      "title": "调用 TIM_GetPrescaler",
+      "explanation": "用读数核对计数范围或分频配置。",
+      "code": "const uint16_t value = TIM_GetPrescaler(TIM2);"
+    },
+    "summary": "检查软件写入了哪个计数分频值。",
+    "check": "PSC=7 表示配置为 ÷8，实际计数节拍要等更新后测量。读值正确但仍是旧频率先查 UDIS。"
+  },
+  {
+    "name": "TIM_GetFlagStatus",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_FLAG=TIM_FLAG_Update 查询 UIF。",
+    "ret": "SET 或 RESET。",
+    "pre": "时钟已开。",
+    "what": "读 SR 的单个标志。SET 表示状态位为 1。",
+    "related": [
+      "TIM_SR-UIF"
+    ],
+    "example": {
+      "title": "调用 TIM_GetFlagStatus",
+      "explanation": "更新出现时返回 SET。",
+      "code": "const FlagStatus pending = TIM_GetFlagStatus(TIM4, TIM_FLAG_Update);"
+    },
+    "summary": "轮询一个定时器事件是否已经发生。",
+    "check": "TIM4 每次更新应读到 SET，即使 UIE=0。一直读 RESET 时先核对时钟和 UDIS。"
+  },
+  {
+    "name": "TIM_GetITStatus",
+    "params": "TIMx 选 TIM1–4，本例 TIM4。\nTIM_IT=TIM_IT_Update 查询更新来源。",
+    "ret": "SET 或 RESET。",
+    "pre": "时钟已开。",
+    "what": "同时读 SR 和 DIER 的对应位。NVIC 使能与优先级另查。",
+    "related": [
+      "TIM_SR-UIF",
+      "TIM_DIER-UIE"
+    ],
+    "example": {
+      "title": "调用 TIM_GetITStatus",
+      "explanation": "两者均为 1 时返回 SET。",
+      "code": "const ITStatus pending = TIM_GetITStatus(TIM4, TIM_IT_Update);"
+    },
+    "summary": "在 ISR 中区分哪个已启用的定时器来源在请求服务。",
+    "check": "读 SET 表示 UIF、UIE 同时为 1。若 SR 已置位却返回 RESET，先查 DIER。"
+  },
+  {
+    "name": "USART_DeInit",
+    "params": "USARTx 选 USART1–3。",
+    "ret": "无。",
+    "pre": "停止传输，允许丢弃整个实例配置。",
+    "what": "通过 RCC 对 USART1 的 APB2 或 USART2/3 的 APB1 复位位置位再释放。正在进行的收发会中断。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "/reference/clock-exti/#rcc_apb2rstr"
+    ],
+    "example": {
+      "title": "调用 USART_DeInit",
+      "explanation": "USART1 回到复位值，BRR 为 0。",
+      "code": "USART_DeInit(USART1);"
+    },
+    "summary": "初始化前将选定串口恢复到复位状态。",
+    "check": "读 CR1.UE=0 和 BRR=0。检查实例、总线时钟及该接口是否仍被其他代码使用。"
+  },
+  {
+    "name": "USART_Init",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_InitStruct 指向配置。\nUSART_BaudRate=9600：每秒 9600 位。\nUSART_WordLength=USART_WordLength_8b：8 位字长。\nUSART_StopBits=USART_StopBits_1：1 个停止位。\nUSART_Parity=USART_Parity_No：关闭校验。\nUSART_Mode=USART_Mode_Tx | USART_Mode_Rx：收发都开。\nUSART_HardwareFlowControl=USART_HardwareFlowControl_None：不用 RTS/CTS。",
+    "ret": "无。",
+    "pre": "先开 USART1 和 GPIOA 时钟、停收发，PA9 配复用推挽、PA10 配输入；本例 PCLK2=8 MHz。",
+    "what": "读改写 CR1 的 M/PCE/PS/TE/RE、CR2.STOP、CR3.RTSE/CTSE；用 PCLK2（USART1）或 PCLK1（USART2/3）计算后覆盖 BRR。UE 需另开。",
+    "related": [
+      "USART_BRR",
+      "USART_CR1-M",
+      "USART_CR1-PCE",
+      "USART_CR1-PS",
+      "USART_CR1-TE",
+      "USART_CR1-RE",
+      "USART_CR1-UE",
+      "USART_CR2-STOP",
+      "USART_CR3-RTSE",
+      "USART_CR3-CTSE"
+    ],
+    "example": {
+      "title": "调用 USART_Init",
+      "explanation": "USART1 选择 9600 8N1；8 MHz 下 BRR 读回 0x0341。随后启用 UE。",
+      "code": "USART_InitTypeDef cfg;\nUSART_StructInit(&cfg);\ncfg.USART_BaudRate = 9600u;\nUSART_Init(USART1, &cfg);"
+    },
+    "summary": "初始化串口帧格式与波特率，配置完成后再启用收发。",
+    "check": "读回 BRR=0x0341，再用 USART_Cmd 启用 UE。发 0x55 在 PA9 量约 104 µs 一位；位宽不符先查实际 PCLK2 和 BRR。"
+  },
+  {
+    "name": "USART_ClockInit",
+    "params": "USARTx 选 USART1–3，本例 USART2。\nUSART_ClockInitStruct 指向配置；USART_Clock=USART_Clock_Enable 输出 CK。\nUSART_CPOL 选空闲电平，默认低；USART_CPHA 选第一个或第二个边沿采样，默认第一个；USART_LastBit 决定最后一个数据位是否输出 CK 脉冲，默认关闭。",
+    "ret": "无。",
+    "pre": "先关闭 UE，分配默认 PA4 或对应 CK 引脚并设复用输出。",
+    "what": "改写 CR2.CLKEN/CPOL/CPHA/LBCL，保留 STOP；该调用不启动发送。",
+    "related": [
+      "USART_CR2-CLKEN",
+      "USART_CR2-CPOL",
+      "USART_CR2-CPHA",
+      "USART_CR2-LBCL"
+    ],
+    "example": {
+      "title": "调用 USART_ClockInit",
+      "explanation": "USART2 发送时可在默认 PA4 观察 CK。",
+      "code": "USART_ClockInitTypeDef cfg;\nUSART_ClockStructInit(&cfg);\ncfg.USART_Clock = USART_Clock_Enable;\nUSART_ClockInit(USART2, &cfg);"
+    },
+    "summary": "初始化同步 USART 的 CK 输出及采样边沿。",
+    "check": "启用串口并发送后观察 PA4 的 CK。无 CK 先查 CLKEN、TE 与引脚复用。"
+  },
+  {
+    "name": "USART_Cmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已配 BRR、帧格式、收发和 GPIO。",
+    "what": "改 CR1.UE。收发仍由 CR1 的 TE 和 RE 分别控制。",
+    "related": [
+      "USART_CR1-UE",
+      "USART_CR1-TE",
+      "USART_CR1-RE",
+      "USART_SR-TC"
+    ],
+    "example": {
+      "title": "调用 USART_Cmd",
+      "explanation": "外设开始接收或发送。",
+      "code": "USART_Cmd(USART1, ENABLE);"
+    },
+    "summary": "启停 USART 外设，通常在配置好波特率和帧格式后启用。",
+    "check": "读 UE=1，再发 0x55 量位宽。没有波形先查 TE、GPIO 复用和外设门控。关串口前等 TC。"
+  },
+  {
+    "name": "USART_ITConfig",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_IT=USART_IT_RXNE 选接收缓冲非空请求。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已配置接收 ISR 和 NVIC。",
+    "what": "由 USART_IT 编码定位 CR1/CR2/CR3 使能位。RXNE 对应 CR1.RXNEIE。",
+    "related": [
+      "USART_CR1-RXNEIE",
+      "USART_SR-RXNE",
+      "USART_DR",
+      "/reference/clock-exti/#nvic_iser"
+    ],
+    "example": {
+      "title": "调用 USART_ITConfig",
+      "explanation": "收到字可产生 IRQ。",
+      "code": "USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);"
+    },
+    "summary": "允许选定串口状态在出现时发中断请求。",
+    "check": "收到字后读 RXNE=1、RXNEIE=1。ISR 未运行先查 NVIC 对应 IRQ，接收 ISR 读 DR 应答。"
+  },
+  {
+    "name": "USART_DMACmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_DMAReq=USART_DMAReq_Rx 选接收，也可选 Tx 或按位或。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "DMA1 通道 5 已配置并使能。",
+    "what": "修改 CR3.DMAR/DMAT，DMA 通道仍需配置和启动。",
+    "related": [
+      "USART_CR3-DMAR"
+    ],
+    "example": {
+      "title": "调用 USART_DMACmd",
+      "explanation": "接收可触发 DMA1 通道 5。",
+      "code": "USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);"
+    },
+    "summary": "允许串口把收发数据的请求发给 DMA。",
+    "check": "USART1 接收时 DMA1 通道 5 的剩余数应递减。无变化先查 DMAR、通道 EN 和 DR 地址。"
+  },
+  {
+    "name": "USART_SetAddress",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_Address=3：本机四位地址为 3，可取 0–15。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。",
+    "what": "更新 CR2.ADD，保留其他字段，地址标记唤醒仍需另配。",
+    "related": [
+      "USART_CR2-ADD",
+      "USART_CR1-WAKE",
+      "USART_CR1-RWU"
+    ],
+    "example": {
+      "title": "调用 USART_SetAddress",
+      "explanation": "多机地址检测使用 3。",
+      "code": "USART_SetAddress(USART1, 3u);"
+    },
+    "summary": "配置多机通信中用于唤醒接收器的节点地址。",
+    "check": "读 ADD=3。验证时发带地址标记的帧；未唤醒先查 WAKE、RWU、字长和地址低四位。"
+  },
+  {
+    "name": "USART_WakeUpConfig",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_WakeUp=USART_WakeUp_AddressMark 选地址标记。IdleLine 选空闲线唤醒。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。",
+    "what": "修改 CR1.WAKE。进入静默还需单独设置 RWU。",
+    "related": [
+      "USART_CR1-WAKE",
+      "USART_CR1-RWU",
+      "USART_CR2-ADD"
+    ],
+    "example": {
+      "title": "调用 USART_WakeUpConfig",
+      "explanation": "地址标记用于唤醒接收器。",
+      "code": "USART_WakeUpConfig(USART1, USART_WakeUp_AddressMark);"
+    },
+    "summary": "为多机通信选择什么条件能唤醒静默的接收器。",
+    "check": "读 WAKE=1，发送地址为本机的地址标记后观察 RWU 清零。无效先查 ADD 和帧格式。"
+  },
+  {
+    "name": "USART_ReceiverWakeUpCmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 进入静默，DISABLE 退出。",
+    "ret": "无。",
+    "pre": "已配 WAKE 和地址，接收端处于空闲。",
+    "what": "改 CR1.RWU，置位抑制常规接收通知，清位恢复。",
+    "related": [
+      "USART_CR1-RWU",
+      "USART_CR1-WAKE"
+    ],
+    "example": {
+      "title": "调用 USART_ReceiverWakeUpCmd",
+      "explanation": "匹配唤醒事件后恢复接收。",
+      "code": "USART_ReceiverWakeUpCmd(USART1, ENABLE);"
+    },
+    "summary": "在多机模式中进入或退出接收静默。",
+    "check": "进入后读 RWU=1，选定唤醒条件发生时硬件可清 RWU。若一直静默先查 WAKE、地址或空闲线条件。"
+  },
+  {
+    "name": "USART_LINBreakDetectLengthConfig",
+    "params": "USARTx 选 USART1–3，本例 USART2。\nUSART_LINBreakDetectLength=USART_LINBreakDetectLength_11b 选 11 位检测，10b 选 10 位。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。使用 LIN。",
+    "what": "改 CR2.LBDL。LIN 模式和 LBD 中断使能需另配。",
+    "related": [
+      "USART_CR2-LBDL",
+      "USART_CR2-LINEN",
+      "USART_SR-LBD"
+    ],
+    "example": {
+      "title": "调用 USART_LINBreakDetectLengthConfig",
+      "explanation": "断开检测阈值为 11 位。",
+      "code": "USART_LINBreakDetectLengthConfig(USART2, USART_LINBreakDetectLength_11b);"
+    },
+    "summary": "设定接收器识别 LIN 断开所需的低电平长度。",
+    "check": "读 LBDL=1，用超过阈值的低电平测试 LBD。未检测先查 LINEN、波特率和低电平时长。"
+  },
+  {
+    "name": "USART_LINCmd",
+    "params": "USARTx 选 USART1–3，本例 USART2。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。按 LIN 选字长与停止位。",
+    "what": "改 CR2.LINEN。还需用兼容的帧格式，并单独设置断开检测长度。",
+    "related": [
+      "USART_CR2-LINEN",
+      "USART_CR2-LBDL",
+      "USART_SR-LBD"
+    ],
+    "example": {
+      "title": "调用 USART_LINCmd",
+      "explanation": "可检测 LIN 断开。",
+      "code": "USART_LINCmd(USART2, ENABLE);"
+    },
+    "summary": "选择 USART 的 LIN 收发模式。",
+    "check": "读 LINEN=1，送断开后应读 LBD。无响应先查 RX 电平、LBDL 和波特率。"
+  },
+  {
+    "name": "USART_SetGuardTime",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_GuardTime=4，以位时间为单位配置保护时间。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。已选智能卡模式。",
+    "what": "覆盖 GTPR.GT，保留低字节 PSC。",
+    "related": [
+      "USART_GTPR-GT"
+    ],
+    "example": {
+      "title": "调用 USART_SetGuardTime",
+      "explanation": "保护时间字段读回 4。",
+      "code": "USART_SetGuardTime(USART1, 4u);"
+    },
+    "summary": "配置智能卡发送的保护时间。",
+    "check": "GT 应读 4，随后以智能卡模式测发送完成的时机。时序不符先核对 SCEN 与实际波特率。"
+  },
+  {
+    "name": "USART_SetPrescaler",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_Prescaler=2，智能卡用非零分频值。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。智能卡时钟源为 8 MHz。",
+    "what": "改 GTPR.PSC，保留 GT。智能卡使用 PCLK/(2×PSC)，IrDA 低功耗按 PSC 直接分频。",
+    "related": [
+      "USART_GTPR-PSC",
+      "USART_CR2-CLKEN"
+    ],
+    "example": {
+      "title": "调用 USART_SetPrescaler",
+      "explanation": "智能卡 CK=2 MHz。",
+      "code": "USART_SetPrescaler(USART1, 2u);"
+    },
+    "summary": "调整智能卡 CK 或 IrDA 低功耗模式的预分频。",
+    "check": "PCLK2=8 MHz、智能卡 PSC=2 时，CK 应为 2 MHz。读值正确却无 CK 先查 CLKEN 和 CK 引脚。"
+  },
+  {
+    "name": "USART_SmartCardCmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。已配智能卡电气接口和协议帧。",
+    "what": "改 CR3.SCEN。CK、格式、保护时间、预分频和 NACK 要另配。",
+    "related": [
+      "USART_CR3-SCEN",
+      "USART_CR3-NACK",
+      "USART_GTPR",
+      "USART_CR2-CLKEN"
+    ],
+    "example": {
+      "title": "调用 USART_SmartCardCmd",
+      "explanation": "进入智能卡模式。",
+      "code": "USART_SmartCardCmd(USART1, ENABLE);"
+    },
+    "summary": "使能 USART 智能卡收发模式。",
+    "check": "读 SCEN=1，测 CK 和 I/O。无 CK 先查 CLKEN、PSC 和引脚复用；数据异常先查字长、校验、停止位。"
+  },
+  {
+    "name": "USART_SmartCardNACKCmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。已设智能卡校验。",
+    "what": "改 CR3.NACK。启用智能卡模式后由硬件决定何时应答。",
+    "related": [
+      "USART_CR3-NACK",
+      "USART_CR3-SCEN",
+      "USART_SR-PE"
+    ],
+    "example": {
+      "title": "调用 USART_SmartCardNACKCmd",
+      "explanation": "校验错误时可发 NACK。",
+      "code": "USART_SmartCardNACKCmd(USART1, ENABLE);"
+    },
+    "summary": "配置智能卡模式下收到校验错误时是否发 NACK。",
+    "check": "读 NACK=1，注入校验错误并量 I/O 的应答。无 NACK 先查 SCEN、校验配置和线路。"
+  },
+  {
+    "name": "USART_HalfDuplexCmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。TX 用复用开漏和外部上拉。",
+    "what": "改 CR3.HDSEL，接收路径接到 TX 引脚。双方需自行协调发送时机。",
+    "related": [
+      "USART_CR3-HDSEL"
+    ],
+    "example": {
+      "title": "调用 USART_HalfDuplexCmd",
+      "explanation": "收发共用 PA9。",
+      "code": "USART_HalfDuplexCmd(USART1, ENABLE);"
+    },
+    "summary": "让 USART 通过同一根 TX 线轮流发送和接收。",
+    "check": "默认 USART1 使用 PA9，两端轮流驱动。收发异常先查开漏、上拉和总线争用。"
+  },
+  {
+    "name": "USART_IrDAConfig",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_IrDAMode=USART_IrDAMode_LowPower 选低功耗，Normal 选正常模式。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。已配置低功耗 IrDA 分频与收发器。",
+    "what": "修改 CR3.IRLP。低功耗模式另设 GTPR.PSC，再使能 IrDA。",
+    "related": [
+      "USART_CR3-IRLP",
+      "USART_CR3-IREN",
+      "USART_GTPR-PSC"
+    ],
+    "example": {
+      "title": "调用 USART_IrDAConfig",
+      "explanation": "IrDA 采用低功耗模式。",
+      "code": "USART_IrDAConfig(USART1, USART_IrDAMode_LowPower);"
+    },
+    "summary": "选择 IrDA 编解码器使用正常或低功耗模式。",
+    "check": "读 IRLP=1，开启 IREN 后按脉冲宽度核对。异常先查 GTPR.PSC 与 PCLK。"
+  },
+  {
+    "name": "USART_IrDACmd",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "开启 USART 时钟，禁用收发，确认对应 GPIO 和模式。已选择 IrDA 模式。",
+    "what": "改 CR3.IREN。模式、预分频和外部收发器仍需另配。",
+    "related": [
+      "USART_CR3-IREN",
+      "USART_CR3-IRLP",
+      "USART_GTPR-PSC"
+    ],
+    "example": {
+      "title": "调用 USART_IrDACmd",
+      "explanation": "启动 IrDA 编解码。",
+      "code": "USART_IrDACmd(USART1, ENABLE);"
+    },
+    "summary": "启停 USART 的 IrDA 脉冲编解码。",
+    "check": "发送已知字节并在红外收发器输入端测脉冲。未见脉冲先查 UE、TE、IREN 和引脚复用。"
+  },
+  {
+    "name": "USART_ClearFlag",
+    "params": "USARTx 选 USART1–3，本例 USART2。\nUSART_FLAG=USART_FLAG_LBD。还可用 CTS、TC、RXNE 掩码。",
+    "ret": "无。",
+    "pre": "已记录 LIN 断开。",
+    "what": "向 SR 写掩码反码。RXNE 一般通过读 DR 消费数据；TXE 由写 DR 清除。",
+    "related": [
+      "USART_SR-LBD",
+      "USART_SR-ORE",
+      "USART_DR"
+    ],
+    "example": {
+      "title": "调用 USART_ClearFlag",
+      "explanation": "清 LBD，PE/FE/NE/ORE/IDLE 仍按 SR→DR 清除。",
+      "code": "USART_ClearFlag(USART2, USART_FLAG_LBD);"
+    },
+    "summary": "按写零规则清除允许软件直接清除的串口状态。",
+    "check": "LIN 断开处理后 LBD 应清零。若目标为 PE、FE、NE、ORE 或 IDLE，按 SR→DR 的读序列处理。"
+  },
+  {
+    "name": "USART_ClearITPendingBit",
+    "params": "USARTx 选 USART1–3，本例 USART2。\nUSART_IT=USART_IT_LBD。该函数也接受 CTS、TC、RXNE 对应的中断常量。",
+    "ret": "无。",
+    "pre": "已处理 LIN 断开。",
+    "what": "把中断编码转换为 SR 位并写 0。PE、FE、NE、ORE、IDLE 要依次读 SR 和 DR。",
+    "related": [
+      "USART_SR-LBD",
+      "USART_CR2-LBDIE",
+      "USART_DR"
+    ],
+    "example": {
+      "title": "调用 USART_ClearITPendingBit",
+      "explanation": "清断开检测来源。",
+      "code": "USART_ClearITPendingBit(USART2, USART_IT_LBD);"
+    },
+    "summary": "应答允许写零清除的 USART 中断来源。",
+    "check": "清 LBD 后读 SR.LBD=0，CR2.LBDIE 保持。重复触发先查是否有新断开或其他待处理来源。"
+  },
+  {
+    "name": "USART_SendData",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nData=0x55。8N1 使用低八位，9 位无校验时可用低九位。",
+    "ret": "无。",
+    "pre": "发送器已启用，等待 TXE。",
+    "what": "把 Data 的低九位写到 DR。写前等待 TXE，等待末个停止位发完时检查 TC。",
+    "related": [
+      "USART_SR-TXE",
+      "USART_SR-TC",
+      "USART_DR"
+    ],
+    "example": {
+      "title": "调用 USART_SendData",
+      "explanation": "PA9 输出 0x55，用交替数据位量位宽。",
+      "code": "while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET) {}\nUSART_SendData(USART1, 0x55u);"
+    },
+    "summary": "把一个数据字交给串口发送器。",
+    "check": "USART1 默认 PA9 应看到 0x55 的交替数据位，9600 波特时每位约 104 µs。无波形先看 UE/TE、TXE 和引脚复用。"
+  },
+  {
+    "name": "USART_ReceiveData",
+    "params": "USARTx 选 USART1–3，本例 USART1。",
+    "ret": "uint16_t，低 9 位。",
+    "pre": "已读 SR，确认 RXNE，按状态处理错误。",
+    "what": "读 DR 的低九位，并使 RXNE 清除。存在错误或 IDLE 时按 SR→DR 顺序处理。",
+    "related": [
+      "USART_SR-RXNE",
+      "USART_SR-ORE",
+      "USART_DR"
+    ],
+    "example": {
+      "title": "调用 USART_ReceiveData",
+      "explanation": "发送 ASCII A 时，8N1 下读到 0x41。",
+      "code": "const uint16_t word = USART_ReceiveData(USART1);"
+    },
+    "summary": "取出串口收到的一个数据字。",
+    "check": "8N1 下发送 A 应得 0x41。错码先核对双方波特率和帧格式。调试器读 DR 也可能提前取走数据。"
+  },
+  {
+    "name": "USART_SendBreak",
+    "params": "USARTx 选 USART1–3，本例 USART2。",
+    "ret": "无。",
+    "pre": "已启用发送，并使用 LIN 等需要断开的链路。",
+    "what": "置 CR1.SBK，请求当前发送完成后发出断开，由硬件清位。",
+    "related": [
+      "USART_CR1-SBK"
+    ],
+    "example": {
+      "title": "调用 USART_SendBreak",
+      "explanation": "TX 可测到断开低电平。",
+      "code": "USART_SendBreak(USART2);"
+    },
+    "summary": "请求发送一段持续的低电平断开信号。",
+    "check": "USART2 默认 PA2 测到断开低电平，长度取决于模式和配置。无信号先查 UE、TE 和 TX 复用。"
+  },
+  {
+    "name": "USART_GetFlagStatus",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_FLAG=USART_FLAG_TC 查询发送完成。",
+    "ret": "SET 或 RESET。",
+    "pre": "外设已启用。",
+    "what": "读 SR 并测试选定位。读 SR 也可成为特殊清除序列的第一步。",
+    "related": [
+      "USART_SR-TC",
+      "USART_SR-TXE"
+    ],
+    "example": {
+      "title": "调用 USART_GetFlagStatus",
+      "explanation": "最后停止位发送完成后返回 SET。",
+      "code": "const FlagStatus done = USART_GetFlagStatus(USART1, USART_FLAG_TC);"
+    },
+    "summary": "轮询串口当前状态，例如等待最后一位发完。",
+    "check": "末个停止位结束时 TC 应置位。RS-485 驱动切换用 TC 判断，先确认正在查 TC 而非 TXE。"
+  },
+  {
+    "name": "USART_GetITStatus",
+    "params": "USARTx 选 USART1–3，本例 USART1。\nUSART_IT=USART_IT_RXNE 查询接收缓冲非空中断。",
+    "ret": "SET 或 RESET。",
+    "pre": "已启用外设。",
+    "what": "由中断编码找到 CR1/CR2/CR3 使能位和 SR 标志。读取 SR 后，若需清错误或 IDLE，再读 DR。",
+    "related": [
+      "USART_SR-RXNE",
+      "USART_CR1-RXNEIE"
+    ],
+    "example": {
+      "title": "调用 USART_GetITStatus",
+      "explanation": "同时存在接收数据及对应 IRQ 使能时返回 SET。",
+      "code": "const ITStatus pending = USART_GetITStatus(USART1, USART_IT_RXNE);"
+    },
+    "summary": "在 ISR 中判断某个 USART 来源是否同时满足标志和使能。",
+    "check": "RXNE=1 且 RXNEIE=1 时返回 SET。若已收到字却返回 RESET，先核对 CR1.RXNEIE。"
+  },
+  {
+    "name": "USART_OverSampling8Cmd",
+    "summary": "此 SPL 接口用于支持8 倍过采样的型号。",
+    "params": "USARTx 为适用的 USART 实例，NewState 选择开启或关闭。",
+    "ret": "无。",
+    "pre": "本型号不适用。",
+    "what": "STM32F103C8T6 的 CR1[15] 保留，应保持复位值。",
+    "check": "用本型号的 16 倍采样和默认采样规则。",
+    "related": [
+      "USART_CR1"
+    ],
+    "manual": {
+      "page": 542,
+      "kind": "rcc",
+      "label": "USART 控制寄存器"
+    }
+  },
+  {
+    "name": "USART_OneBitMethodCmd",
+    "summary": "此 SPL 接口用于支持单点采样的型号。",
+    "params": "USARTx 为适用的 USART 实例，NewState 选择开启或关闭。",
+    "ret": "无。",
+    "pre": "本型号不适用。",
+    "what": "STM32F103C8T6 的 CR3[11] 保留，应保持复位值。",
+    "check": "用本型号的 16 倍采样和默认采样规则。",
+    "related": [
+      "USART_CR3"
+    ],
+    "manual": {
+      "page": 545,
+      "kind": "rcc",
+      "label": "USART 控制寄存器"
+    }
+  }
+]

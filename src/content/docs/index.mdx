@@ -1,0 +1,53 @@
+---
+title: STM32F103C8T6 寄存器与 SPL 速查
+description: 按名称查 STM32F103C8T6 寄存器、位段和标准外设库函数，浏览中文手册与题库。
+template: splash
+hero:
+  title: STM32F103C8T6<br />寄存器与 SPL 速查
+  tagline: 查位段编码、写入效果、函数参数和最小 C 示例。
+---
+
+import { Icon } from '@astrojs/starlight/components';
+import HomeSearch from '../../components/HomeSearch.astro';
+
+<HomeSearch />
+
+## 外设速查
+
+<nav class="home-directory" aria-label="外设速查">
+  <a href="/reference/gpio/">
+    <strong>GPIO</strong><span>端口模式、输入输出与 APB2 门控</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/clock-exti/">
+    <strong>RCC、AFIO、EXTI 与内核</strong><span>时钟、重映射、中断、Flash 等待周期与 CMSIS</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/tim-usart/">
+    <strong>定时器与 USART</strong><span>TIM1–4、USART1–3，计数、捕获、PWM 与串口收发</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/adc-dma/">
+    <strong>ADC 与 DMA</strong><span>ADC1/2、采样触发、DMA1 通道与请求映射</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/i2c-spi/">
+    <strong>I²C 与 SPI</strong><span>主从、时序、引脚、DMA 请求与排故</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/power-time/">
+    <strong>RTC、备份域、电源与看门狗</strong><span>报警、低功耗、复位与窗口刷新</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/memory-crc/">
+    <strong>Flash、启动与 CRC</strong><span>擦写、选项字节、存储映射与 UID</span><Icon name="right-arrow" />
+  </a>
+  <a href="/reference/usb-can/">
+    <strong>USB FS Device 与 bxCAN</strong><span>端点、缓冲区、邮箱、过滤器和共享资源</span><Icon name="right-arrow" />
+  </a>
+</nav>
+
+[芯片覆盖清单](/coverage/)
+
+## 题库
+
+<nav class="home-directory" aria-label="题库入口">
+  <a href="/questions/">
+    <strong>题库</strong><span>按外设浏览面试题与原有练习题</span><Icon name="right-arrow" />
+  </a>
+</nav>
+

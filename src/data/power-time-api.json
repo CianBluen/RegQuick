@@ -1,0 +1,1135 @@
+[
+  {
+    "name": "RTC_ITConfig",
+    "params": "RTC_IT=RTC_IT_SEC 选秒中断，可与 ALR、OW 按位或。\nNewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。 已清旧事件。",
+    "what": "设置或清除 CRH 中的相应许可。RTC 全局中断另开 RTC_IRQn。",
+    "related": [
+      "RTC_CRH-SECIE",
+      "RTC_CRL-SECF"
+    ],
+    "summary": "为秒、闹钟或溢出事件打开 RTC 中断许可。",
+    "check": "读 SECIE=1。若 SECF 有但没有 ISR，核对 NVIC。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_ITConfig(RTC_IT_SEC, ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 216,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_EnterConfigMode",
+    "params": "无参数。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。",
+    "what": "置 CRL.CNF。之后写目标半字，最后退出配置模式。",
+    "related": [
+      "RTC_CRL-CNF",
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "在一组 PRL、CNT 或 ALR 半字写入前打开配置窗口。",
+    "check": "应见 CNF=1。若写入无效，优先查 DBP 和 RTOFF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_EnterConfigMode();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 216,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_ExitConfigMode",
+    "params": "无参数。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，CNF 已置 1。",
+    "what": "清 CRL.CNF，随后 RTC 跨域提交，至少需要三个 RTCCLK 周期。",
+    "related": [
+      "RTC_CRL-CNF",
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "提交配置窗口中已写完的一组 RTC 数据。",
+    "check": "等 RTOFF 重新置位。若不返回，查 RTCCLK 和源时钟。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_ExitConfigMode();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 217,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_GetCounter",
+    "params": "无参数。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。",
+    "what": "SPL 先读 CNTL，再读 CNTH 并合并。要求严格一致时，使用高–低–高读取并在高半字变化时重试。",
+    "related": [
+      "RTC_CNTH",
+      "RTC_CNTL",
+      "RTC_CRL-RSF"
+    ],
+    "summary": "取当前 32 位时间计数。",
+    "check": "LSE 分频为 1 Hz 时，相隔一秒应增 1。若接近低半字进位出现跳变，用高–低–高核对。",
+    "ret": "32 位 RTC 计数快照。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const uint32_t now = RTC_GetCounter();\n(void)now;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 217,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_SetCounter",
+    "params": "CounterValue=100，单位为 RTC 计数节拍。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。",
+    "what": "函数自行进入与退出 CNF，先写 CNTH、再写 CNTL。调用者负责前后等待 RTOFF。",
+    "related": [
+      "RTC_CNTH",
+      "RTC_CNTL",
+      "RTC_CRL-CNF",
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "设置新的 32 位时间计数，并重启计数周期。",
+    "check": "等待 RTOFF，读数应接近 100 并继续增加。先查 DBP、RSF 和 RTCCLK。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_SetCounter(100u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 218,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_SetPrescaler",
+    "params": "PrescalerValue=32767，分频 32768。参数范围为 0–0xFFFFF，避免用 0。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。 LSE=32.768 kHz。",
+    "what": "函数自行切换 CNF，写 PRLH/PRLL。调用者负责等待 RTOFF。",
+    "related": [
+      "RTC_PRLH",
+      "RTC_PRLL",
+      "RTC_CRL-CNF",
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "将 RTC 输入时钟分频到所需计数节拍。",
+    "check": "提交后比较相隔约一秒的 CNT 或测秒输出，先查输入频率及装载值。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_SetPrescaler(32767u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 218,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_SetAlarm",
+    "params": "AlarmValue=105，示例当前计数约 100。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。 目标时间应留出提交延迟。",
+    "what": "函数自行切换 CNF，写 ALRH/ALRL。需另清旧 ALRF 并按应用配置中断或唤醒。",
+    "related": [
+      "RTC_ALRH",
+      "RTC_ALRL",
+      "RTC_CRL-ALRF"
+    ],
+    "summary": "安排计数到未来值时产生闹钟事件。",
+    "check": "RTOFF 恢复后，计数到目标附近应见 ALRF。若无标志先查实际 CNT 与目标。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_SetAlarm(105u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 219,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_GetDivider",
+    "params": "无参数。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。",
+    "what": "先读 DIVH 的低四位，再读 DIVL。测亚秒时间时应处理重装和高低半部跨界。",
+    "related": [
+      "RTC_DIVH",
+      "RTC_DIVL"
+    ],
+    "summary": "读取预分频器当前 20 位余数。",
+    "check": "短间隔读取通常会下降，节拍边界重新装载。始终为零先查 RSF。",
+    "ret": "20 位余数快照。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const uint32_t left = RTC_GetDivider();\n(void)left;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 219,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_WaitForLastTask",
+    "params": "无参数。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。",
+    "what": "轮询 CRL.RTOFF 直到为 1。库函数没有超时，工程可按同一位添加有限等待。",
+    "related": [
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "等待前一次跨时钟域写入提交完成。",
+    "check": "返回时 RTOFF=1。卡住先查 RTCEN、RTCCLK 和是否处于异常配置状态。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_WaitForLastTask();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 220,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_WaitForSynchro",
+    "params": "无参数。",
+    "pre": "RTCEN=1，源时钟稳定，接口门控已开，DBP=1，RTOFF=1。",
+    "what": "清 CRL.RSF 并等待硬件重置该位。库函数无超时，时钟可能失效时用有限轮询。",
+    "related": [
+      "RTC_CRL-RSF",
+      "RTC_CRL-RTOFF"
+    ],
+    "summary": "在复位或深度低功耗恢复后同步 RTC 与 APB1 接口。",
+    "check": "返回后 RSF=1，可读有效 CNT。一直等不到先查 RTCSEL、RTCEN 与振荡器。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_WaitForSynchro();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 220,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_GetFlagStatus",
+    "params": "RTC_FLAG=RTC_FLAG_ALR 查询闹钟，也可用 SEC、OW、RSF 或 RTOFF。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。",
+    "what": "检查 CRL 对应位。",
+    "related": [
+      "RTC_CRL-ALRF"
+    ],
+    "summary": "查询 RTC 原始事件或跨域状态。",
+    "check": "ALRF 置位时返回 SET。若没有 IRQ，另读 CRH 和 NVIC。",
+    "ret": "SET 表示选中位为 1。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const FlagStatus alarm = RTC_GetFlagStatus(RTC_FLAG_ALR);\n(void)alarm;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 221,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_ClearFlag",
+    "params": "RTC_FLAG=RTC_FLAG_ALR，其他可清的选择有 SEC、OW、RSF。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。",
+    "what": "读改写 CRL，把选中位写零。并发事件需要留意读写之间出现的新标志，关键路径可采用 CRL 条目给出的有效位掩码写法。",
+    "related": [
+      "RTC_CRL-ALRF"
+    ],
+    "summary": "应答已记录的 RTC 状态或开始重新同步。",
+    "check": "等待 RTOFF 后查 ALRF=0。若闹钟 ISR 再次进入，检查 EXTI17 挂起。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_ClearFlag(RTC_FLAG_ALR);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 221,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_GetITStatus",
+    "params": "RTC_IT=RTC_IT_SEC，查询秒中断，也可查询 ALR、OW。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。",
+    "what": "检查 CRL 状态与 CRH 的同位许可，NVIC 和 EXTI 另查。",
+    "related": [
+      "RTC_CRH-SECIE",
+      "RTC_CRL-SECF"
+    ],
+    "summary": "确认指定 RTC 事件已挂起且本外设已允许中断。",
+    "check": "SECIE 和 SECF 同时为 1 时返回 SET。",
+    "ret": "SET 表示该来源的状态及使能均置位。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const ITStatus pending = RTC_GetITStatus(RTC_IT_SEC);\n(void)pending;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 222,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "RTC_ClearITPendingBit",
+    "params": "RTC_IT=RTC_IT_ALR，选闹钟来源。",
+    "pre": "RTC 时钟已开启且已同步，PWR/BKP 接口门控打开。 DBP=1，先等 RTOFF=1。",
+    "what": "读改写 CRL 清 ALRF，保留 CRH 配置。若通过 EXTI17 进中断，另清对应 EXTI 挂起。",
+    "related": [
+      "RTC_CRL-ALRF",
+      "/reference/clock-exti/#exti_pr"
+    ],
+    "summary": "在 ISR 中应答已处理的 RTC 中断事件。",
+    "check": "ALRF 应清除。若仍进 RTCAlarm_IRQHandler，检查 EXTI17。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "RTC_ClearITPendingBit(RTC_IT_ALR);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 222,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_DeInit",
+    "params": "无参数。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 本次允许清空 RTC 配置和备份数据。",
+    "what": "脉冲置位 RCC_BDCR.BDRST，影响 RTC 核、时钟选择和备份数据。",
+    "related": [
+      "/reference/clock-exti/#rcc_bdcr-bdrst",
+      "BKP_DR1"
+    ],
+    "summary": "将整个备份域恢复为默认状态。",
+    "check": "RTCEN、RTCSEL 和 DR1 清零。重新使用前配置时钟和同步。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_DeInit();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 64,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_TamperPinLevelConfig",
+    "params": "BKP_TamperPinLevel=BKP_TamperPinLevel_High 选高有效，Low 选低有效。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 已关闭 TPE。",
+    "what": "通过位带修改 CR.TPAL。随后确认输入处于非触发电平，再开 TPE。",
+    "related": [
+      "BKP_CR-TPAL",
+      "BKP_CR-TPE"
+    ],
+    "summary": "在启用 PC13 防拆前选择有效电平。",
+    "check": "读 TPAL=0。首次开启即清空数据时先查 PC13 上的负载和电平。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_TamperPinLevelConfig(BKP_TamperPinLevel_High);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 64,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_TamperPinCmd",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 已选择极性，禁用 RTC 输出且允许清空 DRx。",
+    "what": "位带修改 CR.TPE。有效防拆事件使 DR1–10 复位。",
+    "related": [
+      "BKP_CR-TPE",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "开关 PC13 防拆输入。",
+    "check": "拉到有效电平应置 TEF，备份值归零。先检查输入与 TPAL。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_TamperPinCmd(ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 65,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_ITConfig",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 已配置 TPE 和 TAMPER_IRQn，清旧 TIF。",
+    "what": "通过位带修改 CSR.TPIE。关闭会清 TIF。",
+    "related": [
+      "BKP_CSR-TPIE",
+      "BKP_CSR-TIF"
+    ],
+    "summary": "允许防拆事件通过 NVIC 发 IRQ。",
+    "check": "触发后 TIF=1。无中断先查 TPE、TPIE 和 NVIC。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_ITConfig(ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 65,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_RTCOutputConfig",
+    "params": "BKP_RTCOutputSource=BKP_RTCOutputSource_CalibClock 输出 RTCCLK/64，可换 Alarm、Second 或 None。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 RTC 时钟已运行，关闭防拆，确认 PC13 的 LED 等负载。",
+    "what": "替换 RTCCR 的 CCO、ASOE、ASOS 三位，保留 CAL。",
+    "related": [
+      "BKP_RTCCR-CCO",
+      "BKP_RTCCR-ASOE",
+      "BKP_RTCCR-ASOS"
+    ],
+    "summary": "选择 PC13 上的 RTC 测量输出。",
+    "check": "LSE=32.768 kHz 时 PC13 应测到约 512 Hz。先查 CCO、TPE 和实际 LSE。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_RTCOutputConfig(BKP_RTCOutputSource_CalibClock);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 66,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_SetRTCCalibrationValue",
+    "params": "CalibrationValue=10，每 2^20 个脉冲约减慢 9.54 ppm，允许 0–127。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 已用参考时钟测量长期误差。",
+    "what": "替换 RTCCR.CAL，保留输出选择。只能补偿快走。",
+    "related": [
+      "BKP_RTCCR-CAL"
+    ],
+    "summary": "用测得的正走时偏差计算要扣除的时钟脉冲。",
+    "check": "读回 CAL=10，用长时间间隔比较 RTC 秒与参考秒。无变化先查实际误差和测量时长。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_SetRTCCalibrationValue(10u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 66,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_WriteBackupRegister",
+    "params": "BKP_DR=BKP_DR1，选本型号 DR1–10；Data=0x1234，16 位数据。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 TEF=0，允许修改该字。",
+    "what": "以 BKP_BASE 加参数偏移计算地址，并写数据。",
+    "related": [
+      "BKP_DR1",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "保存需要跨系统复位保留的短状态字。",
+    "check": "立即读回 0x1234。若始终是 0，查 DBP、TEF 与是否选了中容量器件不存在的编号。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_WriteBackupRegister(BKP_DR1, 0x1234u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 67,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_ReadBackupRegister",
+    "params": "BKP_DR=BKP_DR1，可选本型号 DR1–10。",
+    "pre": "APB1 的 BKPEN 已开。",
+    "what": "以 BKP_BASE 加偏移读半字。",
+    "related": [
+      "BKP_DR1",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "读取一个 16 位备份数据字。",
+    "check": "仅 VBAT 保持时断电复位后，应读到此前保存的字。若丢失查 VBAT、BDRST 和 TEF。",
+    "ret": "返回所选备份字。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const uint16_t saved = BKP_ReadBackupRegister(BKP_DR1);\n(void)saved;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 67,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_GetFlagStatus",
+    "params": "无参数。",
+    "pre": "BKPEN 已开。",
+    "what": "通过位带读取 CSR.TEF。",
+    "related": [
+      "BKP_CSR-TEF"
+    ],
+    "summary": "检查是否记录了防拆事件。",
+    "check": "SET 时读 DR1 应为 0，先确认触发原因再清事件。",
+    "ret": "SET 表示检测到防拆。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const FlagStatus tamper = BKP_GetFlagStatus();\n(void)tamper;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 68,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_ClearFlag",
+    "params": "无参数。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 已记录事件并解除输入触发。",
+    "what": "向 CSR.CTE 写 1，清 TEF 并复位检测器。",
+    "related": [
+      "BKP_CSR-CTE",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "解除备份寄存器因防拆保持的复位状态。",
+    "check": "TEF 应归零，随后试写 DR1。若又置位，先查输入与极性。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_ClearFlag();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 68,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_GetITStatus",
+    "params": "无参数。",
+    "pre": "BKPEN 已开。",
+    "what": "通过位带读取 CSR.TIF。",
+    "related": [
+      "BKP_CSR-TIF",
+      "BKP_CSR-TPIE"
+    ],
+    "summary": "检查是否有防拆中断待应答。",
+    "check": "有 TEF 无 TIF 时，检查触发时 TPIE 是否开。",
+    "ret": "SET 表示 TIF 为 1。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const ITStatus pending = BKP_GetITStatus();\n(void)pending;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 69,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "BKP_ClearITPendingBit",
+    "params": "无参数。",
+    "pre": "PWREN 和 BKPEN 已开，DBP=1。 防拆来源已记录。",
+    "what": "向 CSR.CTI 写 1 清 TIF。TEF 由另一个命令 CTE 清。",
+    "related": [
+      "BKP_CSR-CTI",
+      "BKP_CSR-TIF",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "应答已经处理的防拆 IRQ。",
+    "check": "TIF=0。若随后不能保存 DRx，先看 TEF 是否仍为 1。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "BKP_ClearITPendingBit();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 69,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_DeInit",
+    "params": "无参数。",
+    "pre": "APB1 的 PWREN 已开。 已记录待机和唤醒原因，允许改写 PWR 配置。",
+    "what": "脉冲置位 RCC APB1RSTR.PWRRST，重置 PVD、WKUP 和 DBP 等 PWR 配置。备份域独立。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "PWR_CR-DBP"
+    ],
+    "summary": "通过 APB1 复位 PWR 寄存器。",
+    "check": "DBP 和 PVDE 归零。若接着写备份域，先重新授权。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_DeInit();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 188,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_BackupAccessCmd",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "APB1 的 PWREN 已开。",
+    "what": "通过位带修改 CR.DBP。若使用 HSE/128 作为 RTC 源，保持 DBP=1。",
+    "related": [
+      "PWR_CR-DBP",
+      "BKP_CSR-TEF"
+    ],
+    "summary": "在写 RTC、BKP 和备份域控制前授予写权限。",
+    "check": "DBP=1。若 BKP 仍不可写，先查 BKPEN 和 TEF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_BackupAccessCmd(ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 189,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_PVDCmd",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "APB1 的 PWREN 已开。 PLS 已按需要选择。",
+    "what": "通过位带修改 CR.PVDE。PVDO 反映比较结果。中断需独立配置 EXTI16。",
+    "related": [
+      "PWR_CR-PVDE",
+      "PWR_CSR-PVDO"
+    ],
+    "summary": "让 PVD 持续比较电源电压和选定阈值。",
+    "check": "在供电正常范围内跨过阈值，检查 PVDO 和 EXTI16。先查 PVDE。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_PVDCmd(ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 189,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_PVDLevelConfig",
+    "params": "PWR_PVDLevel=PWR_PVDLevel_2V8，其他档为 2.2 V 至 2.9 V 每 0.1 V 一档。",
+    "pre": "APB1 的 PWREN 已开。 配置前考虑改变阈值可能产生边沿，必要时先屏蔽 EXTI16。",
+    "what": "读改写 CR.PLS，保留 PVDE。",
+    "related": [
+      "PWR_CR-PLS",
+      "PWR_CSR-PVDO"
+    ],
+    "summary": "为电源跌落检测选择标称门槛。",
+    "check": "读 PLS=110。供电跌落时查 PVDO，实际门槛与迟滞按数据手册。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_PVDLevelConfig(PWR_PVDLevel_2V8);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 190,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_WakeUpPinCmd",
+    "params": "NewState=ENABLE 开启，DISABLE 关闭。",
+    "pre": "APB1 的 PWREN 已开。 启用前确认 PA0 低电平，避免打开后立即登记唤醒。",
+    "what": "通过位带写 CSR.EWUP，启用时强制 PA0 为下拉输入。",
+    "related": [
+      "PWR_CSR-EWUP",
+      "PWR_CSR-WUF"
+    ],
+    "summary": "让 PA0 能通过上升沿唤醒 Standby。",
+    "check": "EWUP 应为 1。若待机立即唤醒，先量 PA0 并看 WUF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_WakeUpPinCmd(ENABLE);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 190,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_EnterSTOPMode",
+    "params": "PWR_Regulator=PWR_Regulator_LowPower 用低功耗稳压器，可选 ON。\nPWR_STOPEntry=PWR_STOPEntry_WFI 等待中断，也可选 WFE 等事件。",
+    "pre": "APB1 的 PWREN 已开。 示例为 WFI，事先配好唤醒 EXTI、清挂起并停止无关中断。",
+    "what": "设置 PDDS=0、LPDS 和 SCB.SCR.SLEEPDEEP，执行 WFI/WFE。正常唤醒后清 SLEEPDEEP。",
+    "related": [
+      "PWR_CR-PDDS",
+      "PWR_CR-LPDS",
+      "/reference/clock-exti/#rcc_cfgr-sws"
+    ],
+    "summary": "进入保留 SRAM 的深度低功耗模式，等待事件后继续执行。",
+    "check": "唤醒后程序接续执行，SYSCLK 先是 HSI，需按业务恢复时钟。立即返回先查挂起中断与 WUF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 191,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_EnterSTANDBYMode",
+    "params": "无参数。",
+    "pre": "APB1 的 PWREN 已开。 已保存必要状态并设置 PA0 WKUP 或 RTC Alarm。清源挂起，确保唤醒输入未触发。",
+    "what": "清 WUF，置 PDDS 和 SLEEPDEEP，执行 WFI。成功进入后丢失普通 SRAM。",
+    "related": [
+      "PWR_CR-PDDS",
+      "PWR_CR-CWUF",
+      "PWR_CSR-SBF"
+    ],
+    "summary": "进入更低功耗的待机模式，唤醒后从复位入口重新启动。",
+    "check": "唤醒后首先读取 SBF/WUF。若没有进入待机，先看旧挂起与 PA0 电平。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_EnterSTANDBYMode();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 191,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_GetFlagStatus",
+    "params": "PWR_FLAG=PWR_FLAG_SB，可改 WU 或 PVDO。",
+    "pre": "APB1 的 PWREN 已开。",
+    "what": "读取 CSR 的所选位。",
+    "related": [
+      "PWR_CSR-SBF"
+    ],
+    "summary": "在启动或调试时读取唤醒、待机或电源比较状态。",
+    "check": "从 Standby 唤醒后应先看到 SBF=1，再清除。",
+    "ret": "SET 表示该位为 1。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const FlagStatus standby = PWR_GetFlagStatus(PWR_FLAG_SB);\n(void)standby;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 192,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "PWR_ClearFlag",
+    "params": "PWR_FLAG=PWR_FLAG_WU 清唤醒状态，SB 清待机状态。",
+    "pre": "APB1 的 PWREN 已开。 已记录状态。",
+    "what": "把参数左移两位后写 CR 的 CWUF/CSBF 命令。",
+    "related": [
+      "PWR_CR-CWUF",
+      "PWR_CR-CSBF",
+      "PWR_CSR-WUF"
+    ],
+    "summary": "记录启动原因后清 WUF 或 SBF。",
+    "check": "稍后读 WUF=0。重复置位先查 WKUP 电平与 RTC Alarm。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "PWR_ClearFlag(PWR_FLAG_WU);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 192,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_WriteAccessCmd",
+    "params": "IWDG_WriteAccess=IWDG_WriteAccess_Enable 写 0x5555，Disable 写 0。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。",
+    "what": "向 KR 写密钥。之后仍需确认 PVU/RVU 允许写目标寄存器。",
+    "related": [
+      "IWDG_KR-KEY",
+      "IWDG_SR"
+    ],
+    "summary": "解锁或锁回 IWDG 分频和重装载配置。",
+    "check": "用随后一次 PR/RLR 更新验证权限，KR 读回始终为 0。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 157,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_SetPrescaler",
+    "params": "IWDG_Prescaler=IWDG_Prescaler_64，选择 ÷64，另有 ÷4/8/16/32/128/256。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。 KR 已解锁，PVU=0。",
+    "what": "写 PR，硬件经 LSI 时钟域更新。",
+    "related": [
+      "IWDG_PR-PR",
+      "IWDG_SR-PVU"
+    ],
+    "summary": "选择独立看门狗计数速度。",
+    "check": "等 PVU=0 后读回编码 4，超时偏差先查实际 LSI。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "IWDG_SetPrescaler(IWDG_Prescaler_64);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 158,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_SetReload",
+    "params": "Reload=624，有效范围 0–4095。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。 KR 已解锁，RVU=0。",
+    "what": "写 RLR，经 LSI 域更新，后续刷新使计数从新值开始。",
+    "related": [
+      "IWDG_RLR-RL",
+      "IWDG_SR-RVU"
+    ],
+    "summary": "设置下一次刷新要装入的倒数值。",
+    "check": "等 RVU=0 后读回 624。若实际还是旧周期，确认执行了 ReloadCounter。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "IWDG_SetReload(624u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 158,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_ReloadCounter",
+    "params": "无参数。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。 已有有效 PR/RLR，首次刷新前核对同步状态。",
+    "what": "向 KR 写 0xAAAA，使计数器装载 RLR，同时结束配置写许可。",
+    "related": [
+      "IWDG_KR-KEY",
+      "IWDG_RLR-RL",
+      "/reference/clock-exti/#rcc_csr-iwdgrstf"
+    ],
+    "summary": "在应用关键任务确实完成后刷新 IWDG。",
+    "check": "停止刷新后应在计算窗口内复位，重启先读取 IWDGRSTF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "IWDG_ReloadCounter();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 159,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_Enable",
+    "params": "无参数。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。 已准备好超时参数和刷新逻辑，确认选项字节使用软件模式。",
+    "what": "向 KR 写 0xCCCC，启动后只能随复位停止，LSI 自动运行。",
+    "related": [
+      "IWDG_KR-KEY",
+      "/reference/clock-exti/#rcc_csr-iwdgrstf"
+    ],
+    "summary": "启动软件模式的独立看门狗。",
+    "check": "不刷新时应复位并在 RCC 看到 IWDGRSTF。先排除调试冻结。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "IWDG_Enable();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 159,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "IWDG_GetFlagStatus",
+    "params": "IWDG_FLAG=IWDG_FLAG_RVU，可用 PVU 查询分频更新。",
+    "pre": "IWDG 由 LSI 驱动，无需 APB 门控。",
+    "what": "读取 SR 的指定标志。",
+    "related": [
+      "IWDG_SR-RVU",
+      "IWDG_SR-PVU"
+    ],
+    "summary": "查看 IWDG 的参数跨域更新是否仍忙。",
+    "check": "RESET 后读取或重写 RLR。一直忙时核对 APB 时钟是否高于 IWDG 时钟两倍。进入 Stop 前等 PVU/RVU 都清零。",
+    "ret": "SET 表示所选更新仍忙。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const FlagStatus updating = IWDG_GetFlagStatus(IWDG_FLAG_RVU);\n(void)updating;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 159,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_DeInit",
+    "params": "无参数。",
+    "pre": "APB1 的 WWDGEN 已开。 示例用于启动阶段、尚未激活看门狗时。",
+    "what": "对 RCC APB1RSTR.WWDGRST 施加复位脉冲。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "WWDG_CFR"
+    ],
+    "summary": "复位窗口看门狗外设，恢复默认寄存器。",
+    "check": "CFR 应恢复 0x7F。运行期不要把复位接口当作正常刷新路径。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_DeInit();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 363,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_SetPrescaler",
+    "params": "WWDG_Prescaler=WWDG_Prescaler_8，可选 1、2、4、8。",
+    "pre": "APB1 的 WWDGEN 已开。 尚未启用 WWDG。",
+    "what": "读改写 CFR.WDGTB，保留窗口与 EWI。",
+    "related": [
+      "WWDG_CFR-WDGTB"
+    ],
+    "summary": "选择 PCLK1 经固定 ÷4096 后的第二级分频。",
+    "check": "读 WDGTB=11。PCLK1=36 MHz 时约 910 µs/格，时基不符先查 PCLK1。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_SetPrescaler(WWDG_Prescaler_8);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 363,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_SetWindowValue",
+    "params": "WindowValue=0x60，有效位为低七位，实际应选大于 0x40 的值。",
+    "pre": "APB1 的 WWDGEN 已开。 尚未启用 WWDG。",
+    "what": "替换 CFR.W，保留 WDGTB 与 EWI。",
+    "related": [
+      "WWDG_CFR-W",
+      "WWDG_CR-T"
+    ],
+    "summary": "设定最早允许喂狗的计数阈值。",
+    "check": "读 W=0x60。刷新安排在 T 低于此值并早于 0x3F，留足调度裕量。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_SetWindowValue(0x60u);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 364,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_EnableIT",
+    "params": "无参数。",
+    "pre": "APB1 的 WWDGEN 已开。 先清已有 EWIF，配置 WWDG_IRQn 和处理函数。",
+    "what": "通过位带置 CFR.EWI。只可由硬件复位清 EWI。",
+    "related": [
+      "WWDG_CFR-EWI",
+      "WWDG_SR-EWIF"
+    ],
+    "summary": "打开计数到 0x40 时的提前唤醒中断。",
+    "check": "EWI=1。若启用时立刻入中断，检查之前自由运行计数产生的 EWIF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_EnableIT();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 364,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_SetCounter",
+    "params": "Counter=0x7F，刷新值的 T6 必须为 1。",
+    "pre": "APB1 的 WWDGEN 已开。 已启动，读到当前计数满足 0x40≤T<W。",
+    "what": "写 CR.T 的低七位。已经置位的 WDGA 不会因本次写 0 清除。",
+    "related": [
+      "WWDG_CR-T",
+      "WWDG_CR-WDGA",
+      "WWDG_CFR-W"
+    ],
+    "summary": "在允许窗口内重新装入 WWDG 计数。",
+    "check": "T 跳回接近 0x7F。若立刻复位，先查刷新是否太早或错过窗口。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_SetCounter(0x7Fu);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 365,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_Enable",
+    "params": "Counter=0x7F，范围 0x40–0x7F。",
+    "pre": "APB1 的 WWDGEN 已开。 已配置 W、WDGTB 并准备窗口刷新。",
+    "what": "写 CR.WDGA 和 CR.T。",
+    "related": [
+      "WWDG_CR-WDGA",
+      "WWDG_CR-T",
+      "/reference/clock-exti/#rcc_csr-wwdgrstf"
+    ],
+    "summary": "启动窗口看门狗并给出第一轮倒数初值。",
+    "check": "读 WDGA=1。验证超时或过早刷新时先在启动代码保存 WWDGRSTF。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_Enable(0x7Fu);"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 365,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_GetFlagStatus",
+    "params": "无参数。",
+    "pre": "APB1 的 WWDGEN 已开。",
+    "what": "读取 SR。",
+    "related": [
+      "WWDG_SR-EWIF",
+      "WWDG_CFR-EWI"
+    ],
+    "summary": "确认是否已到 WWDG 的提前中断计数。",
+    "check": "SET 表示倒数经过 0x40。若有标志无中断，查 EWI 和 NVIC。",
+    "ret": "SET 表示 EWIF 为 1。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "const FlagStatus early = WWDG_GetFlagStatus();\n(void)early;"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 366,
+      "label": "中文固件函数库手册"
+    }
+  },
+  {
+    "name": "WWDG_ClearFlag",
+    "params": "无参数。",
+    "pre": "APB1 的 WWDGEN 已开。 已处理 EWIF 来源。",
+    "what": "向 SR 写 0，清 EWIF。",
+    "related": [
+      "WWDG_SR-EWIF"
+    ],
+    "summary": "应答已处理的提前唤醒事件。",
+    "check": "读 EWIF=0。若随后复位，检查是否在剩余节拍内刷新。",
+    "ret": "无。",
+    "example": {
+      "title": "最小调用",
+      "explanation": "先满足上方的调用前提。",
+      "code": "WWDG_ClearFlag();"
+    },
+    "manual": {
+      "kind": "spl",
+      "page": 366,
+      "label": "中文固件函数库手册"
+    }
+  }
+]

@@ -1,0 +1,1249 @@
+[
+  {
+    "name": "I2C_DeInit",
+    "summary": "复位选定的 I²C 控制器。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 先完成或终止事务，确认总线已释放。",
+    "what": "经 APB1RSTR 置位、再清 I2C1RST 或 I2C2RST。需要重新初始化。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "I2C_CR1-PE",
+      "I2C_TRISE"
+    ],
+    "manual": {
+      "page": 136,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 先完成或终止事务，确认总线已释放。",
+      "code": "I2C_DeInit(I2C1);"
+    },
+    "check": "PE=0，TRISE 恢复 2。若 BUSY 仍置位，测 SCL、SDA，并核对模拟滤波勘误。"
+  },
+  {
+    "name": "I2C_Init",
+    "summary": "按实际 PCLK1 初始化 I²C 时序、本机地址和应答。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_InitStruct 指向结构体。\nI2C_ClockSpeed=100000，SCL 目标 100 kHz。\nI2C_Mode=I2C_Mode_I2C，普通 I²C 模式。\nI2C_DutyCycle=I2C_DutyCycle_2，快速模式低高比 2:1，标准模式忽略。\nI2C_OwnAddress1=0x64，本机七位从地址 0x32 左移一位。\nI2C_Ack=I2C_Ack_Enable，使接收方可应答。\nI2C_AcknowledgedAddress=I2C_AcknowledgedAddress_7bit，识别七位从地址。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 PCLK1=8 MHz，空闲且 PE=0。",
+    "what": "根据 RCC 计算 FREQ，禁用 PE 后写 CCR 和 TRISE，随后置 PE，更新 CR1.ACK/SMBUS/SMBTYPE 并覆盖 OAR1。函数会启用外设。",
+    "related": [
+      "I2C_CR1-PE",
+      "I2C_CR1-ACK",
+      "I2C_CR1-SMBUS",
+      "I2C_CR1-SMBTYPE",
+      "I2C_CR2-FREQ",
+      "I2C_CCR",
+      "I2C_TRISE",
+      "I2C_OAR1"
+    ],
+    "manual": {
+      "page": 137,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 PCLK1=8 MHz，空闲且 PE=0。",
+      "code": "I2C_InitTypeDef config;\nI2C_StructInit(&config);\nconfig.I2C_ClockSpeed = 100000u;\nconfig.I2C_OwnAddress1 = (0x32u << 1);\nconfig.I2C_Ack = I2C_Ack_Enable;\nI2C_Init(I2C1, &config);"
+    },
+    "check": "FREQ=8、CCR=40、TRISE=9、PE=1。发送时量 SCL 约 100 kHz。异常先确认 PCLK1 与上拉。"
+  },
+  {
+    "name": "I2C_StructInit",
+    "summary": "给 I²C 配置结构体填入安全起点。",
+    "params": "I2C_InitStruct 指向可写结构体。",
+    "ret": "无。",
+    "pre": "准备好结构体存储。",
+    "what": "写入 5 kHz、普通 I²C、快速模式低高比 2:1、本机地址 0、关闭 ACK 和七位寻址。寄存器保持原值。",
+    "related": [],
+    "manual": {
+      "page": 138,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "准备好结构体存储。",
+      "code": "I2C_InitTypeDef config;\nI2C_StructInit(&config);"
+    },
+    "check": "调试器查看 I2C_ClockSpeed=5000。若要 100 kHz，调用 Init 前改此值。"
+  },
+  {
+    "name": "I2C_Cmd",
+    "summary": "启停 I²C 控制器。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 停止前应先完成主机事务。",
+    "what": "改写 CR1.PE。禁用后若干协议状态随硬件清除。",
+    "related": [
+      "I2C_CR1-PE"
+    ],
+    "manual": {
+      "page": 139,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 停止前应先完成主机事务。",
+      "code": "I2C_Cmd(I2C1, ENABLE);"
+    },
+    "check": "读 PE=1。发 START 前检查实际 SCL、SDA 和 BUSY。"
+  },
+  {
+    "name": "I2C_DMACmd",
+    "summary": "允许 I²C 在缓冲就绪时请求 DMA。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 DMA1 已配置 I2C1_TX 通道 6 或 RX 通道 7，并清旧标志。",
+    "what": "设置 CR2.DMAEN。起始、地址及停止条件仍需管理。",
+    "related": [
+      "I2C_CR2-DMAEN",
+      "I2C_DR",
+      "/reference/adc-dma/#dma_cndtr6",
+      "/reference/adc-dma/#dma_cndtr7"
+    ],
+    "manual": {
+      "page": 139,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 DMA1 已配置 I2C1_TX 通道 6 或 RX 通道 7，并清旧标志。",
+      "code": "I2C_DMACmd(I2C1, ENABLE);"
+    },
+    "check": "到数据阶段应看到 DMA CNDTR 递减。先确认选了正确的 TX/RX 通道。"
+  },
+  {
+    "name": "I2C_DMALastTransferCmd",
+    "summary": "告诉主接收器 DMA 完成时要对最后一个字节发 NACK。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已配置主接收 DMA 和本轮传输数量。",
+    "what": "修改 CR2.LAST。最后一字节 NACK 后软件仍要按流程发 STOP。",
+    "related": [
+      "I2C_CR2-LAST"
+    ],
+    "manual": {
+      "page": 140,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已配置主接收 DMA 和本轮传输数量。",
+      "code": "I2C_DMALastTransferCmd(I2C1, ENABLE);"
+    },
+    "check": "分析仪应见末字节 NACK。若末字节仍 ACK，先查 LAST、DMA 计数和接收方向。"
+  },
+  {
+    "name": "I2C_GenerateSTART",
+    "summary": "请求起始或重复起始。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 PE=1，总线空闲或当前为主机。",
+    "what": "改写 CR1.START。请求置位后等硬件清除，再修改 CR1。",
+    "related": [
+      "I2C_CR1-START"
+    ],
+    "manual": {
+      "page": 140,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 PE=1，总线空闲或当前为主机。",
+      "code": "I2C_GenerateSTART(I2C1, ENABLE);"
+    },
+    "check": "量 SCL 高时 SDA 下降，等待 SB。没有边沿先查 BUSY 和 GPIO。"
+  },
+  {
+    "name": "I2C_GenerateSTOP",
+    "summary": "在事务结束处请求停止条件。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已到协议规定的结束点，主发送通常等待 BTF。",
+    "what": "改写 CR1.STOP。请求置位后等硬件清除，再修改 CR1。",
+    "related": [
+      "I2C_CR1-STOP"
+    ],
+    "manual": {
+      "page": 141,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已到协议规定的结束点，主发送通常等待 BTF。",
+      "code": "I2C_GenerateSTOP(I2C1, ENABLE);"
+    },
+    "check": "量 SCL 高时 SDA 上升，并观察 BUSY 释放。未释放先查 ACK、BTF 或外部设备是否拉线。"
+  },
+  {
+    "name": "I2C_AcknowledgeConfig",
+    "summary": "设置接收应答策略。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在接收时序要求的窗口设置 ACK。",
+    "what": "改写 CR1.ACK。保持同寄存器其他字段。",
+    "related": [
+      "I2C_CR1-ACK"
+    ],
+    "manual": {
+      "page": 141,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在接收时序要求的窗口设置 ACK。",
+      "code": "I2C_AcknowledgeConfig(I2C1, ENABLE);"
+    },
+    "check": "分析仪确认第九个 SCL 的 SDA。结果偏一字节先查 ADDR 清除顺序与 POS。"
+  },
+  {
+    "name": "I2C_GeneralCallCmd",
+    "summary": "允许从机应答广播地址。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已设为 I²C 从机并接上测试主机。",
+    "what": "改写 CR1.ENGC。保持同寄存器其他字段。",
+    "related": [
+      "I2C_CR1-ENGC"
+    ],
+    "manual": {
+      "page": 143,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已设为 I²C 从机并接上测试主机。",
+      "code": "I2C_GeneralCallCmd(I2C1, ENABLE);"
+    },
+    "check": "主机发地址 0 时检查 ACK 和 GENCALL，未匹配先查从机 ACK。"
+  },
+  {
+    "name": "I2C_TransmitPEC",
+    "summary": "安排当前事务发送或校验 PEC。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 SMBus 事务已开启 PEC 计算，在规定时序位置操作。",
+    "what": "改写 CR1.PEC。请求置位后等硬件清除，再修改 CR1。",
+    "related": [
+      "I2C_CR1-PEC"
+    ],
+    "manual": {
+      "page": 147,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 SMBus 事务已开启 PEC 计算，在规定时序位置操作。",
+      "code": "I2C_TransmitPEC(I2C1, ENABLE);"
+    },
+    "check": "量线上 PEC，若不一致先查 POS、ENPEC 和同一包覆盖的字节。"
+  },
+  {
+    "name": "I2C_CalculatePEC",
+    "summary": "控制硬件 SMBus PEC 计算。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 SMBus 模式下在事务开始前设置。",
+    "what": "改写 CR1.ENPEC。保持同寄存器其他字段。",
+    "related": [
+      "I2C_CR1-ENPEC"
+    ],
+    "manual": {
+      "page": 148,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 SMBus 模式下在事务开始前设置。",
+      "code": "I2C_CalculatePEC(I2C1, ENABLE);"
+    },
+    "check": "读 ENPEC=1，发已知数据并读 PEC；异常先查是否进入了新的事务。"
+  },
+  {
+    "name": "I2C_ARPCmd",
+    "summary": "让从机识别 SMBus ARP 特殊地址。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已按 SMBus 角色配置并核对 ES096 的兼容限制。",
+    "what": "改写 CR1.ENARP。保持同寄存器其他字段。",
+    "related": [
+      "I2C_CR1-ENARP"
+    ],
+    "manual": {
+      "page": 149,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已按 SMBus 角色配置并核对 ES096 的兼容限制。",
+      "code": "I2C_ARPCmd(I2C1, ENABLE);"
+    },
+    "check": "读 ENARP，并检查目标地址应答。未匹配先核对 SMBTYPE。"
+  },
+  {
+    "name": "I2C_OwnAddress2Config",
+    "summary": "写入七位从机的第二地址。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nAddress=0x66，即七位地址 0x33 左移一位。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 空闲且本机使用七位从地址。",
+    "what": "修改 OAR2.ADD2，保留 ENDUAL。另开双地址。",
+    "related": [
+      "I2C_OAR2-ADD2",
+      "I2C_OAR2-ENDUAL",
+      "I2C_SR2-DUALF"
+    ],
+    "manual": {
+      "page": 142,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 空闲且本机使用七位从地址。",
+      "code": "I2C_OwnAddress2Config(I2C1, 0x33u << 1);"
+    },
+    "check": "OAR2 的地址位应读 0x66。启用后发 0x33，取 SR2.DUALF 核对。"
+  },
+  {
+    "name": "I2C_DualAddressCmd",
+    "summary": "开启第二个从地址的匹配。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已写好两个不同的七位地址。",
+    "what": "修改 OAR2.ENDUAL。",
+    "related": [
+      "I2C_OAR2-ENDUAL",
+      "I2C_SR2-DUALF"
+    ],
+    "manual": {
+      "page": 142,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已写好两个不同的七位地址。",
+      "code": "I2C_DualAddressCmd(I2C1, ENABLE);"
+    },
+    "check": "访问第二地址，检查匹配时的 DUALF=1。无响应先读 ENDUAL 和 ADD2。"
+  },
+  {
+    "name": "I2C_ITConfig",
+    "summary": "选择 I²C 事件、缓冲或错误中断。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_IT=I2C_IT_EVT|I2C_IT_BUF，开事件和缓冲。错误用 I2C_IT_ERR。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已安装对应 EV/ER 处理函数并清理旧状态。",
+    "what": "改 CR2.ITEVTEN/ITBUFEN/ITERREN。NVIC 使能独立设置。",
+    "related": [
+      "I2C_CR2-ITEVTEN",
+      "I2C_CR2-ITBUFEN",
+      "I2C_CR2-ITERREN",
+      "/reference/clock-exti/#nvic_iser"
+    ],
+    "manual": {
+      "page": 143,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已安装对应 EV/ER 处理函数并清理旧状态。",
+      "code": "I2C_ITConfig(I2C1, I2C_IT_EVT | I2C_IT_BUF, ENABLE);"
+    },
+    "check": "事件和缓冲使能均读 1。RXNE 中断没进时先查两位、NVIC 与对应 IRQ。"
+  },
+  {
+    "name": "I2C_SendData",
+    "summary": "将一字节写入当前发送事务。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nData=0xA5，线上发送 A5。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已进入数据阶段且 TXE=1。",
+    "what": "写 DR。末字节要等 BTF 后发 STOP 或重复 START。",
+    "related": [
+      "I2C_DR",
+      "I2C_SR1-TXE",
+      "I2C_SR1-BTF"
+    ],
+    "manual": {
+      "page": 144,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已进入数据阶段且 TXE=1。",
+      "code": "I2C_SendData(I2C1, 0xA5u);"
+    },
+    "check": "抓 A5 后的 ACK 位。若错误先检查 TXE 与 AF。"
+  },
+  {
+    "name": "I2C_ReceiveData",
+    "summary": "读取接收缓冲区的一个字节。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。",
+    "ret": "返回已读出的 8 位数据。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 RXNE=1，已按字节数安排 ACK/NACK 和 STOP。",
+    "what": "读 DR，消费当前接收数据。若移位器还有一字节，RXNE 可继续置位。",
+    "related": [
+      "I2C_DR",
+      "I2C_SR1-RXNE"
+    ],
+    "manual": {
+      "page": 144,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 RXNE=1，已按字节数安排 ACK/NACK 和 STOP。",
+      "code": "const uint8_t value = I2C_ReceiveData(I2C1);\n(void)value;"
+    },
+    "check": "核对分析仪上的同一字节。数据滞后先检查是否同时被 DMA 或调试器读取。"
+  },
+  {
+    "name": "I2C_Send7bitAddress",
+    "summary": "在 START 后发送七位地址和读写位。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nAddress=0x50<<1，调用方先左移七位地址。\nI2C_Direction=I2C_Direction_Transmitter 发送写请求，Receiver 发读请求。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 主机已发 START 并读到 SB=1。",
+    "what": "替换 Address 的 bit 0 后写 DR；写方向线字节为 0xA0。",
+    "related": [
+      "I2C_DR",
+      "I2C_SR1-SB",
+      "I2C_SR1-ADDR",
+      "I2C_SR1-AF"
+    ],
+    "manual": {
+      "page": 145,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 主机已发 START 并读到 SB=1。",
+      "code": "I2C_Send7bitAddress(I2C1, 0x50u << 1, I2C_Direction_Transmitter);"
+    },
+    "check": "看分析仪七位地址 0x50 和第九拍 ACK。NACK 时查地址、上拉与器件供电。"
+  },
+  {
+    "name": "I2C_ReadRegister",
+    "summary": "按 SPL 定义的偏移读取一个寄存器。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_Register=I2C_Register_CCR，偏移 0x1C。",
+    "ret": "返回寄存器读值。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 诊断前先确认目标读取的副作用。",
+    "what": "通过外设基址加偏移读半字。读取 DR 会取走数据，SR1→SR2 读取会清 ADDR。",
+    "related": [
+      "I2C_CCR",
+      "I2C_DR",
+      "I2C_SR1-ADDR",
+      "I2C_SR2"
+    ],
+    "manual": {
+      "page": 145,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 诊断前先确认目标读取的副作用。",
+      "code": "const uint16_t ccr = I2C_ReadRegister(I2C1, I2C_Register_CCR);\n(void)ccr;"
+    },
+    "check": "PCLK1=8 MHz、标准 100 kHz 示例应读到 40。若不符先核对实例和实际 PCLK1。"
+  },
+  {
+    "name": "I2C_SoftwareResetCmd",
+    "summary": "将 I²C 外设置于或释放软件复位。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 保持复位，DISABLE 释放。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已停止本机事务，确认两线释放。",
+    "what": "改 CR1.SWRST。释放后重新初始化。模拟滤波卡住 BUSY 时先按 ES096 用 GPIO 产生边沿。",
+    "related": [
+      "I2C_CR1-SWRST",
+      "I2C_SR2-BUSY"
+    ],
+    "manual": {
+      "page": 146,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已停止本机事务，确认两线释放。",
+      "code": "I2C_SoftwareResetCmd(I2C1, ENABLE);\nI2C_SoftwareResetCmd(I2C1, DISABLE);"
+    },
+    "check": "复位后 PE=0；重配后 BUSY 应清。两线高且 BUSY 仍锁住时检查模拟滤波勘误。"
+  },
+  {
+    "name": "I2C_NACKPositionConfig",
+    "summary": "选择 ACK/NACK 在双字节接收时作用的字节。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_NACKPosition=I2C_NACKPosition_Next 设置 POS=1，Current 清 POS。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在双字节主接收的地址处理前设置。",
+    "what": "修改 CR1.POS。还需在规定时序设置 ACK，按 ES096 避免在敏感区被中断。",
+    "related": [
+      "I2C_CR1-POS",
+      "I2C_CR1-ACK",
+      "I2C_SR1-ADDR"
+    ],
+    "manual": {
+      "page": 506,
+      "kind": "rcc",
+      "label": "中文参考手册 · POS 与 ACK 时序"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在双字节主接收的地址处理前设置。",
+      "code": "I2C_NACKPositionConfig(I2C1, I2C_NACKPosition_Next);"
+    },
+    "check": "看末字节第九拍 NACK。若错位，先查 POS 是否在 ADDR 清除前设定。"
+  },
+  {
+    "name": "I2C_SMBusAlertConfig",
+    "summary": "驱动或释放 SMBALERT 告警线。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_SMBusAlert=I2C_SMBusAlert_Low 拉低，High 释放。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已使用 SMBus 模式并连接对应 SMBALERT 上拉。",
+    "what": "改 CR1.ALERT，影响从设备的告警响应。",
+    "related": [
+      "I2C_CR1-ALERT",
+      "I2C_CR1-SMBUS",
+      "I2C_SR1-SMBALERT"
+    ],
+    "manual": {
+      "page": 147,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已使用 SMBus 模式并连接对应 SMBALERT 上拉。",
+      "code": "I2C_SMBusAlertConfig(I2C1, I2C_SMBusAlert_Low);"
+    },
+    "check": "量 SMBALERT 变低。无变化先核对引脚复用与 SMBUS。"
+  },
+  {
+    "name": "I2C_PECPositionConfig",
+    "summary": "选择接收器检查 PEC 的字节位置。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_PECPosition=I2C_PECPosition_Current 清 POS，Next 置 POS。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已开启 PEC，接收包格式已知。",
+    "what": "修改 CR1.POS，与 ACK 位置共用位。",
+    "related": [
+      "I2C_CR1-POS",
+      "I2C_CR1-PEC",
+      "I2C_SR1-PECERR"
+    ],
+    "manual": {
+      "page": 148,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已开启 PEC，接收包格式已知。",
+      "code": "I2C_PECPositionConfig(I2C1, I2C_PECPosition_Current);"
+    },
+    "check": "输入已知 PEC 帧，查看 PECERR 是否保持清零。先查 POS 与 PEC 请求时机。"
+  },
+  {
+    "name": "I2C_GetPEC",
+    "summary": "读取硬件累计的 SMBus PEC。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。",
+    "ret": "返回当前的 8 位 PEC。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 ENPEC 已启用，读取时机符合协议，避免意外清除 ADDR。",
+    "what": "读 SR2 的高字节。若此前读过 SR1，可能完成 ADDR 清除。",
+    "related": [
+      "I2C_SR2-PEC",
+      "I2C_CR1-ENPEC"
+    ],
+    "manual": {
+      "page": 149,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 ENPEC 已启用，读取时机符合协议，避免意外清除 ADDR。",
+      "code": "const uint8_t pec = I2C_GetPEC(I2C1);\n(void)pec;"
+    },
+    "check": "和同一事务的已知软件 PEC 比较。异常先查是否已发重复 START 或 STOP。"
+  },
+  {
+    "name": "I2C_StretchClockCmd",
+    "summary": "允许或禁止从机按协议拉低 SCL 等待处理。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nNewState=ENABLE 允许拉伸，DISABLE 禁止。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 从机空闲，主机支持选定策略。",
+    "what": "ENABLE 清 CR1.NOSTRETCH，DISABLE 置位。",
+    "related": [
+      "I2C_CR1-NOSTRETCH",
+      "I2C_SR1-OVR"
+    ],
+    "manual": {
+      "page": 150,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 从机空闲，主机支持选定策略。",
+      "code": "I2C_StretchClockCmd(I2C1, ENABLE);"
+    },
+    "check": "NOSTRETCH 应为 0。延迟服务适用事件并观察 SCL 低电平延长。"
+  },
+  {
+    "name": "I2C_FastModeDutyCycleConfig",
+    "summary": "切换 I²C 快速模式的低高电平比。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_DutyCycle=I2C_DutyCycle_2 选 2:1；I2C_DutyCycle_16_9 选 16:9。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 总线已空闲，PE=0、FS=1。",
+    "what": "改 CCR.DUTY，保留分频数。若改变占空比，应重算 CCR 保持目标频率。",
+    "related": [
+      "I2C_CCR-DUTY",
+      "I2C_CCR-FS",
+      "I2C_CCR-CCR"
+    ],
+    "manual": {
+      "page": 150,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 总线已空闲，PE=0、FS=1。",
+      "code": "I2C_FastModeDutyCycleConfig(I2C1, I2C_DutyCycle_2);"
+    },
+    "check": "DUTY=0。发送时分别测 Tlow、Thigh 和频率。异常先核对 CCR 是否按新比值计算。"
+  },
+  {
+    "name": "I2C_CheckEvent",
+    "summary": "检查是否出现某个 SPL 组合事件。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_EVENT=I2C_EVENT_MASTER_MODE_SELECT，检查 START 后的 SB、MSL、BUSY。",
+    "ret": "SUCCESS 表示目标位都为 1，可能还存在其他标志。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已请求 START。避免用此函数轮询需要保留 ADDR 的接收阶段。",
+    "what": "顺序读 SR1、SR2，组合状态并测试目标位全为 1。此顺序会清 ADDR。",
+    "related": [
+      "I2C_SR1-SB",
+      "I2C_SR1-ADDR",
+      "I2C_SR2"
+    ],
+    "manual": {
+      "page": 151,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已请求 START。避免用此函数轮询需要保留 ADDR 的接收阶段。",
+      "code": "const ErrorStatus started = I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT);\n(void)started;"
+    },
+    "check": "SUCCESS 时可以写地址。若超时先查 BUSY、PE 和实际 SCL、SDA。"
+  },
+  {
+    "name": "I2C_GetLastEvent",
+    "summary": "取出一组 SR1/SR2 组合状态。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。",
+    "ret": "返回当前组合状态，供掩码分析。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在适合消费 ADDR 的位置使用。",
+    "what": "先读 SR1 后读 SR2，并将 SR2 放高半部、掩码保留低 24 位。读取可能清 ADDR。",
+    "related": [
+      "I2C_SR1-ADDR",
+      "I2C_SR2"
+    ],
+    "manual": {
+      "page": 151,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在适合消费 ADDR 的位置使用。",
+      "code": "const uint32_t state = I2C_GetLastEvent(I2C1);\n(void)state;"
+    },
+    "check": "按事务阶段解释状态组合。如果缺 ADDR，检查是否已被之前的事件读取清掉。"
+  },
+  {
+    "name": "I2C_GetFlagStatus",
+    "summary": "单独查询指定 I²C 标志。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_FLAG=I2C_FLAG_ADDR，查询地址应答。",
+    "ret": "SET 表示所选位已置位。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已发送地址。准备好接收策略再读 SR2。",
+    "what": "按标志编码读 SR1 或 SR2。查询 SR2 标志前若读过 SR1，可能清 ADDR。",
+    "related": [
+      "I2C_SR1-ADDR",
+      "I2C_SR1-AF",
+      "I2C_SR2"
+    ],
+    "manual": {
+      "page": 152,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已发送地址。准备好接收策略再读 SR2。",
+      "code": "const FlagStatus matched = I2C_GetFlagStatus(I2C1, I2C_FLAG_ADDR);\n(void)matched;"
+    },
+    "check": "地址获 ACK 后应为 SET。仍 RESET 先查 AF 与器件地址。"
+  },
+  {
+    "name": "I2C_ClearFlag",
+    "summary": "清除可写零的 I²C 错误标志。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_FLAG=I2C_FLAG_AF，选择应答失败。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已记录错误并决定恢复动作。",
+    "what": "对 SR1 写反掩码以清所选错误。ADDR、STOPF、BTF 等按自身访问序列清除。",
+    "related": [
+      "I2C_SR1-AF"
+    ],
+    "manual": {
+      "page": 153,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已记录错误并决定恢复动作。",
+      "code": "I2C_ClearFlag(I2C1, I2C_FLAG_AF);"
+    },
+    "check": "读 AF=0。后续重复发生时先用分析仪核对第九拍。"
+  },
+  {
+    "name": "I2C_GetITStatus",
+    "summary": "检查指定 I²C 中断的标志与使能。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_IT=I2C_IT_AF，检查应答失败中断。",
+    "ret": "SET 表示标志已置且命中编码的使能掩码。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在错误处理或诊断路径使用。",
+    "what": "根据参数读 SR1 与 CR2 的编码掩码。对 RXNE/TXE，库函数只检查对应使能掩码与 CR2 有交集，硬件仍需 ITEVTEN 和 ITBUFEN 同开。",
+    "related": [
+      "I2C_SR1-AF",
+      "I2C_CR2-ITERREN",
+      "I2C_CR2-ITBUFEN",
+      "I2C_CR2-ITEVTEN"
+    ],
+    "manual": {
+      "page": 154,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 在错误处理或诊断路径使用。",
+      "code": "const ITStatus pending = I2C_GetITStatus(I2C1, I2C_IT_AF);\n(void)pending;"
+    },
+    "check": "AF=1 且 ITERREN=1 时应返回 SET。若硬件中断没进，再检查 NVIC。"
+  },
+  {
+    "name": "I2C_ClearITPendingBit",
+    "summary": "在错误 ISR 中清除已处理的 I²C 错误。",
+    "params": "I2Cx 为 I2C1 或 I2C2。示例用 I2C1。\nI2C_IT=I2C_IT_AF，选择应答失败。",
+    "ret": "无。",
+    "pre": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已读取错误并完成对应恢复决策。",
+    "what": "向 SR1 所选错误位写 0。CR2 和 NVIC 配置保留。",
+    "related": [
+      "I2C_SR1-AF",
+      "I2C_CR2-ITERREN"
+    ],
+    "manual": {
+      "page": 155,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "已开 I2C1 和 GPIO 时钟，外部上拉已接好。 已读取错误并完成对应恢复决策。",
+      "code": "I2C_ClearITPendingBit(I2C1, I2C_IT_AF);"
+    },
+    "check": "检查 AF 清零且 ITERREN 仍为原值。重复 IRQ 时检查其他错误。"
+  },
+  {
+    "name": "SPI_I2S_DeInit",
+    "summary": "复位指定 SPI 实例。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。",
+    "what": "经 RCC 对 SPI1 的 APB2 或 SPI2 的 APB1 发复位脉冲。配置及未读数据丢失。",
+    "related": [
+      "/reference/clock-exti/#rcc_apb2rstr",
+      "/reference/clock-exti/#rcc_apb1rstr",
+      "SPI_CR1",
+      "SPI_SR"
+    ],
+    "manual": {
+      "page": 225,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。",
+      "code": "SPI_I2S_DeInit(SPI1);"
+    },
+    "check": "读 CR1=0 和 SR.TXE=1。异常先查时钟门控。"
+  },
+  {
+    "name": "SPI_Init",
+    "summary": "设定 SPI 的角色、时钟、帧格式和片选管理。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_InitStruct 指向可写配置。\nSPI_Direction=SPI_Direction_2Lines_FullDuplex：双线全双工。\nSPI_Mode=SPI_Mode_Master：SPI 产生 SCK。\nSPI_DataSize=SPI_DataSize_8b：8 位帧。\nSPI_CPOL=SPI_CPOL_Low 与 SPI_CPHA=SPI_CPHA_1Edge：模式 0。\nSPI_NSS=SPI_NSS_Soft：内部 SSI 作为 NSS，外部片选用 GPIO。\nSPI_BaudRatePrescaler=SPI_BaudRatePrescaler_8：PCLK÷8。\nSPI_FirstBit=SPI_FirstBit_MSB：高位先发。\nSPI_CRCPolynomial=7：CRC 多项式，需另开 CRC 才参与。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 PCLK2=8 MHz，默认引脚，已把外部 GPIO 片选置非选中。",
+    "what": "改写 CR1 的方向、角色、DFF、时序、片选和分频，并清设备族通用的 I2SMOD 位、写 CRCPR。另调 SPI_Cmd 启动。",
+    "related": [
+      "SPI_CR1-BIDIMODE",
+      "SPI_CR1-DFF",
+      "SPI_CR1-CPOL",
+      "SPI_CR1-CPHA",
+      "SPI_CR1-SSM",
+      "SPI_CR1-BR",
+      "SPI_CR1-SPE",
+      "SPI_CRCPR"
+    ],
+    "manual": {
+      "page": 225,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 PCLK2=8 MHz，默认引脚，已把外部 GPIO 片选置非选中。",
+      "code": "SPI_InitTypeDef config;\nSPI_StructInit(&config);\nconfig.SPI_Mode = SPI_Mode_Master;\nconfig.SPI_NSS = SPI_NSS_Soft;\nconfig.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;\nSPI_Init(SPI1, &config);"
+    },
+    "check": "SPE=0 时读到模式 0、BR=010、MSTR=1。启用并发送 0xA5，应见 1 MHz 的 8 个时钟。无 SCK 先查 NSS、SPE 与引脚复用。"
+  },
+  {
+    "name": "SPI_StructInit",
+    "summary": "为 SPI 配置写入库默认值。",
+    "params": "SPI_InitStruct 指向可写结构体。",
+    "ret": "无。",
+    "pre": "准备好结构体存储。",
+    "what": "默认双线全双工、从机、8 位、模式 0、硬件 NSS、PCLK÷2、高位先发、多项式 7。只写结构体。",
+    "related": [],
+    "manual": {
+      "page": 227,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "准备好结构体存储。",
+      "code": "SPI_InitTypeDef config;\nSPI_StructInit(&config);"
+    },
+    "check": "调试器应读 SPI_Mode_Slave。作为主机使用前修改角色与 NSS。"
+  },
+  {
+    "name": "SPI_Cmd",
+    "summary": "启停 SPI 外设。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 已完成时序与片选设置。",
+    "what": "设置 CR1.SPE。全双工主机停用前先处理 RXNE，再等 TXE=1 和 BSY=0。",
+    "related": [
+      "SPI_CR1-SPE",
+      "SPI_SR-BSY",
+      "SPI_SR-MODF"
+    ],
+    "manual": {
+      "page": 228,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 已完成时序与片选设置。",
+      "code": "SPI_Cmd(SPI1, ENABLE);"
+    },
+    "check": "SPE 应为 1。写一帧后检查 SCK。若 SPE 立即被硬件清零，先看 MODF。"
+  },
+  {
+    "name": "SPI_I2S_ITConfig",
+    "summary": "允许指定的 SPI 事件发出中断。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_IT=SPI_I2S_IT_RXNE 选接收。发送选 TXE，错误选 ERR。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 已设置相应 SPI IRQ 处理函数。",
+    "what": "由参数索引修改 CR2 的 TXEIE、RXNEIE 或 ERRIE。",
+    "related": [
+      "SPI_CR2-RXNEIE",
+      "SPI_SR-RXNE",
+      "/reference/clock-exti/#nvic_iser"
+    ],
+    "manual": {
+      "page": 228,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 已设置相应 SPI IRQ 处理函数。",
+      "code": "SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_RXNE, ENABLE);"
+    },
+    "check": "读 RXNEIE=1。接收后若无中断先查 RXNE 与 NVIC。"
+  },
+  {
+    "name": "SPI_I2S_DMACmd",
+    "summary": "开关 SPI 接收或发送的 DMA 请求。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_DMAReq=SPI_I2S_DMAReq_Rx，启用 RXNE 请求，Tx 选择 TXE。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 配好 SPI1_RX 的 DMA1 通道 2。",
+    "what": "在 CR2 设置 RXDMAEN 或 TXDMAEN。通道自身的配置与使能单独完成。",
+    "related": [
+      "SPI_CR2-RXDMAEN",
+      "SPI_CR2-TXDMAEN",
+      "SPI_DR",
+      "/reference/adc-dma/#dma_cndtr2"
+    ],
+    "manual": {
+      "page": 229,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 配好 SPI1_RX 的 DMA1 通道 2。",
+      "code": "SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);"
+    },
+    "check": "每收到一帧，通道 2 计数减一。异常先查 DR 地址、DMA 通道、传输宽度。"
+  },
+  {
+    "name": "SPI_I2S_SendData",
+    "summary": "把一帧写进 SPI 发送缓冲。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nData=0xA5。在 8 位模式使用低八位。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 TXE=1，已拉低 GPIO 片选。",
+    "what": "写 DR。主机将产生 SCK，双线全双工同时接收一帧。",
+    "related": [
+      "SPI_DR",
+      "SPI_SR-TXE",
+      "SPI_SR-RXNE"
+    ],
+    "manual": {
+      "page": 229,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 TXE=1，已拉低 GPIO 片选。",
+      "code": "SPI_I2S_SendData(SPI1, 0xA5u);"
+    },
+    "check": "看 MOSI 发出 A5，并及时处理 RXNE。若从机没回应先查 CS、CPOL、CPHA。"
+  },
+  {
+    "name": "SPI_I2S_ReceiveData",
+    "summary": "读走 SPI 缓冲区中的一帧。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。",
+    "ret": "返回接收的 16 位寄存器值，8 位帧只取低字节。",
+    "pre": "SPI1 已按接线配置并启用。 RXNE=1，CPU 独占 DR。",
+    "what": "读 DR，取走一帧。OVR 需进一步读 SR。",
+    "related": [
+      "SPI_DR",
+      "SPI_SR-RXNE",
+      "SPI_SR-OVR"
+    ],
+    "manual": {
+      "page": 230,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 RXNE=1，CPU 独占 DR。",
+      "code": "const uint16_t value = SPI_I2S_ReceiveData(SPI1);\n(void)value;"
+    },
+    "check": "回环时应与发出的数据一致。若字节偏移或整体移位，核对时钟相位。"
+  },
+  {
+    "name": "SPI_NSSInternalSoftwareConfig",
+    "summary": "设置软件管理模式下的内部 NSS。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_NSSInternalSoft=SPI_NSSInternalSoft_Set，内部 NSS=1；Reset 清为 0。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 已选择 SSM=1，主机通常保持 SSI=1。",
+    "what": "设置 CR1.SSI。GPIO 片选需要独立控制。",
+    "related": [
+      "SPI_CR1-SSM",
+      "SPI_CR1-SSI",
+      "SPI_SR-MODF"
+    ],
+    "manual": {
+      "page": 230,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 已选择 SSM=1，主机通常保持 SSI=1。",
+      "code": "SPI_NSSInternalSoftwareConfig(SPI1, SPI_NSSInternalSoft_Set);"
+    },
+    "check": "SSI=1。开启主机后不应因内部 NSS 低触发 MODF。"
+  },
+  {
+    "name": "SPI_SSOutputCmd",
+    "summary": "在硬件 NSS 主机模式下开启片选输出。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 主机、SSM=0，NSS 引脚按复用输出接线。",
+    "what": "改 CR2.SSOE。主机使能时 NSS 会保持低，直到 SPI 关闭。",
+    "related": [
+      "SPI_CR2-SSOE",
+      "SPI_CR1-SSM",
+      "SPI_CR1-SPE"
+    ],
+    "manual": {
+      "page": 231,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 主机、SSM=0，NSS 引脚按复用输出接线。",
+      "code": "SPI_SSOutputCmd(SPI1, ENABLE);"
+    },
+    "check": "同时测 SPE 与 NSS。若需每帧切换或多个设备，配置软件管理和各自 GPIO 片选。"
+  },
+  {
+    "name": "SPI_DataSizeConfig",
+    "summary": "在停用时选择每帧 8 位或 16 位。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_DataSize=SPI_DataSize_16b 选 16 位，8b 选 8 位。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 对端与 DMA 访问宽度同步调整。",
+    "what": "更新 CR1.DFF。",
+    "related": [
+      "SPI_CR1-DFF",
+      "SPI_DR"
+    ],
+    "manual": {
+      "page": 231,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 对端与 DMA 访问宽度同步调整。",
+      "code": "SPI_DataSizeConfig(SPI1, SPI_DataSize_16b);"
+    },
+    "check": "启用后发一帧，分析仪应见 16 个时钟。位数不对先查 DFF 和是否在 SPE=0 时改。"
+  },
+  {
+    "name": "SPI_TransmitCRC",
+    "summary": "在最后一个数据字后安排发送 CRC。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 全双工 CRC 已启用，刚写最后一个数据字。",
+    "what": "置 CR1.CRCNEXT，下一个发送值来自 TXCRCR。",
+    "related": [
+      "SPI_CR1-CRCNEXT",
+      "SPI_TXCRCR"
+    ],
+    "manual": {
+      "page": 232,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 全双工 CRC 已启用，刚写最后一个数据字。",
+      "code": "SPI_TransmitCRC(SPI1);"
+    },
+    "check": "分析仪应见额外一帧校验。若 CRC 占用了数据字位置，检查最后一次 DR 写入与 CRCNEXT 顺序。"
+  },
+  {
+    "name": "SPI_CalculateCRC",
+    "summary": "启停 SPI 全双工硬件 CRC。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nNewState=ENABLE 打开，DISABLE 关闭。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 多项式已配置，对端协议匹配。",
+    "what": "改 CR1.CRCEN。启用 CRC 初始化计算寄存器。",
+    "related": [
+      "SPI_CR1-CRCEN",
+      "SPI_CRCPR",
+      "SPI_TXCRCR",
+      "SPI_RXCRCR"
+    ],
+    "manual": {
+      "page": 232,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 多项式已配置，对端协议匹配。",
+      "code": "SPI_CalculateCRC(SPI1, ENABLE);"
+    },
+    "check": "读 CRCEN=1，按已知数据测试收发 CRC。异常先核对 DFF、位序及多项式。"
+  },
+  {
+    "name": "SPI_GetCRC",
+    "summary": "读取发送或接收方向的 CRC 累积结果。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_CRC=SPI_CRC_Rx 读接收；SPI_CRC_Tx 读发送。",
+    "ret": "返回所选方向的当前 CRC 值。",
+    "pre": "SPI1 已按接线配置并启用。 已开 CRC，当前 BSY=0。",
+    "what": "按参数读取 RXCRCR 或 TXCRCR。",
+    "related": [
+      "SPI_RXCRCR",
+      "SPI_TXCRCR",
+      "SPI_SR-BSY"
+    ],
+    "manual": {
+      "page": 233,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 已开 CRC，当前 BSY=0。",
+      "code": "const uint16_t crc = SPI_GetCRC(SPI1, SPI_CRC_Rx);\n(void)crc;"
+    },
+    "check": "拿相同帧长、位序和多项式对照。如果值不稳定，先查是否仍在移位。"
+  },
+  {
+    "name": "SPI_GetCRCPolynomial",
+    "summary": "读回 SPI 当前的 CRC 多项式。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。",
+    "ret": "返回 16 位多项式寄存器值。",
+    "pre": "SPI1 外设时钟已开启。",
+    "what": "读取 CRCPR。",
+    "related": [
+      "SPI_CRCPR"
+    ],
+    "manual": {
+      "page": 233,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 外设时钟已开启。",
+      "code": "const uint16_t polynomial = SPI_GetCRCPolynomial(SPI1);\n(void)polynomial;"
+    },
+    "check": "默认应为 7。若与对端不一致，在 SPE=0 时重新配置。"
+  },
+  {
+    "name": "SPI_BiDirectionalLineConfig",
+    "summary": "在单线 SPI 中切换数据方向。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_Direction=SPI_Direction_Tx，驱动单线；SPI_Direction_Rx 释放线路以接收。",
+    "ret": "无。",
+    "pre": "SPI1 已开时钟，已结束事务，SPE=0。 BIDIMODE=1，双方已约定转向时机。",
+    "what": "设置或清除 CR1.BIDIOE。主机使用 MOSI，从机使用 MISO。",
+    "related": [
+      "SPI_CR1-BIDIMODE",
+      "SPI_CR1-BIDIOE"
+    ],
+    "manual": {
+      "page": 234,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已开时钟，已结束事务，SPE=0。 BIDIMODE=1，双方已约定转向时机。",
+      "code": "SPI_BiDirectionalLineConfig(SPI1, SPI_Direction_Tx);"
+    },
+    "check": "读 BIDIOE=1，启用后测数据线。异常先确认双方不会同时输出。"
+  },
+  {
+    "name": "SPI_I2S_GetFlagStatus",
+    "summary": "读取 SPI 的一个硬件状态标志。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_FLAG=SPI_I2S_FLAG_RXNE，查询接收缓冲非空。",
+    "ret": "SET 表示所选标志已置位。",
+    "pre": "SPI1 已按接线配置并启用。",
+    "what": "读 SR 后检查掩码。读 SR 会参与 MODF 和 OVR 的专用清除序列。",
+    "related": [
+      "SPI_SR-RXNE",
+      "SPI_DR"
+    ],
+    "manual": {
+      "page": 234,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。",
+      "code": "const FlagStatus ready = SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE);\n(void)ready;"
+    },
+    "check": "SET 后读 DR。若一直 RESET，先查主机是否发出足够时钟。"
+  },
+  {
+    "name": "SPI_I2S_ClearFlag",
+    "summary": "清除 SPI 的 CRC 比较错误。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_FLAG=SPI_FLAG_CRCERR，是此函数适用的清除标志。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 已记录 CRC 失败。",
+    "what": "向 SR 写反掩码清 CRCERR。OVR 需 DR→SR，MODF 需 SR→CR1。",
+    "related": [
+      "SPI_SR-CRCERR",
+      "SPI_SR-OVR",
+      "SPI_SR-MODF"
+    ],
+    "manual": {
+      "page": 235,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 已记录 CRC 失败。",
+      "code": "SPI_I2S_ClearFlag(SPI1, SPI_FLAG_CRCERR);"
+    },
+    "check": "读 CRCERR=0。再次出现先对比线上 CRC 与本机计算结果。"
+  },
+  {
+    "name": "SPI_I2S_GetITStatus",
+    "summary": "检查 SPI 中断事件是否置位且已使能。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_IT=SPI_I2S_IT_RXNE 查询接收事件。",
+    "ret": "SET 表示标志和使能同时为 1。",
+    "pre": "SPI1 已按接线配置并启用。",
+    "what": "从编码取 CR2 中断使能位和 SR 对应标志。",
+    "related": [
+      "SPI_SR-RXNE",
+      "SPI_CR2-RXNEIE"
+    ],
+    "manual": {
+      "page": 235,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。",
+      "code": "const ITStatus pending = SPI_I2S_GetITStatus(SPI1, SPI_I2S_IT_RXNE);\n(void)pending;"
+    },
+    "check": "若 RXNE 已置位但返回 RESET，先读 RXNEIE。若返回 SET 但无 ISR，检查 NVIC。"
+  },
+  {
+    "name": "SPI_I2S_ClearITPendingBit",
+    "summary": "在 SPI 错误 ISR 中清 CRCERR。",
+    "params": "SPIx 为 SPI1 或 SPI2。示例用 SPI1。\nSPI_I2S_IT=SPI_IT_CRCERR。",
+    "ret": "无。",
+    "pre": "SPI1 已按接线配置并启用。 ISR 已记录错误。",
+    "what": "解码索引并向 SR 对应位写 0。ERRIE 保留。",
+    "related": [
+      "SPI_SR-CRCERR",
+      "SPI_CR2-ERRIE"
+    ],
+    "manual": {
+      "page": 236,
+      "kind": "spl",
+      "label": "中文固件函数库手册"
+    },
+    "example": {
+      "title": "最小调用",
+      "explanation": "SPI1 已按接线配置并启用。 ISR 已记录错误。",
+      "code": "SPI_I2S_ClearITPendingBit(SPI1, SPI_IT_CRCERR);"
+    },
+    "check": "CRCERR 清零。重复中断先查 OVR 和 MODF 是否需要应答。"
+  }
+]

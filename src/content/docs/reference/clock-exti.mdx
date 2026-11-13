@@ -1,0 +1,47 @@
+---
+title: RCC、AFIO、EXTI 与内核速查
+description: STM32F103C8T6 的 RCC、AFIO、EXTI、NVIC、SysTick 与调试配置
+---
+
+import SystemReference from '../../../components/SystemReference.astro';
+import ClockCalculator from '../../../components/ClockCalculator.astro';
+
+<SystemReference />
+
+RCC、AFIO 和 EXTI 分别见 [中文参考手册 §6](/manuals/rm0008-zh.pdf#page=54)、[§8.4](/manuals/rm0008-zh.pdf#page=121)、[§9.3](/manuals/rm0008-zh.pdf#page=138)。内核条目参考 [Cortex-M3 权威指南（中文）](/manuals/cortex-m3-guide-zh.pdf#page=302) 和工程内的 CMSIS 头文件。SPL 函数参考 [中文固件函数库手册](/manuals/spl-user-manual-zh.pdf#page=194)，实际行为核对 SPL V3.5.0 源码。偏移相对各模块基址，W1C 表示写 1 清零。
+
+[时钟树计算](/reference/clock-exti/#clock-calculator) · [EXTI 信号路径](/reference/clock-exti/#exti-diagrams) · [GPIO 与 APB2 门控](/reference/gpio/)
+
+## 封装引脚与内部 EXTI
+
+LQFP48 的 PD0/PD1 默认是 OSC_IN/OSC_OUT。停用 HSE 后可用 [PD01_REMAP](#afio_mapr-pd01_remap) 把它们作为 GPIO，输出只可选 50 MHz 档。这两个引脚没有 EXTI0/1 和 CAN 收发功能。PC13–PC15 作输出时一次只用一个，速度 2 MHz、负载不超过 30 pF，且不得用作电流源驱动负载。 [中文参考手册第 117 页](/manuals/rm0008-zh.pdf#page=117) · [中文数据手册引脚表注](/manuals/stm32f103x8b-zh.pdf#page=20)
+
+EXTI16 接 [PVD](/reference/power-time/#pwr_cr-pvde)，EXTI17 接 RTC Alarm，EXTI18 接 USB 唤醒。先配置对应外设，再配置 EXTI 边沿、清旧挂起和打开所需屏蔽位。ISR 同时检查外设来源与 EXTI 挂起。若使用 USB 唤醒或 PVD 退出低功耗，核对 ES096 §2.2.8 对 WFI/WFE 的限制。 [ST ES096](https://www.st.com/resource/en/errata_sheet/es096-stm32f101x8b-stm32f102x8b-and-stm32f103x8b-mediumdensity-device-limitations-stmicroelectronics.pdf#page=9)
+
+<h2 id="clock-calculator">时钟树计算</h2>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-clock-tree.png" target="_blank" rel="noopener" aria-label="查看时钟树原图"><img src="/manuals/rm0008-clock-tree.png" width="1455" height="1611" loading="lazy" alt="RM0008 图 8，时钟源、PLL、系统时钟选择器、AHB/APB 分频与外设分支。" /></a>
+  <figcaption>RM0008 图 8 · 时钟树 · <a href="/manuals/rm0008-zh.pdf#page=56">中文参考手册第 56 页</a></figcaption>
+</figure>
+
+<ClockCalculator />
+
+默认配置为 8 MHz HSE、PLL ×9，SYSCLK/HCLK 为 72 MHz。APB1 ÷2 时 USART2 为 36 MHz，TIM2 为 72 MHz。修改分频可检查各分支。
+
+<h2 id="exti-diagrams">EXTI 路由和中断框图</h2>
+
+<details>
+<summary>展开EXTI 路由和中断框图</summary>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-exti-mapping.png" target="_blank" rel="noopener" aria-label="查看 EXTI 引脚映射原图"><img src="/manuals/rm0008-exti-mapping.png" width="1332" height="1524" loading="lazy" alt="RM0008 图 20，同号 GPIO 引脚经 AFIO 多路选择器接到同一条 EXTI 线。" /></a>
+  <figcaption>RM0008 图 20 · GPIO 与 EXTI 线映射 · <a href="/manuals/rm0008-zh.pdf#page=137">中文参考手册</a></figcaption>
+</figure>
+
+<figure class="manual-figure">
+  <a href="/manuals/rm0008-exti-block.png" target="_blank" rel="noopener" aria-label="查看 EXTI 框图原图"><img src="/manuals/rm0008-exti-block.png" width="1332" height="963" loading="lazy" alt="RM0008 图 19，从输入边沿检测、软件请求到中断和事件两条输出路径。" /></a>
+  <figcaption>RM0008 图 19 · EXTI 控制器框图 · <a href="/manuals/rm0008-zh.pdf#page=135">中文参考手册</a></figcaption>
+</figure>
+
+</details>
